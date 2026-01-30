@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ..:/workspaces:cached
+    network_mode: service:db # DBと同じネットワークを共有
+    # 開発を止めないための設定
+    command: sleep infinity
+
+  db:
+    image: postgres:17-trixie # 最新のポスグレ
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: coffeesys_db
+    ports:
+      - "5432:5432"

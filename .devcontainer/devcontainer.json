@@ -1,0 +1,32 @@
+{
+  "name": "sol_coffeesys_fullstack",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/sol_coffeesys",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "mhutchie.git-graph",          // 追加: Git Graph
+        "yzhang.markdown-all-in-one",  // 追加: Markdown All in One
+        "GitHub.copilot",              // 追加: GitHub Copilot
+        "GitHub.copilot-chat"          // Copilotを使うならセットがおすすめ
+      ],
+      "settings": {
+        // ターミナルのフォントなどはホスト側の設定に依存しますが、
+        // コンテナ内でStarshipをデフォルトにするための設定
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:1": {
+      "configureZshAsDefaultShell": true
+    }
+  },
+  "forwardPorts": [3000, 8080, 5432],
+  "remoteUser": "vscode"
+}

@@ -1,0 +1,6 @@
+CREATE TABLE products (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    price INTEGER NOT NULL,
+    is_available BOOLEAN NOT NULL DEFAULT TRUE
+)
