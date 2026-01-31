@@ -50,25 +50,6 @@ export default function Home() {
     }
   };
 
-  // useEffect(() => {
-  //   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-  //   // GoのAPIを叩く
-  //   fetch(`${apiUrl}/api/products`)
-  //     .then((res) => {
-  //       if (!res.ok) throw new Error("API接続に失敗しました");
-  //       return res.json();
-  //     })
-  //     .then((data: Product[]) => {
-  //       setProducts(data);
-  //       setLoading(false);
-  //     })
-  //     .catch((err) => {
-  //       console.error(err);
-  //       setLoading(false);
-  //     });
-  // }, []);
-
   if (loading) return <div style={{ padding: "2rem" }}>読み込み中...</div>;
 
   return (
