@@ -37,7 +37,7 @@ func main() {
 	// /apiのグループ作成
 	api := r.Group("/api")
 	{
-		//4. エンドポイント：商品一覧取得
+		//エンドポイント：商品一覧取得
 		api.GET("/products", func(c *gin.Context) {
 			products, err := queries.ListProducts(c.Request.Context())
 			if err != nil {
@@ -46,6 +46,32 @@ func main() {
 			}
 			// DBから取得したスライスをそのままJSONとして返す
 			c.JSON(http.StatusOK, products)
+		})
+
+		//エンドポイント：商品登録
+		api.POST("/products", func(c *gin.Context) {
+			// フロントから送られてくるJSON受け皿
+			var input struct {
+				Name  string `json: "name"`
+				Price int32  `json: "price"`
+			}
+
+			// JSON解析
+			if err := c.ShouldBindJSON(&input); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+			// save DB
+			product, err := queries.CreateProduct(c.Request.Context(), db.CreateProductParams{
+				Name:        input.Name,
+				Price:       input.Price,
+				IsAvailable: true,
+			})
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, product)
 		})
 	}
 

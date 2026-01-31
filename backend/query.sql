@@ -8,8 +8,8 @@ ORDER BY name;
 
 -- name: CreateProduct :one
 INSERT INTO products (
-    name, price
+    name, price, is_available
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 )
 RETURNING *;

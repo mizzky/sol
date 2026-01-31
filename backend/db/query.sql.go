@@ -11,20 +11,21 @@ import (
 
 const createProduct = `-- name: CreateProduct :one
 INSERT INTO products (
-    name, price
+    name, price, is_available
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 )
 RETURNING id, name, price, is_available
 `
 
 type CreateProductParams struct {
-	Name  string `json:"name"`
-	Price int32  `json:"price"`
+	Name        string `json:"name"`
+	Price       int32  `json:"price"`
+	IsAvailable bool   `json:"is_available"`
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
-	row := q.db.QueryRowContext(ctx, createProduct, arg.Name, arg.Price)
+	row := q.db.QueryRowContext(ctx, createProduct, arg.Name, arg.Price, arg.IsAvailable)
 	var i Product
 	err := row.Scan(
 		&i.ID,

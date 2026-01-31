@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 // Productsの型定義
 interface Product {
@@ -13,24 +13,61 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const [newName, setNewName] = useState("");
+  const [newPrice, setNewPrice] = useState("");
 
-    // GoのAPIを叩く
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  const fetchProducts = () => {
     fetch(`${apiUrl}/api/products`)
-      .then((res) => {
-        if (!res.ok) throw new Error("API接続に失敗しました");
-        return res.json();
-      })
-      .then((data: Product[]) => {
+      .then((res) => res.json())
+      .then((data) => {
         setProducts(data);
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchProducts();
   }, []);
+
+  //送信
+  const handleAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const response = await fetch(`${apiUrl}/api/products`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: newName,
+        price: Number(newPrice),
+      }),
+    });
+    if (response.ok) {
+      setNewName("");
+      setNewPrice("");
+      fetchProducts();
+    }
+  };
+
+  // useEffect(() => {
+  //   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  //   // GoのAPIを叩く
+  //   fetch(`${apiUrl}/api/products`)
+  //     .then((res) => {
+  //       if (!res.ok) throw new Error("API接続に失敗しました");
+  //       return res.json();
+  //     })
+  //     .then((data: Product[]) => {
+  //       setProducts(data);
+  //       setLoading(false);
+  //     })
+  //     .catch((err) => {
+  //       console.error(err);
+  //       setLoading(false);
+  //     });
+  // }, []);
 
   if (loading) return <div style={{ padding: "2rem" }}>読み込み中...</div>;
 
@@ -40,6 +77,40 @@ export default function Home() {
         ☕ Sol Coffee System
       </h1>
 
+      {/* 登録フォーム */}
+      <form
+        onSubmit={handleAddProduct}
+        style={{
+          marginBottom: "2rem",
+          padding: "1rem",
+          background: "#f9f9f9",
+          borderRadius: "8px",
+        }}
+      >
+        <h3>新規商品登録</h3>
+        <input
+          type="text"
+          placeholder="コーヒー名"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          style={{ marginRight: "10px", padding: "5px" }}
+          required
+        />
+        <input
+          type="number"
+          placeholder="価格"
+          value={newPrice}
+          onChange={(e) => setNewPrice(e.target.value)}
+          style={{ marginRight: "10px", padding: "5px" }}
+          required
+        />
+        <button
+          type="submit"
+          style={{ padding: "5px 15px", cursor: "pointer" }}
+        >
+          追加
+        </button>
+      </form>
       <div
         style={{
           border: "1px solid #ccc",
