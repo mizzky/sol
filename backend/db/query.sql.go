@@ -11,26 +11,64 @@ import (
 
 const createProduct = `-- name: CreateProduct :one
 INSERT INTO products (
-    name, price
+    name, price, is_available
 ) VALUES (
-    $1, $2
+    $1, $2, $3
 )
 RETURNING id, name, price, is_available
 `
 
 type CreateProductParams struct {
-	Name  string `json:"name"`
-	Price int32  `json:"price"`
+	Name        string `json:"name"`
+	Price       int32  `json:"price"`
+	IsAvailable bool   `json:"is_available"`
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
-	row := q.db.QueryRowContext(ctx, createProduct, arg.Name, arg.Price)
+	row := q.db.QueryRowContext(ctx, createProduct, arg.Name, arg.Price, arg.IsAvailable)
 	var i Product
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Price,
 		&i.IsAvailable,
+	)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+    name, email, password_hash, role
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING id, name, email, password_hash, role, status, created_at, updated_at
+`
+
+type CreateUserParams struct {
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	Role         string `json:"role"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.Name,
+		arg.Email,
+		arg.PasswordHash,
+		arg.Role,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -48,6 +86,48 @@ func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
 		&i.Name,
 		&i.Price,
 		&i.IsAvailable,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, name, email, password_hash, role, status, created_at, updated_at FROM users 
+WHERE email = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserForUpdate = `-- name: GetUserForUpdate :one
+SELECT id, name, email, password_hash, role, status, created_at, updated_at FROM users
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserForUpdate(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserForUpdate, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
