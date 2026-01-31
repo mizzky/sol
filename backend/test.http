@@ -1,4 +1,4 @@
-# ユーザー登録テスト
+#ユーザー登録テスト
 POST http://localhost:8080/api/register
 Content-Type: application/json
 
@@ -12,3 +12,21 @@ Content-Type: application/json
 # 商品一覧取得テスト
 GET http://localhost:8080/api/products
 
+
+### ログイン成功テスト
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+    "email": "yamada@example.com",
+    "password": "password000"
+}
+
+### ログイン失敗テスト
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+    "email": "yamada@example.com",
+    "password": "wrongpassword"
+}

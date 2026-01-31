@@ -77,6 +77,10 @@ func main() {
 			}
 			c.JSON(http.StatusOK, product)
 		})
+
+		//エンドポイント：ログイン
+		api.POST("/login", handler.LoginHandler(queries))
+
 	}
 
 	//5. サーバー起動
