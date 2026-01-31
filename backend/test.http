@@ -1,0 +1,14 @@
+# ユーザー登録テスト
+POST http://localhost:8080/api/register
+Content-Type: application/json
+
+{ 
+    "name": "木村　次郎",
+    "email": "kimura@example.com",
+    "password": "password000"
+}
+
+
+# 商品一覧取得テスト
+GET http://localhost:8080/api/products
+
