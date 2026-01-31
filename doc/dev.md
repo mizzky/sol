@@ -11,6 +11,8 @@
 ## 2. ディレクトリ構成
 ```text
 backend/
+├── auth             # 認証関連
+│   └── jwt.go
 ├── db/              # データベース関連
 │   ├── migrations/  # SQLマイグレーションファイル (.up.sql, .down.sql)
 │   ├── query.sql    # sqlcの元となるSQLクエリ
@@ -23,59 +25,6 @@ backend/
 ├── sqlc.yaml        # sqlcの設定ファイル
 └── test.http        # REST Client用テストファイル（疎通確認用）
 ```
-
-## 3. データベース設計
-
-### users テーブル
-会員情報を管理します。メールアドレスには一意制約（UNIQUE）を設定し、重複登録を防止しています。
-
-| カラム名 | 型 | 制約 | 説明 |
-| :--- | :--- | :--- | :--- |
-| `id` | SERIAL | PRIMARY KEY | 自動採番されるユーザーID |
-| `name` | TEXT | NOT NULL | 表示名 |
-| `email` | TEXT | NOT NULL, UNIQUE | ログイン用メールアドレス（重複不可） |
-| `password_hash` | TEXT | NOT NULL | bcryptによりハッシュ化されたパスワード |
-| `role` | TEXT | NOT NULL | ユーザー権限（デフォルト: member） |
-| `created_at` | TIMESTAMP | DEFAULT NOW() | 登録日時 |
-
----
-
-## 4. API エンドポイント詳細
-
-### 会員登録 (ユーザー作成)
-リクエストに含まれるパスワードをハッシュ化し、安全にDBへ保存します。
-
-- **メソッド/パス:** `POST /api/register`
-- **リクエスト形式:** `application/json`
-
-#### リクエストボディ
-```json
-{
-    "name": "田中 太郎",
-    "email": "tanaka@example.com",
-    "password": "password123"
-}
-```
-
-#### 成功レスポンス
-```json
-{
-    "id": 1,
-    "name": "田中 太郎",
-    "email": "tanaka@example.com",
-    "role": "member",
-    "created_at": "2026-01-31T16:00:00Z"
-}
-```
-
-#### エラーハンドリグ
-会員登録時、以下の条件に応じて適切なステータスコードとメッセージを返却します。
-
-| ステータスコード | 判定条件 | レスポンスボディ (JSON) |
-| :--- | :--- | :--- |
-| **400 Bad Request** | JSONの構文エラー、または必須項目漏れ | `{"error": "リクエスト形式が正しくありません"}` |
-| **400 Bad Request** | メールアドレスが既にDBに存在する場合 (PQ Error `23505`) | `{"error": "このメールアドレスは既に登録されています"}` |
-| **500 Internal Server Error** | パスワードのハッシュ化失敗、DB接続断など | `{"error": "予期せぬエラーが発生しました"}` |
 
 #### 実装上の注意点
 - **一意制約違反の識別**: PostgreSQLのエラーコード `23505` (`unique_violation`) を `github.com/lib/pq` ライブラリを用いてキャッチし、重複エラーとしてユーザーに通知します。
