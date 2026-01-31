@@ -1,46 +1,45 @@
 package main
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
 	"log"
+	"net/http"
+	"sol_coffeesys/backend/db"
 
-	"sol_coffeesys/backend/db" // 生成されたパッケージをインポート
+	"github.com/gin-gonic/gin"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	// 接続文字列（docker-composeの設定に準拠）
+	//1. DB接続
 	connStr := "host=db user=user password=password dbname=coffeesys_db sslmode=disable"
 	conn, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to open db: %v", err)
 	}
 	defer conn.Close()
 
-	// sqlcが生成したQueryオブジェクトを作成
+	//2. sqlクエリ初期化
 	queries := db.New(conn)
-	ctx := context.Background()
 
-	// 1. 商品を追加してみる
-	newProduct, err := queries.CreateProduct(ctx, db.CreateProductParams{
-		Name:  "エチオピア・シダモ",
-		Price: 650,
+	//3. Ginルーター初期化
+	r := gin.Default()
+
+	//4. エンドポイント：商品一覧取得
+	r.GET("/products", func(c *gin.Context) {
+		products, err := queries.ListProducts(c.Request.Context())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		// DBから取得したスライスをそのままJSONとして返す
+		c.JSON(http.StatusOK, products)
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Created: %s (ID: %d)\n", newProduct.Name, newProduct.ID)
 
-	// 2. 一覧を取得してみる
-	products, err := queries.ListProducts(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Current Menu:")
-	for _, p := range products {
-		fmt.Printf("- %s: ¥%d\n", p.Name, p.Price)
+	//5. サーバー起動
+	log.Println("Server starting on :8080...")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal("failed to run server:", err)
 	}
 }
