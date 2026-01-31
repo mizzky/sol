@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y postgresql-client
 # Starshipをバイナリで直接インストール
 RUN curl -sS https://starship.rs/install.sh | sh -s -- -y
 
+#airインストール
+RUN go install github.com/air-verse/air@latest
+
 # bash使用時にStarshipを起動するための設定
 RUN echo 'eval "$(starship init bash)"' >> /home/vscode/.bashrc
 
