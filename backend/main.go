@@ -77,8 +77,8 @@ func main() {
 		api.POST("/products", func(c *gin.Context) {
 			// フロントから送られてくるJSON受け皿
 			var input struct {
-				Name  string `json: "name"`
-				Price int32  `json: "price"`
+				Name  string `json:"name"`
+				Price int32  `json:"price"`
 			}
 
 			// JSON解析
