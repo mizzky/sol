@@ -36,6 +36,43 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 	return i, err
 }
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+    name, email, password_hash, role
+) VALUES (
+    $1, $2, $3, $4
+)
+RETURNING id, name, email, password_hash, role, status, created_at, updated_at
+`
+
+type CreateUserParams struct {
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	Role         string `json:"role"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
+		arg.Name,
+		arg.Email,
+		arg.PasswordHash,
+		arg.Role,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProduct = `-- name: GetProduct :one
 SELECT id, name, price, is_available FROM products
 WHERE id = $1 LIMIT 1
@@ -49,6 +86,27 @@ func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
 		&i.Name,
 		&i.Price,
 		&i.IsAvailable,
+	)
+	return i, err
+}
+
+const getUserForUpdate = `-- name: GetUserForUpdate :one
+SELECT id, name, email, password_hash, role, status, created_at, updated_at FROM users
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserForUpdate(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserForUpdate, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

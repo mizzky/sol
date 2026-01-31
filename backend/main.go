@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"sol_coffeesys/backend/db"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
+	"golang.org/x/crypto/bcrypt"
 
 	_ "github.com/lib/pq"
 )
@@ -23,6 +27,27 @@ func main() {
 
 	//2. sqlクエリ初期化
 	queries := db.New(conn)
+
+	ctx := context.Background()
+	rawPassword := "mypassword123"
+	email := "text@example.com"
+	name := "田中 太郎"
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("failed to hash password :%v", err)
+	}
+
+	newUser, err := queries.CreateUser(ctx, db.CreateUserParams{
+		Name:         name,
+		Email:        email,
+		PasswordHash: string(hashedPassword),
+		Role:         "member",
+	})
+	if err != nil {
+		log.Fatalf("ユーザー登録に失敗:%v", err)
+	}
+	fmt.Printf("登録成功 ID:%d, Name: %s\n", newUser.ID, newUser.Name)
 
 	//3. Ginルーター初期化
 	r := gin.Default()
