@@ -34,16 +34,20 @@ func main() {
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept"},
 	}))
 
-	//4. エンドポイント：商品一覧取得
-	r.GET("/products", func(c *gin.Context) {
-		products, err := queries.ListProducts(c.Request.Context())
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		// DBから取得したスライスをそのままJSONとして返す
-		c.JSON(http.StatusOK, products)
-	})
+	// /apiのグループ作成
+	api := r.Group("/api")
+	{
+		//4. エンドポイント：商品一覧取得
+		api.GET("/products", func(c *gin.Context) {
+			products, err := queries.ListProducts(c.Request.Context())
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			// DBから取得したスライスをそのままJSONとして返す
+			c.JSON(http.StatusOK, products)
+		})
+	}
 
 	//5. サーバー起動
 	log.Println("Server starting on :8080...")
