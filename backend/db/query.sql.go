@@ -15,7 +15,7 @@ INSERT INTO products (
 ) VALUES (
     $1, $2, $3
 )
-RETURNING id, name, price, is_available
+RETURNING id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at
 `
 
 type CreateProductParams struct {
@@ -32,6 +32,13 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (P
 		&i.Name,
 		&i.Price,
 		&i.IsAvailable,
+		&i.CategoryID,
+		&i.Sku,
+		&i.Description,
+		&i.ImageUrl,
+		&i.StockQuantity,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -74,7 +81,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, name, price, is_available FROM products
+SELECT id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at FROM products
 WHERE id = $1 LIMIT 1
 `
 
@@ -86,6 +93,13 @@ func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
 		&i.Name,
 		&i.Price,
 		&i.IsAvailable,
+		&i.CategoryID,
+		&i.Sku,
+		&i.Description,
+		&i.ImageUrl,
+		&i.StockQuantity,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -133,7 +147,7 @@ func (q *Queries) GetUserForUpdate(ctx context.Context, id int64) (User, error) 
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT id, name, price, is_available FROM products
+SELECT id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at FROM products
 ORDER BY name
 `
 
@@ -151,6 +165,13 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 			&i.Name,
 			&i.Price,
 			&i.IsAvailable,
+			&i.CategoryID,
+			&i.Sku,
+			&i.Description,
+			&i.ImageUrl,
+			&i.StockQuantity,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
