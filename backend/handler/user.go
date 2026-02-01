@@ -59,7 +59,7 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func LoginHandler(q *db.Queries) gin.HandlerFunc {
+func LoginHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
