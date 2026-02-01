@@ -30,5 +30,5 @@
   },
   "forwardPorts": [3000, 8080, 5432],
   "remoteUser": "vscode",
-  "postCreateCommand": "nohup sudo chown -R $(whoami):$(whoami) /go > /tmp/postCreate.log 2>&1 &"
+  "postCreateCommand": "sudo chown -R $(whoami):$(whoami) /go"
 }
