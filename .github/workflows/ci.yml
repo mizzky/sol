@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ "backend/**" ] # backend以下に変更があった時だけ動かす（効率化）
+  pull_request:
+    branches: [ "main" ]
+    paths: [ "backend/**" ]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # ジョブ全体のデフォルト作業ディレクトリを指定
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+          cache-dependency-path: backend/go.sum # キャッシュの場所も指定
+
+      - name: Check Formatting
+        run: |
+          if [ "$(gofmt -l .)" != "" ]; then
+            echo "以下のファイルのフォーマットが正しくありません:"
+            gofmt -l .
+            exit 1
+          fi
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
