@@ -10,10 +10,11 @@
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "bradlc.vscode-tailwindcss",
-        "mhutchie.git-graph",          // 追加: Git Graph
-        "yzhang.markdown-all-in-one",  // 追加: Markdown All in One
-        "GitHub.copilot",              // 追加: GitHub Copilot
-        "GitHub.copilot-chat"          // Copilotを使うならセットがおすすめ
+        "mhutchie.git-graph",
+        "yzhang.markdown-all-in-one",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "cweijan.vscode-database-client2"
       ],
       "settings": {
         // ターミナルのフォントなどはホスト側の設定に依存しますが、
@@ -28,5 +29,6 @@
     }
   },
   "forwardPorts": [3000, 8080, 5432],
-  "remoteUser": "vscode"
+  "remoteUser": "vscode",
+  "postCreateCommand": "nohup sudo chown -R $(whoami):$(whoami) /go > /tmp/postCreate.log 2>&1 &"
 }
