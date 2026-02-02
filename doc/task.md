@@ -7,6 +7,9 @@
 - **マイグレーション**: `categories` / `products` テーブル作成（completed）
 - **sqlc 設定**: query 定義と `sqlc.yaml` の更新（completed）
 - **CRUD API 実装**: カテゴリと商品の登録・更新・削除・一覧（in-progress）
+	- カテゴリ作成（`POST /api/categories`）+ テスト（completed）
+	- カテゴリ一覧/更新/削除（not-started）
+	- 商品CRUD（not-started）
 
 ## 次フェーズ（Phase 2 — カート機能）
 - **テーブル作成**: `carts` テーブル定義（not-started）
@@ -20,9 +23,9 @@
 - **管理者チェックミドルウェア実装**: `AdminOnly()` 相当（not-started）
 
 ## 当面の短期タスク（今週）
-- カテゴリ作成ハンドラー（`POST /api/categories`）の実装（owner: backend）
-- category テストを Green にする（ルーティングとレスポンス整合の確認）（owner: backend）
 - user テストケースの不足分を追加（owner: backend）
+- カテゴリ一覧/更新/削除のハンドラー実装（owner: backend）
+- 商品CRUDのハンドラー実装（owner: backend）
 - 管理者ミドルウェアのスケルトン実装とハンドラーへの組み込み（owner: backend）
 - API エラー共通化の適用範囲整理（owner: backend）
 
@@ -32,9 +35,9 @@
 - 低: 売上レポート等管理者向け機能（Phase 3 後半）
 
 ## 次のアクション
-1. `POST /api/categories` のハンドラー実装に着手する
-2. category テストを Green にする
-3. user テストケースの追加範囲を確定する
+1. user テストケースの追加範囲を確定する
+2. カテゴリ一覧/更新/削除のハンドラー実装に着手する
+3. 商品CRUDのハンドラー実装に着手する
 4. ミドルウェアの雛形を `auth` パッケージに追加する
 
 ---
