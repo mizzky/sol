@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 
@@ -10,9 +11,10 @@ import (
 
 func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 	api := r.Group("/api")
+	tokenGenerator := auth.DefaultTokenGenerator{}
 	{
 		api.POST("/register", handler.RegisterHandler(queries))
-		api.POST("/login", handler.LoginHandler(queries))
+		api.POST("/login", handler.LoginHandler(queries, tokenGenerator))
 
 		api.POST("/categories", handler.CreateCategory(queries))
 
