@@ -5,14 +5,30 @@
 package db
 
 import (
+	"database/sql"
 	"time"
 )
 
+type Category struct {
+	ID          int64          `json:"id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
 type Product struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Price       int32  `json:"price"`
-	IsAvailable bool   `json:"is_available"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Price         int32          `json:"price"`
+	IsAvailable   bool           `json:"is_available"`
+	CategoryID    int64          `json:"category_id"`
+	Sku           string         `json:"sku"`
+	Description   sql.NullString `json:"description"`
+	ImageUrl      sql.NullString `json:"image_url"`
+	StockQuantity int32          `json:"stock_quantity"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
 type User struct {

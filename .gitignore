@@ -19,3 +19,7 @@ bin/
 tmp/
 #Goバイナリ
 main
+
+# Test coverage outputs
+*.out
+*.html

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/**" ]
     paths: [ "backend/**" ] # backend以下に変更があった時だけ動かす（効率化）
   pull_request:
     branches: [ "main" ]
