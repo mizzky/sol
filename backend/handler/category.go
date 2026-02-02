@@ -9,7 +9,13 @@ import (
 )
 
 type CreateCategoryRequest struct {
-	Name        string  `json:"name" binding:"required"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
+type CategoryResponse struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
 	Description *string `json:"description"`
 }
 
@@ -44,6 +50,14 @@ func CreateCategory(queries db.Querier) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusCreated, category)
+		var responseDescription *string
+		if category.Description.Valid {
+			responseDescription = &category.Description.String
+		}
+		c.JSON(http.StatusCreated, CategoryResponse{
+			ID:          category.ID,
+			Name:        category.Name,
+			Description: responseDescription,
+		})
 	}
 }
