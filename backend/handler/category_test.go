@@ -2,14 +2,28 @@ package handler_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/handler"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+type MockDB struct {
+	db.Querier
+	mock.Mock
+}
+
+func (m *MockDB) CreateCategory(ctx context.Context, arg db.CreateCategoryParams) (db.Category, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.Category), args.Error(1)
+}
 
 func TestCreateCategory(t *testing.T) {
 	tests := []struct {
@@ -72,7 +86,10 @@ func TestCreateCategory(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
-			// router.POST("/api/categories", handler.CreateCategory(queries))
+			mockDB := new(MockDB)
+			mockDB.On("CreateCategory", mock.Anything, mock.AnythingOfType("db.CreateCategoryParams")).
+				Return(db.Category{}, nil)
+			router.POST("/api/categories", handler.CreateCategory(mockDB))
 
 			body, _ := json.Marshal(tt.requestBody)
 			req := httptest.NewRequest(http.MethodPost, "/api/categories", bytes.NewBuffer(body))
