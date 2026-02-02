@@ -23,7 +23,10 @@
 - **管理者チェックミドルウェア実装**: `AdminOnly()` 相当（not-started）
 
 ## 当面の短期タスク（今週）
-- user テストケースの不足分を追加（owner: backend）
+- ✅ user テストケースの不足分を追加（completed: 2026/02/02）
+  - `LoginHandler` の正常系・異常系テストケースを追加
+  - モックの共通化（`mockdb_test.go` を作成）
+  - 依存性注入の導入
 - カテゴリ一覧/更新/削除のハンドラー実装（owner: backend）
 - 商品CRUDのハンドラー実装（owner: backend）
 - 管理者ミドルウェアのスケルトン実装とハンドラーへの組み込み（owner: backend）
