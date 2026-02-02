@@ -14,6 +14,8 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.POST("/register", handler.RegisterHandler(queries))
 		api.POST("/login", handler.LoginHandler(queries))
 
+		api.POST("/categories", handler.CreateCategory(queries))
+
 		api.GET("/products", func(c *gin.Context) {
 			products, err := queries.ListProducts(c.Request.Context())
 			if err != nil {
