@@ -21,3 +21,8 @@ func (m *MockDB) CreateCategory(ctx context.Context, arg db.CreateCategoryParams
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.Category), args.Error(1)
 }
+
+func (m *MockDB) CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.User), args.Error(1)
+}

@@ -19,3 +19,5 @@ RUN chmod -R 755 /go/bin
 RUN echo 'eval "$(starship init bash)"' >> /home/vscode/.bashrc
 
 RUN echo 'alias ll="ls -laF --color=auto"' >> /home/vscode/.bashrc
+
+RUN echo 'alias go-cover-html="go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html && echo \"Coverage report generated: coverage.html\""' >> /home/vscode/.bashrc

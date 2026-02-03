@@ -19,20 +19,27 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
+var BcryptGenerateFromPassword = bcrypt.GenerateFromPassword
+
 func HashPassword(password string) (string, error) {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashed, err := BcryptGenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", fmt.Errorf("パスワードのハッシュ化に失敗しました: %w", err)
 	}
 	return string(hashed), nil
 }
 
-func RegisterHandler(q *db.Queries) gin.HandlerFunc {
+func RegisterHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		var req RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			return
+		}
+
+		if req.Name == "" {
+			RespondError(c, http.StatusBadRequest, "名前は必須です")
 			return
 		}
 
@@ -52,7 +59,7 @@ func RegisterHandler(q *db.Queries) gin.HandlerFunc {
 					return
 				}
 			}
-			RespondError(c, http.StatusInternalServerError, "予期せぬエラー")
+			RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
 			return
 		}
 
