@@ -19,16 +19,24 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
+func HashPassword(password string) (string, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("パスワードのハッシュ化に失敗しました: %w", err)
+	}
+	return string(hashed), nil
+}
+
 func RegisterHandler(q *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		var req RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			RespondError(c, http.StatusBadRequest, "リクエストが正しくありません")
+			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 			return
 		}
 
-		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		hashed, err := HashPassword(req.Password)
 
 		user, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
 			Name:         req.Name,
@@ -59,12 +67,12 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func LoginHandler(q db.Querier) gin.HandlerFunc {
+func LoginHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			fmt.Printf("Bind Error: %v\n", err)
-			RespondError(c, http.StatusBadRequest, "リクエストが正しくありません")
+			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 			return
 		}
 
@@ -79,7 +87,8 @@ func LoginHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 
-		token, err := auth.GenerateToken(int32(user.ID))
+		token, err := tokenGenerator.GenerateToken(user.ID)
+		// token, err := auth.GenerateToken(int32(user.ID))
 		if err != nil {
 			RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
 			return

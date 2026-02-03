@@ -2,7 +2,6 @@ package handler_test
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -15,16 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-type MockDB struct {
-	db.Querier
-	mock.Mock
-}
-
-func (m *MockDB) CreateCategory(ctx context.Context, arg db.CreateCategoryParams) (db.Category, error) {
-	args := m.Called(ctx, arg)
-	return args.Get(0).(db.Category), args.Error(1)
-}
 
 func TestCreateCategory(t *testing.T) {
 	tests := []struct {
