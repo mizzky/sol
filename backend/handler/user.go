@@ -19,16 +19,24 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
+func HashPassword(password string) (string, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("パスワードのハッシュ化に失敗しました: %w", err)
+	}
+	return string(hashed), nil
+}
+
 func RegisterHandler(q *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		var req RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "リクエストが正しくありません"})
+			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 			return
 		}
 
-		hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		hashed, err := HashPassword(req.Password)
 
 		user, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
 			Name:         req.Name,
@@ -40,11 +48,11 @@ func RegisterHandler(q *db.Queries) gin.HandlerFunc {
 			var pqErr *pq.Error
 			if errors.As(err, &pqErr) {
 				if pqErr.Code == "23505" {
-					c.JSON(http.StatusBadRequest, gin.H{"error": "このメールアドレスは既に登録されています"})
+					RespondError(c, http.StatusBadRequest, "このメールアドレスは既に登録されています")
 					return
 				}
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "予期せぬエラー"})
+			RespondError(c, http.StatusInternalServerError, "予期せぬエラー")
 			return
 		}
 
@@ -59,29 +67,30 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func LoginHandler(q *db.Queries) gin.HandlerFunc {
+func LoginHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			fmt.Printf("Bind Error: %v\n", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "リクエストが正しくありません"})
+			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 			return
 		}
 
 		user, err := q.GetUserByEmail(c.Request.Context(), req.Email)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
+			RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
 			return
 		}
 		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "メールアドレスまたはパスワードが正しくありません"})
+			RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
 			return
 		}
 
-		token, err := auth.GenerateToken(int32(user.ID))
+		token, err := tokenGenerator.GenerateToken(user.ID)
+		// token, err := auth.GenerateToken(int32(user.ID))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "トークンの生成に失敗しました"})
+			RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
 			return
 		}
 

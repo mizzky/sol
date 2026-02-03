@@ -1,0 +1,12 @@
+ALTER TABLE products
+ADD COLUMN category_id BIGINT NOT NULL DEFAULT 1,
+ADD COLUMN sku VARCHAR(100) NOT NULL UNIQUE,
+ADD COLUMN description TEXT,
+ADD COLUMN image_url TEXT,
+ADD COLUMN stock_quantity INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+ADD CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT;
+
+CREATE INDEX idx_products_category_id ON products(category_id);
+CREATE INDEX idx_products_sku ON products(sku);
