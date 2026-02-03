@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -11,8 +12,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type MockTokenGenerator struct {
@@ -191,4 +194,178 @@ func TestLoginHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRegisterHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		requestBody    map[string]interface{}
+		setupMock      func(m *MockDB)
+		expectedStatus int
+		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
+	}{
+		{
+			name: "正常系：ユーザー登録成功",
+			requestBody: map[string]interface{}{
+				"name":     "Test User",
+				"email":    "test@example.com",
+				"password": "password123",
+			},
+			expectedStatus: http.StatusCreated,
+			setupMock: func(m *MockDB) {
+				hashedPassword, _ := handler.HashPassword("password123")
+				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+					return params.Name == "Test User" &&
+						params.Email == "test@example.com" &&
+						params.Role == "member"
+				})).Return(db.User{
+					ID:           1,
+					Name:         "Test User",
+					Email:        "test@example.com",
+					PasswordHash: hashedPassword,
+					Role:         "member",
+				}, nil)
+			},
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var user db.User
+				err := json.Unmarshal(w.Body.Bytes(), &user)
+				assert.NoError(t, err)
+				assert.Equal(t, "Test User", user.Name)
+				assert.Equal(t, "test@example.com", user.Email)
+			},
+		},
+		{
+			name: "異常系：リクエスト形式エラー（必須フィールド欠如）",
+			requestBody: map[string]interface{}{
+				"email":    "test@example.com",
+				"password": "password123",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "名前は必須です")
+			},
+		},
+		{
+			name: "異常系：メールアドレスの重複",
+			requestBody: map[string]interface{}{
+				"name":     "Test User",
+				"email":    "duplicate@example.com",
+				"password": "password123",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock: func(m *MockDB) {
+				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+					return params.Name == "Test User" &&
+						params.Email == "duplicate@example.com" &&
+						params.Role == "member"
+				})).Return(db.User{}, &pq.Error{Code: "23505"})
+			},
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "このメールアドレスは既に登録されています")
+			},
+		},
+		// {
+		// 	name: "異常系：データベースエラー"
+		// },
+		{
+			name: "DB接続エラー",
+			requestBody: map[string]interface{}{
+				"name":     "Test User",
+				"email":    "duplicate@example.com",
+				"password": "password123",
+			},
+			expectedStatus: http.StatusInternalServerError,
+			setupMock: func(m *MockDB) {
+				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+					return params.Name == "Test User" &&
+						params.Email == "duplicate@example.com" &&
+						params.Role == "member"
+				})).Return(db.User{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "予期せぬエラーが発生しました")
+			},
+		},
+		{
+			name:           "異常系：JSON形式エラー",
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "リクエスト形式が正しくありません")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			router := gin.Default()
+			mockDB := new(MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			} else {
+				// デフォルトの動作を設定
+				mockDB.On("CreateUser", mock.Anything, mock.Anything).Return(db.User{}, nil)
+			}
+
+			router.POST("/api/register", handler.RegisterHandler(mockDB))
+
+			var body []byte
+			if tt.name == "異常系：JSON形式エラー" {
+				body = []byte(`{broken json`)
+			} else {
+				body, _ = json.Marshal(tt.requestBody)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/register", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.checkResponse != nil {
+				tt.checkResponse(t, w)
+			}
+		})
+	}
+}
+
+func TestHashPassword(t *testing.T) {
+	t.Run("正常系：パスワードが正しくハッシュ化される", func(t *testing.T) {
+		password := "password123"
+		hashed, err := handler.HashPassword(password)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, hashed)
+
+		err = bcrypt.CompareHashAndPassword([]byte(hashed), []byte(password))
+		assert.NoError(t, err)
+	})
+
+	t.Run("異常系：bcrypt.GenerateFromPasswordがエラーを返す", func(t *testing.T) {
+		original := handler.BcryptGenerateFromPassword
+		defer func() { handler.BcryptGenerateFromPassword = original }()
+		handler.BcryptGenerateFromPassword = func(pwd []byte, cost int) ([]byte, error) {
+			return nil, errors.New("パスワードのハッシュ化に失敗しました")
+		}
+		_, err := handler.HashPassword("password123")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "パスワードのハッシュ化に失敗しました")
+	})
 }
