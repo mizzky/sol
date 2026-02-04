@@ -247,10 +247,33 @@ func TestUpdateCategory(t *testing.T) {
 			},
 		},
 		{
-			name: "異常系：異常系：JSON形式エラー",
+			name:           "異常系：異常系：JSON形式エラー",
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "リクエスト形式が正しくありません")
+			},
 		},
 		{
 			name: "DBエラー",
+			requestBody: map[string]interface{}{
+				"name":        "コーヒー豆",
+				"description": "高級コーヒー豆の取り扱い",
+			},
+			expectedStatus: http.StatusInternalServerError,
+			setupMock: func(m *MockDB) {
+				m.On("UpdateCategory", mock.Anything, mock.Anything).
+					Return(db.Category{}, fmt.Errorf("DB接続エラー"))
+			},
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "予期せぬエラーが発生しました")
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -264,7 +287,13 @@ func TestUpdateCategory(t *testing.T) {
 
 			router.PUT("/api/categories/:id", handler.UpdateCategory(mockDB))
 
-			body, _ := json.Marshal(tt.requestBody)
+			var body []byte
+			if tt.name == "異常系：JSON形式エラー" {
+				body = []byte(`{broken json`)
+			} else {
+				body, _ = json.Marshal(tt.requestBody)
+			}
+
 			req := httptest.NewRequest(http.MethodPut, "api/categories/"+fmt.Sprint(tt.categoryID), bytes.NewBuffer(body))
 			req.Header.Set("Content-Type", "application/json")
 
