@@ -214,6 +214,44 @@ func TestUpdateCategory(t *testing.T) {
 				assert.Contains(t, response["error"], "カテゴリが見つかりません")
 			},
 		},
+		{
+			name:       "異常系：必須フィールド(name)が空",
+			categoryID: 1,
+			requestBody: map[string]interface{}{
+				"name":        "",
+				"description": "高級コーヒー豆の取り扱い",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.Error(t, err)
+				assert.Contains(t, response["error"], "カテゴリ名は必須です")
+			},
+		},
+		{
+			name:       "異常系：必須フィールド(name)がnull",
+			categoryID: 1,
+			requestBody: map[string]interface{}{
+				"name":        nil,
+				"description": "高級コーヒー豆の取り扱い",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.Error(t, err)
+				assert.Contains(t, response["error"], "カテゴリ名は必須です")
+			},
+		},
+		{
+			name: "異常系：異常系：JSON形式エラー",
+		},
+		{
+			name: "DBエラー",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
