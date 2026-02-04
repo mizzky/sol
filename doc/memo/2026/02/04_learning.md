@@ -22,6 +22,36 @@
 - バリデーションロジックのテストを強化。
 - 外部システムとのデータ連携テストを計画。
 
+## その他の学び
+### エディタの分割
+- 同じファイルの中で上の方と下の方見たかったけどファイル名とかが邪魔だった
+- -> 表示->エディターレイアウト->グループ内分割 ```Ctrl+k, Ctrl+Shift+\```
 ---
+
+### エディタの設定
+```
+{
+  // --- 見た目のカスタマイズ ---
+  "workbench.colorTheme": "Tokyo Night", // インストール済みのテーマ名
+  "editor.fontFamily": "'Cascadia Code', Consolas, 'Courier New', monospace",
+  "editor.fontLigatures": true, // 合字（-> が矢印になる）を有効化
+  "window.titleBarStyle": "custom",
+
+  // --- タブ・UIの非表示設定（ミニマル化） ---
+  "workbench.editor.showTabs": "none", // タブ（ファイル名）を非表示
+  "editor.minimap.enabled": false, // ミニマップ自体不要ならfalse
+  "workbench.activityBar.location": "hidden", // 左側のアイコンバーも消して究極にスッキリさせる場合
+  "workbench.statusBar.visible": true, // 下のバーは情報の宝庫なので残すのがおすすめ
+
+  // --- コーディング補助 ---
+  "editor.stickyScroll.enabled": true, // スティックスクロール
+  "editor.breadcrumbs.enabled": true, // タブの代わりのパンくずリスト
+  "editor.guides.bracketPairs": "active", // 括弧に色付け
+  "editor.formatOnSave": true, // 保存時に自動でコードを綺麗にする
+
+  // --- Markdown設定 ---
+  "editor.wordWrap": "on" // 長い行を折り返す（Markdownが読みやすくなる）
+}
+```
 
 本日の学びを活かし、引き続きAPI設計とテストの改善に取り組む。
