@@ -100,7 +100,7 @@ setupTokenMock: func(tg *MockTokenGenerator) {
 
 **改善前（直接呼び出し）**:
 ```go
-func LoginHandler(q db.Querier) gin.HandlerFunc {
+func LoginUserHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ...
 		token, err := auth.GenerateToken(user.ID) // 直接呼び出し
@@ -116,7 +116,7 @@ func LoginHandler(q db.Querier) gin.HandlerFunc {
 
 **改善後（インターフェース経由）**:
 ```go
-func LoginHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.HandlerFunc {
+func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// ...
 		token, err := tokenGenerator.GenerateToken(user.ID) // インターフェース経由
@@ -136,7 +136,7 @@ mockTokenGenerator := new(MockTokenGenerator)
 mockTokenGenerator.On("GenerateToken", int64(1)).
 	Return("", errors.New("トークン生成エラー"))
 
-router.POST("/api/login", handler.LoginHandler(mockDB, mockTokenGenerator))
+router.POST("/api/login", handler.LoginUserHandler(mockDB, mockTokenGenerator))
 ```
 
 **メリット**:
@@ -160,7 +160,7 @@ router.POST("/api/login", handler.LoginHandler(mockDB, mockTokenGenerator))
 **エラーが発生していた状況**:
 ```go
 setupTokenMock: nil // モック設定がない
-// LoginHandler が tokenGenerator.GenerateToken(user.ID) を呼び出す
+// LoginUserHandler が tokenGenerator.GenerateToken(user.ID) を呼び出す
 // ↓
 // panic: I don't know what to return because the method call was unexpected.
 ```
@@ -209,14 +209,14 @@ for _, tt := range tests {
   ↓
 依存性注入
   ↓
-LoginHandler に依存関係を注入
+LoginUserHandler に依存関係を注入
 ```
 
 ---
 
 ## 💡 今後への応用例
 
-### 1. `RegisterHandler` のテスト設計
+### 1. `RegisterUserHandler` のテスト設計
 - テーブル駆動テストで、重複メール、パスワード不正などの異常系をカバー
 - `setupMock` で DB モックの挙動を定義
 - `setupMockForPassword` を追加し、パスワードハッシュ化の動作を制御
