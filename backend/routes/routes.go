@@ -17,6 +17,7 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.POST("/login", handler.LoginUserHandler(queries, tokenGenerator))
 
 		api.POST("/categories", handler.CreateCategoryHandler(queries))
+		api.PUT("/categories/:id", handler.UpdateCategoryHandler(queries))
 
 		api.GET("/products", func(c *gin.Context) {
 			products, err := queries.ListProducts(c.Request.Context())
@@ -48,5 +49,6 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 			}
 			c.JSON(http.StatusCreated, product)
 		})
+
 	}
 }

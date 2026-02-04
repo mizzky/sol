@@ -16,6 +16,12 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+type CategoryResponse struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+}
+
 func TestCreateCategoryHandler(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -188,11 +194,12 @@ func TestUpdateCategory(t *testing.T) {
 				}, nil)
 			},
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
-				var category db.Category
+				var category CategoryResponse
 				err := json.Unmarshal(w.Body.Bytes(), &category)
 				assert.NoError(t, err)
 				assert.Equal(t, "プレミアムコーヒー豆", category.Name)
-				assert.Equal(t, "高級コーヒー豆の取り扱い", category.Description.String)
+				assert.NotNil(t, category.Description)
+				assert.Equal(t, "高級コーヒー豆の取り扱い", *category.Description)
 			},
 		},
 		{
@@ -215,6 +222,21 @@ func TestUpdateCategory(t *testing.T) {
 			},
 		},
 		{
+			name: "異常系：IDが数値以外",
+			requestBody: map[string]interface{}{
+				"name":        "",
+				"description": "高級コーヒー豆の取り扱い",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "IDが正しくありません")
+			},
+		},
+		{
 			name:       "異常系：必須フィールド(name)が空",
 			categoryID: 1,
 			requestBody: map[string]interface{}{
@@ -226,7 +248,7 @@ func TestUpdateCategory(t *testing.T) {
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
-				assert.Error(t, err)
+				assert.NoError(t, err)
 				assert.Contains(t, response["error"], "カテゴリ名は必須です")
 			},
 		},
@@ -242,12 +264,12 @@ func TestUpdateCategory(t *testing.T) {
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
 				var response map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &response)
-				assert.Error(t, err)
+				assert.NoError(t, err)
 				assert.Contains(t, response["error"], "カテゴリ名は必須です")
 			},
 		},
 		{
-			name:           "異常系：異常系：JSON形式エラー",
+			name:           "異常系：JSON形式エラー",
 			expectedStatus: http.StatusBadRequest,
 			setupMock:      nil,
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -285,7 +307,7 @@ func TestUpdateCategory(t *testing.T) {
 				tt.setupMock(mockDB)
 			}
 
-			router.PUT("/api/categories/:id", handler.UpdateCategory(mockDB))
+			router.PUT("/api/categories/:id", handler.UpdateCategoryHandler(mockDB))
 
 			var body []byte
 			if tt.name == "異常系：JSON形式エラー" {
@@ -294,7 +316,12 @@ func TestUpdateCategory(t *testing.T) {
 				body, _ = json.Marshal(tt.requestBody)
 			}
 
-			req := httptest.NewRequest(http.MethodPut, "api/categories/"+fmt.Sprint(tt.categoryID), bytes.NewBuffer(body))
+			var req *http.Request
+			if tt.name == "異常系：IDが数値以外" {
+				req = httptest.NewRequest(http.MethodPut, "/api/categories/abc", bytes.NewBuffer(body))
+			} else {
+				req = httptest.NewRequest(http.MethodPut, "/api/categories/"+fmt.Sprint(tt.categoryID), bytes.NewBuffer(body))
+			}
 			req.Header.Set("Content-Type", "application/json")
 
 			w := httptest.NewRecorder()
