@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sol_coffeesys/backend/db"
@@ -152,6 +153,91 @@ func TestCreateCategoryHandler(t *testing.T) {
 			if tt.checkResponse != nil {
 				tt.checkResponse(t, w)
 			}
+		})
+	}
+}
+
+func TestUpdateCategory(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		categoryID     int64
+		requestBody    map[string]interface{}
+		setupMock      func(m *MockDB)
+		expectedStatus int
+		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
+	}{
+		{
+			name:       "正常系：カテゴリ更新成功",
+			categoryID: 1,
+			requestBody: map[string]interface{}{
+				"name":        "プレミアムコーヒー豆",
+				"description": "高級コーヒー豆の取り扱い",
+			},
+			expectedStatus: http.StatusOK,
+			setupMock: func(m *MockDB) {
+				m.On("UpdateCategory", mock.Anything, db.UpdateCategoryParams{
+					ID:          1,
+					Name:        "プレミアムコーヒー豆",
+					Description: sql.NullString{String: "高級コーヒー豆の取り扱い", Valid: true},
+				}).Return(db.Category{
+					ID:          1,
+					Name:        "プレミアムコーヒー豆",
+					Description: sql.NullString{String: "高級コーヒー豆の取り扱い", Valid: true},
+				}, nil)
+			},
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var category db.Category
+				err := json.Unmarshal(w.Body.Bytes(), &category)
+				assert.NoError(t, err)
+				assert.Equal(t, "プレミアムコーヒー豆", category.Name)
+				assert.Equal(t, "高級コーヒー豆の取り扱い", category.Description.String)
+			},
+		},
+		{
+			name:       "異常系：カテゴリが存在しない",
+			categoryID: 999,
+			requestBody: map[string]interface{}{
+				"name":        "プレミアムコーヒー豆",
+				"description": "高級コーヒー豆の取り扱い",
+			},
+			expectedStatus: http.StatusNotFound,
+			setupMock: func(m *MockDB) {
+				m.On("UpdateCategory", mock.Anything, mock.Anything).
+					Return(db.Category{}, sql.ErrNoRows)
+			},
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "カテゴリが見つかりません")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.Default()
+			mockDB := new(MockDB)
+
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			router.PUT("/api/categories/:id", handler.UpdateCategory(mockDB))
+
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest(http.MethodPut, "api/categories/"+fmt.Sprint(tt.categoryID), bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			if tt.checkResponse != nil {
+				tt.checkResponse(t, w)
+			}
+
 		})
 	}
 }
