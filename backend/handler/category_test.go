@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestCreateCategory(t *testing.T) {
+func TestCreateCategoryHandler(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    map[string]interface{}
@@ -27,17 +27,17 @@ func TestCreateCategory(t *testing.T) {
 			name: "正常系：カテゴリ作成成功",
 			requestBody: map[string]interface{}{
 				"name":        "コーヒー豆",
-				"description": "各種コーヒー豆を取扱います",
+				"description": "各種コーヒー豆を取り扱います",
 			},
 			expectedStatus: http.StatusCreated,
 			setupMock: func(m *MockDB) {
 				m.On("CreateCategory", mock.Anything, db.CreateCategoryParams{
 					Name:        "コーヒー豆",
-					Description: sql.NullString{String: "各種コーヒー豆を取扱います", Valid: true},
+					Description: sql.NullString{String: "各種コーヒー豆を取り扱います", Valid: true},
 				}).Return(db.Category{
 					ID:          1,
 					Name:        "コーヒー豆",
-					Description: sql.NullString{String: "各種コーヒー豆を取扱います", Valid: true},
+					Description: sql.NullString{String: "各種コーヒー豆を取り扱います", Valid: true},
 				}, nil)
 			},
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -46,7 +46,7 @@ func TestCreateCategory(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, response["id"])
 				assert.Equal(t, "コーヒー豆", response["name"])
-				assert.Equal(t, "各種コーヒー豆を取扱います", response["description"])
+				assert.Equal(t, "各種コーヒー豆を取り扱います", response["description"])
 			},
 		},
 		{
@@ -105,7 +105,7 @@ func TestCreateCategory(t *testing.T) {
 			},
 		},
 		{
-			name: "DB接続エラー",
+			name: "DBエラー",
 			requestBody: map[string]interface{}{
 				"name": "コーヒー豆",
 			},
@@ -132,7 +132,7 @@ func TestCreateCategory(t *testing.T) {
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
 			}
-			router.POST("/api/categories", handler.CreateCategory(mockDB))
+			router.POST("/api/categories", handler.CreateCategoryHandler(mockDB))
 
 			var body []byte
 			if tt.name == "異常系：JSON形式エラー" {

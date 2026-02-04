@@ -216,7 +216,7 @@ func TestRegisterUserHandler(t *testing.T) {
 			expectedStatus: http.StatusCreated,
 			setupMock: func(m *MockDB) {
 				hashedPassword, _ := handler.HashPassword("password123")
-				m.On("CreateUserHandler", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "test@example.com" &&
 						params.Role == "member"
@@ -260,7 +260,7 @@ func TestRegisterUserHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusBadRequest,
 			setupMock: func(m *MockDB) {
-				m.On("CreateUserHandler", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "duplicate@example.com" &&
 						params.Role == "member"
@@ -285,7 +285,7 @@ func TestRegisterUserHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusInternalServerError,
 			setupMock: func(m *MockDB) {
-				m.On("CreateUserHandler", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "duplicate@example.com" &&
 						params.Role == "member"
@@ -320,7 +320,7 @@ func TestRegisterUserHandler(t *testing.T) {
 				tt.setupMock(mockDB)
 			} else {
 				// デフォルトの動作を設定
-				mockDB.On("CreateUserHandler", mock.Anything, mock.Anything).Return(db.User{}, nil)
+				mockDB.On("CreateUser", mock.Anything, mock.Anything).Return(db.User{}, nil)
 			}
 
 			router.POST("/api/register", handler.RegisterUserHandler(mockDB))
