@@ -17,12 +17,12 @@ func (m *MockDB) GetUserByEmail(ctx context.Context, email string) (db.User, err
 	return args.Get(0).(db.User), args.Error(1)
 }
 
-func (m *MockDB) CreateCategory(ctx context.Context, arg db.CreateCategoryParams) (db.Category, error) {
+func (m *MockDB) CreateCategoryHandler(ctx context.Context, arg db.CreateCategoryParams) (db.Category, error) {
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.Category), args.Error(1)
 }
 
-func (m *MockDB) CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error) {
+func (m *MockDB) CreateUserHandler(ctx context.Context, arg db.CreateUserParams) (db.User, error) {
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.User), args.Error(1)
 }

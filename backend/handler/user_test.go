@@ -27,7 +27,7 @@ func (m *MockTokenGenerator) GenerateToken(userID int64) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func TestLoginHandler(t *testing.T) {
+func TestLoginUserHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -172,7 +172,7 @@ func TestLoginHandler(t *testing.T) {
 					Return("default_token", nil)
 			}
 
-			router.POST("/api/login", handler.LoginHandler(mockDB, mockTokenGenerator))
+			router.POST("/api/login", handler.LoginUserHandler(mockDB, mockTokenGenerator))
 
 			var body []byte
 			if tt.name == "異常系：JSON形式エラー" {
@@ -196,7 +196,7 @@ func TestLoginHandler(t *testing.T) {
 	}
 }
 
-func TestRegisterHandler(t *testing.T) {
+func TestRegisterUserHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -216,7 +216,7 @@ func TestRegisterHandler(t *testing.T) {
 			expectedStatus: http.StatusCreated,
 			setupMock: func(m *MockDB) {
 				hashedPassword, _ := handler.HashPassword("password123")
-				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+				m.On("CreateUserHandler", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "test@example.com" &&
 						params.Role == "member"
@@ -260,7 +260,7 @@ func TestRegisterHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusBadRequest,
 			setupMock: func(m *MockDB) {
-				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+				m.On("CreateUserHandler", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "duplicate@example.com" &&
 						params.Role == "member"
@@ -285,7 +285,7 @@ func TestRegisterHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusInternalServerError,
 			setupMock: func(m *MockDB) {
-				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
+				m.On("CreateUserHandler", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "duplicate@example.com" &&
 						params.Role == "member"
@@ -320,10 +320,10 @@ func TestRegisterHandler(t *testing.T) {
 				tt.setupMock(mockDB)
 			} else {
 				// デフォルトの動作を設定
-				mockDB.On("CreateUser", mock.Anything, mock.Anything).Return(db.User{}, nil)
+				mockDB.On("CreateUserHandler", mock.Anything, mock.Anything).Return(db.User{}, nil)
 			}
 
-			router.POST("/api/register", handler.RegisterHandler(mockDB))
+			router.POST("/api/register", handler.RegisterUserHandler(mockDB))
 
 			var body []byte
 			if tt.name == "異常系：JSON形式エラー" {

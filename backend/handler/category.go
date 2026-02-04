@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type CreateCategoryRequest struct {
+type CreateCategoryHandlerRequest struct {
 	Name        string  `json:"name"`
 	Description *string `json:"description"`
 }
@@ -19,9 +19,9 @@ type CategoryResponse struct {
 	Description *string `json:"description"`
 }
 
-func CreateCategory(queries db.Querier) gin.HandlerFunc {
+func CreateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req CreateCategoryRequest
+		var req CreateCategoryHandlerRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
 			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
@@ -61,3 +61,5 @@ func CreateCategory(queries db.Querier) gin.HandlerFunc {
 		})
 	}
 }
+
+func UpdateCategory(queries db.Querier) gin.HandlerFunc { return nil }

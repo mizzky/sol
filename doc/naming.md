@@ -31,7 +31,20 @@
 
 ---
 
-## 3. 実践ガイド
+## 3. ハンドラ関数の命名規則
+- ハンドラ関数は `<Action><Resource>Handler` の形式で命名する。
+  - `<Action>`: 処理内容を表す動詞（例: Create, Update, Delete, Get, List）。
+  - `<Resource>`: 対象リソース（例: Category, User, Product）。
+  - `Handler`: ハンドラであることを明示。
+
+### 例
+- `CreateCategory` → `CreateCategoryHandler`
+- `Login` → `LoginUserHandler`
+- `DeleteProduct` → `DeleteProductHandler`
+
+---
+
+## 4. 実践ガイド
 1. **作業前にブランチを作成する** `git checkout -b feature/user-login`
 2. **意味のある単位でコミットする** SQLを追加したら一度コミット、ハンドラーを作ったらまたコミット、という風に分けると後で追いやすくなります。
-3. **完了したらメインブランチへマージ（またはPR）**
+3. **完了したらメインブランチへマージ（またはPR）

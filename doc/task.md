@@ -24,10 +24,10 @@
 
 ## 当面の短期タスク（今週）
 - ✅ user テストケースの不足分を追加（completed: 2026/02/02）
-  - `LoginHandler` の正常系・異常系テストケースを追加
+  - `LoginUserHandler` の正常系・異常系テストケースを追加
   - モックの共通化（`mockdb_test.go` を作成）
   - 依存性注入の導入
-- RegisterHandler のテストケース作成（owner: backend）
+- RegisterUserHandler のテストケース作成（owner: backend）
 - カテゴリ一覧/更新/削除のハンドラー実装（owner: backend）
 - 商品CRUDのハンドラー実装（owner: backend）
 - 管理者ミドルウェアのスケルトン実装とハンドラーへの組み込み（owner: backend）
@@ -39,7 +39,7 @@
 - 低: 売上レポート等管理者向け機能（Phase 3 後半）
 
 ## 次のアクション
-1. RegisterHandler のテストケース作成に着手する
+1. RegisterUserHandler のテストケース作成に着手する
 2. カテゴリ一覧/更新/削除のハンドラー実装に着手する
 3. 商品CRUDのハンドラー実装に着手する
 4. ミドルウェアの雛形を `auth` パッケージに追加する
@@ -48,7 +48,7 @@
 （現在進行中のタスクはありません）
 
 ## 完了したタスク
-- `RegisterHandler`のテストケース作成と改良。
+- `RegisterUserHandler`のテストケース作成と改良。
   - 重複メールエラーやデータベース接続エラーのシナリオをカバー。
   - モック設定の調整。
 - `HashPassword`のエラーハンドリングテストの問題特定。

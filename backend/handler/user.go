@@ -29,7 +29,7 @@ func HashPassword(password string) (string, error) {
 	return string(hashed), nil
 }
 
-func RegisterHandler(q db.Querier) gin.HandlerFunc {
+func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		var req RegisterRequest
@@ -74,7 +74,7 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func LoginHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.HandlerFunc {
+func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {

@@ -13,10 +13,10 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 	api := r.Group("/api")
 	tokenGenerator := auth.DefaultTokenGenerator{}
 	{
-		api.POST("/register", handler.RegisterHandler(queries))
-		api.POST("/login", handler.LoginHandler(queries, tokenGenerator))
+		api.POST("/register", handler.RegisterUserHandler(queries))
+		api.POST("/login", handler.LoginUserHandler(queries, tokenGenerator))
 
-		api.POST("/categories", handler.CreateCategory(queries))
+		api.POST("/categories", handler.CreateCategoryHandler(queries))
 
 		api.GET("/products", func(c *gin.Context) {
 			products, err := queries.ListProducts(c.Request.Context())
