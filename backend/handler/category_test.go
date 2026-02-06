@@ -346,7 +346,7 @@ func TestGetCategoriesHandler(t *testing.T) {
 		setupMock      func(*MockDB)
 	}{
 		{
-			name:        "正常系：デフォルトのページとリミットで取得",
+			name:        "正常系：カテゴリー一覧取得",
 			queryParams: "",
 			setupMock: func(m *MockDB) {
 				m.On("GetCategories", mock.Anything, mock.Anything).
@@ -362,41 +362,8 @@ func TestGetCategoriesHandler(t *testing.T) {
 				"name":"コーヒー豆",
 				"description":"各種コーヒー豆を取り扱います"
 				}
-			],
-			"total": 1,
-			"page": 1,
-			"limit":10
+			]
 			}`,
-		},
-		{
-			name:        "正常系：ページとリミットを指定して取得",
-			queryParams: "?page=2&limit=5",
-			setupMock: func(m *MockDB) {
-				m.On("GetCategories", mock.Anything, mock.Anything).
-					Return([]db.Category{
-						{ID: 6, Name: "紅茶", Description: sql.NullString{String: "各種紅茶を取り扱います", Valid: true}},
-					}, nil)
-			},
-			expectedStatus: http.StatusOK,
-			expectedBody: `{
-			"categories":[
-				{
-				"id":6,
-				"name":"紅茶",
-				"description":"各種紅茶を取り扱います"
-				}
-			],
-			"total": 1,
-			"page": 2,
-			"limit":5
-			}`,
-		},
-		{
-			name:           "異常系：不正なページ番号",
-			queryParams:    "?page=-1",
-			setupMock:      nil,
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error": "リクエストパラメータが不正です}`,
 		},
 		{
 			name:        "異常系：DB接続エラー",
