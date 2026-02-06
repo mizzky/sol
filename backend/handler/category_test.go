@@ -346,10 +346,9 @@ func TestGetCategoriesHandler(t *testing.T) {
 		setupMock      func(*MockDB)
 	}{
 		{
-			name:        "正常系：カテゴリー一覧取得",
-			queryParams: "",
+			name: "正常系：カテゴリー一覧取得",
 			setupMock: func(m *MockDB) {
-				m.On("GetCategories", mock.Anything, mock.Anything).
+				m.On("ListCategories", mock.Anything).
 					Return([]db.Category{
 						{ID: 1, Name: "コーヒー豆", Description: sql.NullString{String: "各種コーヒー豆を取り扱います", Valid: true}},
 					}, nil)
@@ -366,13 +365,12 @@ func TestGetCategoriesHandler(t *testing.T) {
 			}`,
 		},
 		{
-			name:        "異常系：DB接続エラー",
-			queryParams: "",
+			name: "異常系：DB接続エラー",
 			setupMock: func(m *MockDB) {
-				m.On("GetCategories", mock.Anything, mock.Anything).Return(nil, errors.New("DB接続エラー"))
+				m.On("ListCategories", mock.Anything).Return([]db.Category{}, errors.New("DB接続エラー"))
 			},
 			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error": :"予期せぬエラーが発生しました"}`,
+			expectedBody:   `{"error": "予期せぬエラーが発生しました"}`,
 		},
 	}
 	for _, tt := range tests {
@@ -383,7 +381,10 @@ func TestGetCategoriesHandler(t *testing.T) {
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
 			}
-			req := httptest.NewRequest(http.MethodGet, "/api/categories"+tt.queryParams, nil)
+
+			router.GET("api/categories", handler.GetCategoriesHandler(mockDB))
+
+			req := httptest.NewRequest(http.MethodGet, "/api/categories", nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.expectedStatus, w.Code)
