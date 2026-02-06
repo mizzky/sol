@@ -17,6 +17,15 @@ func (m *MockDB) GetUserByEmail(ctx context.Context, email string) (db.User, err
 	return args.Get(0).(db.User), args.Error(1)
 }
 
+func (m *MockDB) GetCategory(ctx context.Context, id int64) (db.Category, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(db.Category), args.Error(1)
+}
+func (m *MockDB) ListCategories(ctx context.Context) ([]db.Category, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]db.Category), args.Error(1)
+}
+
 func (m *MockDB) CreateCategory(ctx context.Context, arg db.CreateCategoryParams) (db.Category, error) {
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.Category), args.Error(1)
