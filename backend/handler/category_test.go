@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -332,6 +333,62 @@ func TestUpdateCategory(t *testing.T) {
 				tt.checkResponse(t, w)
 			}
 
+		})
+	}
+}
+
+func TestGetCategoriesHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		queryParams    string
+		expectedStatus int
+		expectedBody   string
+		setupMock      func(*MockDB)
+	}{
+		{
+			name: "正常系：カテゴリー一覧取得",
+			setupMock: func(m *MockDB) {
+				m.On("ListCategories", mock.Anything).
+					Return([]db.Category{
+						{ID: 1, Name: "コーヒー豆", Description: sql.NullString{String: "各種コーヒー豆を取り扱います", Valid: true}},
+					}, nil)
+			},
+			expectedStatus: http.StatusOK,
+			expectedBody: `{
+			"categories":[
+				{
+				"id":1,
+				"name":"コーヒー豆",
+				"description":"各種コーヒー豆を取り扱います"
+				}
+			]
+			}`,
+		},
+		{
+			name: "異常系：DB接続エラー",
+			setupMock: func(m *MockDB) {
+				m.On("ListCategories", mock.Anything).Return([]db.Category{}, errors.New("DB接続エラー"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   `{"error": "予期せぬエラーが発生しました"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			router := gin.Default()
+			mockDB := new(MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			router.GET("api/categories", handler.GetCategoriesHandler(mockDB))
+
+			req := httptest.NewRequest(http.MethodGet, "/api/categories", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			assert.JSONEq(t, tt.expectedBody, w.Body.String())
 		})
 	}
 }
