@@ -125,3 +125,27 @@ func UpdateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 
 	}
 }
+
+// ＋＋カテゴリー一覧取得機能＋＋
+func GetCategoriesHandler(queries db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		categories, err := queries.ListCategories(c.Request.Context())
+		if err != nil {
+			RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+		resp := make([]CategoryResponse, 0, len(categories))
+		for _, cat := range categories {
+			var desc *string
+			if cat.Description.Valid {
+				desc = &cat.Description.String
+			}
+			resp = append(resp, CategoryResponse{
+				ID:          cat.ID,
+				Name:        cat.Name,
+				Description: desc,
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"categories": resp})
+	}
+}
