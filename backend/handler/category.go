@@ -149,3 +149,8 @@ func GetCategoriesHandler(queries db.Querier) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"categories": resp})
 	}
 }
+
+// ＋＋カテゴリー削除機能＋＋
+func DeleteCategoryHandler(queries db.Querier) gin.HandlerFunc {
+	return nil
+}
