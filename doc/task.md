@@ -8,7 +8,8 @@
 - **sqlc 設定**: query 定義と `sqlc.yaml` の更新（completed）
 - **CRUD API 実装**: カテゴリと商品の登録・更新・削除・一覧（in-progress）
 	- カテゴリ作成（`POST /api/categories`）+ テスト（completed）
-	- カテゴリ一覧/更新/削除（not-started）
+	- カテゴリ一覧/更新/削除（in-progress）
+		- カテゴリ削除（`DELETE /api/categories/:id`）+ テスト（completed: 2026/02/07）
 	- 商品CRUD（not-started）
 
 ## 次フェーズ（Phase 2 — カート機能）
@@ -29,6 +30,7 @@
   - 依存性注入の導入
 - RegisterUserHandler のテストケース作成（owner: backend）
 - カテゴリ一覧/更新/削除のハンドラー実装（owner: backend）
+	- ✅ カテゴリ削除のハンドラーとテスト（completed: 2026/02/07）
 - 商品CRUDのハンドラー実装（owner: backend）
 - 管理者ミドルウェアのスケルトン実装とハンドラーへの組み込み（owner: backend）
 - API エラー共通化の適用範囲整理（owner: backend）
