@@ -164,7 +164,7 @@ func TestCreateCategoryHandler(t *testing.T) {
 	}
 }
 
-func TestUpdateCategory(t *testing.T) {
+func TestUpdateCategoryHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -389,6 +389,89 @@ func TestGetCategoriesHandler(t *testing.T) {
 			router.ServeHTTP(w, req)
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			assert.JSONEq(t, tt.expectedBody, w.Body.String())
+		})
+	}
+}
+
+func TestDeleteCategoryHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		categoryID     string
+		setupMock      func(m *MockDB)
+		expectedStatus int
+		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
+	}{
+		{
+			name:       "正常系：カテゴリ削除成功",
+			categoryID: "1",
+			setupMock: func(m *MockDB) {
+				m.On("DeleteCategory", mock.Anything, int64(1)).Return(nil)
+			},
+			expectedStatus: http.StatusNoContent,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				assert.Empty(t, w.Body.String())
+			},
+		},
+		{
+			name:       "異常系：カテゴリが存在しない",
+			categoryID: "999",
+			setupMock: func(m *MockDB) {
+				m.On("DeleteCategory", mock.Anything, int64(999)).Return(sql.ErrNoRows)
+			},
+			expectedStatus: http.StatusNotFound,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "カテゴリが見つかりません")
+			},
+		},
+		{
+			name:           "異常系：IDが数値以外",
+			categoryID:     "invalid",
+			setupMock:      nil,
+			expectedStatus: http.StatusBadRequest,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "IDが正しくありません")
+			},
+		},
+		{
+			name:       "異常系：DB接続エラー",
+			categoryID: "1",
+			setupMock: func(m *MockDB) {
+				m.On("DeleteCategory", mock.Anything, int64(1)).Return(errors.New("DB接続エラー"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Contains(t, response["error"], "予期せぬエラーが発生しました")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			router := gin.Default()
+			mockDB := new(MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+			router.DELETE("/api/categories/:id", handler.DeleteCategoryHandler(mockDB))
+
+			req := httptest.NewRequest(http.MethodDelete, "/api/categories/"+fmt.Sprint(tt.categoryID), nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			if tt.checkResponse != nil {
+				tt.checkResponse(t, w)
+			}
 		})
 	}
 }
