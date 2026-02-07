@@ -19,6 +19,8 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.POST("/categories", handler.CreateCategoryHandler(queries))
 		api.PUT("/categories/:id", handler.UpdateCategoryHandler(queries))
 		api.GET("/categories", handler.GetCategoriesHandler(queries))
+		api.DELETE("/categories/:id", handler.DeleteCategoryHandler(queries))
+
 		api.GET("/products", func(c *gin.Context) {
 			products, err := queries.ListProducts(c.Request.Context())
 			if err != nil {

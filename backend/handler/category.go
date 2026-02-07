@@ -152,5 +152,23 @@ func GetCategoriesHandler(queries db.Querier) gin.HandlerFunc {
 
 // ＋＋カテゴリー削除機能＋＋
 func DeleteCategoryHandler(queries db.Querier) gin.HandlerFunc {
-	return nil
+	return func(c *gin.Context) {
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			RespondError(c, http.StatusBadRequest, "IDが正しくありません")
+			return
+		}
+
+		respErr := queries.DeleteCategory(c.Request.Context(), int64(id))
+		if respErr != nil {
+			if respErr == sql.ErrNoRows {
+				RespondError(c, http.StatusNotFound, "カテゴリが見つかりません")
+			} else {
+				RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			}
+			return
+		}
+
+		c.JSON(http.StatusNoContent, nil)
+	}
 }

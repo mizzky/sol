@@ -38,7 +38,7 @@ func (m *MockDB) UpdateCategory(ctx context.Context, arg db.UpdateCategoryParams
 
 func (m *MockDB) DeleteCategory(ctx context.Context, id int64) error {
 	args := m.Called(ctx, id)
-	return args.Error(1)
+	return args.Error(0)
 }
 
 func (m *MockDB) CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error) {
