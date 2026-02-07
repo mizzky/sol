@@ -464,7 +464,7 @@ func TestDeleteCategoryHandler(t *testing.T) {
 			}
 			router.DELETE("/api/categories/:id", handler.DeleteCategoryHandler(mockDB))
 
-			req := httptest.NewRequest(http.MethodDelete, "api/categories"+tt.categoryID, nil)
+			req := httptest.NewRequest(http.MethodDelete, "/api/categories/"+fmt.Sprint(tt.categoryID), nil)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
