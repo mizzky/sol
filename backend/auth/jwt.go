@@ -6,8 +6,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var Validate = ValidateToken
-
 type TokenGenerator interface {
 	GenerateToken(userID int64) (string, error)
 }
@@ -34,3 +32,6 @@ func ValidateToken(tokenString string) (*jwt.Token, error) {
 		return jwtSecret, nil
 	})
 }
+
+// Validate is an alias for ValidateToken so tests can override it.
+var Validate = ValidateToken
