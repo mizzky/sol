@@ -6,6 +6,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var Validate = ValidateToken
+
 type TokenGenerator interface {
 	GenerateToken(userID int64) (string, error)
 }
