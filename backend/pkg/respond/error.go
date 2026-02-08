@@ -1,4 +1,4 @@
-package handler
+package respond
 
 import "github.com/gin-gonic/gin"
 
@@ -11,6 +11,6 @@ type ValidationError struct {
 	Fields map[string]interface{} `json:"fields,omitempty"`
 }
 
-func RespondError(c *gin.Context, statusCode int, message string) {
-	c.JSON(statusCode, ErrorResponse{Error: message})
+func RespondError(c *gin.Context, status int, message string) {
+	c.JSON(status, ErrorResponse{Error: message})
 }

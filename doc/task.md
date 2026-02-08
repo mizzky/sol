@@ -7,10 +7,10 @@
 - **マイグレーション**: `categories` / `products` テーブル作成（completed）
 - **sqlc 設定**: query 定義と `sqlc.yaml` の更新（completed）
 - **CRUD API 実装**: カテゴリと商品の登録・更新・削除・一覧（in-progress）
-	- カテゴリ作成（`POST /api/categories`）+ テスト（completed）
-	- カテゴリ一覧/更新/削除（in-progress）
-		- カテゴリ削除（`DELETE /api/categories/:id`）+ テスト（completed: 2026/02/07）
-	- 商品CRUD（not-started）
+    - カテゴリ作成（`POST /api/categories`）+ テスト（completed）
+    - カテゴリ一覧/更新/削除（in-progress）
+        - カテゴリ削除（`DELETE /api/categories/:id`）+ テスト（completed: 2026/02/07）
+    - 商品CRUD（not-started）
 
 ## 次フェーズ（Phase 2 — カート機能）
 - **テーブル作成**: `carts` テーブル定義（not-started）
@@ -80,20 +80,21 @@
   - 依存性注入の導入
 - RegisterUserHandler のテストケース作成（owner: backend）
 - カテゴリ一覧/更新/削除のハンドラー実装（owner: backend）
-	- ✅ カテゴリ削除のハンドラーとテスト（completed: 2026/02/07）
+    - ✅ カテゴリ削除のハンドラーとテスト（completed: 2026/02/07）
 - 商品CRUDのハンドラー実装（owner: backend）
 - 管理者ミドルウェアのスケルトン実装とハンドラーへの組み込み（owner: backend）
 - API エラー共通化の適用範囲整理（owner: backend）
 
-## 担当と優先度（提案）
-- 高: マイグレーション、sqlc 設定、CRUD API（Phase 1 完了が最優先）
-- 中: ミドルウェア（認可）、カートAPI（Phase 2）
-- 低: 売上レポート等管理者向け機能（Phase 3 後半）
-
 ## 次のアクション
 1. 実装: `auth.AdminOnly` ミドルウェア作成（owner: backend, status: in-progress）
 2. ルート統合: カテゴリの管理系ルートへミドルウェアを適用（owner: backend, status: not-started）
+   - 対象ルート: `POST /api/categories`, `PUT /api/categories/:id`, `DELETE /api/categories/:id`
+   - 備考: ルート統合後は `backend/handler/category_test.go` のテストを更新する（`auth.Validate` をテスト内で差し替えるか、リクエストに `Authorization` ヘッダを付与し、`MockDB` に `GetUserForUpdate` のモックを追加する）。
 3. テスト: 既存ハンドラーテストへ認証ケースを追加（owner: backend, status: not-started）
+   - 修正対象（優先順）:
+     - `backend/handler/category_test.go` — 管理系エンドポイントの正常系/異常系を追加
+   - 推奨パターン:
+     - テストで `auth.Validate` を一時差し替え、`MockDB.On("GetUserForUpdate", ...).Return(db.User{ID:..., Role:"admin"}, nil)` をセットする方式が簡潔で安定。
 4. ドキュメント: `doc/api.md` に認証要件を明記（owner: backend, status: not-started）
 5. 検証: `go test ./...` 実行して修正（owner: backend, status: not-started）
 
