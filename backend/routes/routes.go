@@ -5,6 +5,7 @@ import (
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
+	"sol_coffeesys/backend/pkg/respond"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,7 +25,7 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.GET("/products", func(c *gin.Context) {
 			products, err := queries.ListProducts(c.Request.Context())
 			if err != nil {
-				handler.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
 				return
 			}
 			c.JSON(http.StatusOK, products)
@@ -37,7 +38,7 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 			}
 
 			if err := c.ShouldBindJSON(&input); err != nil {
-				handler.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+				respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 				return
 			}
 			product, err := queries.CreateProduct(c.Request.Context(), db.CreateProductParams{
@@ -46,7 +47,7 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 				IsAvailable: true,
 			})
 			if err != nil {
-				handler.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
 				return
 			}
 			c.JSON(http.StatusCreated, product)
