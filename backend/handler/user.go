@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/respond"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
@@ -34,12 +35,12 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 
 		var req RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 			return
 		}
 
 		if req.Name == "" {
-			RespondError(c, http.StatusBadRequest, "名前は必須です")
+			respond.RespondError(c, http.StatusBadRequest, "名前は必須です")
 			return
 		}
 
@@ -55,11 +56,11 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 			var pqErr *pq.Error
 			if errors.As(err, &pqErr) {
 				if pqErr.Code == "23505" {
-					RespondError(c, http.StatusBadRequest, "このメールアドレスは既に登録されています")
+					respond.RespondError(c, http.StatusBadRequest, "このメールアドレスは既に登録されています")
 					return
 				}
 			}
-			RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
 			return
 		}
 
@@ -79,25 +80,25 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			fmt.Printf("Bind Error: %v\n", err)
-			RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 			return
 		}
 
 		user, err := q.GetUserByEmail(c.Request.Context(), req.Email)
 		if err != nil {
-			RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
+			respond.RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
 			return
 		}
 		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 		if err != nil {
-			RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
+			respond.RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
 			return
 		}
 
 		token, err := tokenGenerator.GenerateToken(user.ID)
 		// token, err := auth.GenerateToken(int32(user.ID))
 		if err != nil {
-			RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
+			respond.RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
 			return
 		}
 
