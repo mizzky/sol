@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -43,7 +44,7 @@ func (f *FakeQuerier) GetUserByEmail(ctx context.Context, email string) (db.User
 func (f *FakeQuerier) GetUserForUpdate(ctx context.Context, id int64) (db.User, error) {
 	u, ok := f.users[id]
 	if !ok {
-		return db.User{}, fmt.Errorf("not found")
+		return db.User{}, sql.ErrNoRows
 	}
 	return u, nil
 }
@@ -111,6 +112,30 @@ func TestAdminOnly(t *testing.T) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
 			},
 			expectedStatus: http.StatusNoContent,
+		},
+		{
+			name:       "DB該当ユーザー未検出",
+			authHeader: "Bearer valid-missing-user",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(3)}}, nil
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:       "クレーム無し",
+			authHeader: "Bearer non-claim",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{}}, nil
+			},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "クレーム型不一致",
+			authHeader: "Bearer id-as-string",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": "non-a-number"}}, nil
+			},
+			expectedStatus: http.StatusUnauthorized,
 		},
 	}
 
