@@ -87,7 +87,7 @@
 
 ## 次のアクション
 1. 実装: `auth.AdminOnly` ミドルウェア作成（owner: backend, status: in-progress）
-2. ルート統合: カテゴリの管理系ルートへミドルウェアを適用（owner: backend, status: not-started）
+2. ルート統合: カテゴリの管理系ルートへミドルウェアを適用（owner: backend, status: in-progress, started: 2026/02/09）
    - 対象ルート: `POST /api/categories`, `PUT /api/categories/:id`, `DELETE /api/categories/:id`
    - 備考: ルート統合後は `backend/handler/category_test.go` のテストを更新する（`auth.Validate` をテスト内で差し替えるか、リクエストに `Authorization` ヘッダを付与し、`MockDB` に `GetUserForUpdate` のモックを追加する）。
 3. テスト: 既存ハンドラーテストへ認証ケースを追加（owner: backend, status: not-started）
