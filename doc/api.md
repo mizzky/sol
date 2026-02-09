@@ -28,6 +28,27 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
 
 ## API エンドポイント詳細
 
+## 認証・認可要件
+
+本APIでは以下の方針で認証・認可を扱います。
+
+- **認証方式**: JWT を用いた Bearer トークン（`Authorization: Bearer <token>`）を前提とします。
+- **認可方式**: トークンのクレーム内 `user.id` を基に DB を参照し、`role` が `admin` の場合に管理操作を許可します。
+- **ステータスマッピング**:
+  - トークン無し/不正/クレーム欠落: `401 Unauthorized`（`{"error":"認証が必要です"}`）
+  - ログイン済だが管理者でない: `403 Forbidden`（`{"error":"管理者権限が必要です"}`）
+  - DB の取得エラー等のサーバー側障害: `500 Internal Server Error`（`{"error":"予期せぬエラーが発生しました"}`）
+
+**管理者権限が必要なエンドポイント（抜粋）**
+
+- `POST /api/products` — 商品登録（管理者のみ）
+- `POST /api/categories` — カテゴリ作成（管理者のみ）
+- `PUT /api/categories/:id` — カテゴリ更新（管理者のみ）
+- `DELETE /api/categories/:id` — カテゴリ削除（管理者のみ）
+
+上記以外の読み取り系エンドポイント（例: `GET /api/products`, `GET /api/categories`）は認証不要です。
+
+
 ## 会員登録 (ユーザー作成)
 リクエストに含まれるパスワードをハッシュ化し、安全にDBへ保存します。
 
