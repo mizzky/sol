@@ -98,6 +98,24 @@
 4. ドキュメント: `doc/api.md` に認証要件を明記（owner: backend, status: not-started）
 5. 検証: `go test ./...` 実行して修正（owner: backend, status: not-started）
 
+## Recent updates (2026/02/09)
+
+- **AdminOnly ミドルウェア修正**: `GetUserForUpdate` がレコード未検出のときは `403 Forbidden`、DB のその他エラー時は `500 Internal Server Error` を返すように修正しました（トークン無効/欠落は `401 Unauthorized` のまま）。
+- **MockDB の共通化**: テスト用モックを共有パッケージへ移動し再利用可能にしました（場所: `backend/handler/testutil/mockdb.go`）。
+- **統合テスト追加**: ルーター経由での統合テストを `backend/tests/category_integration_test.go` に追加しました。管理者／非管理者／未認証ケースをテーブル駆動で検証します。
+- **ユニットテスト修正**: `backend/auth/middleware_test.go` のテストケースを拡張し、DB未検出・クレーム欠落・クレーム型不一致などのエッジケースを検証しました。
+
+### 状態
+- `backend/tests` の統合テストは実行済み（`go test ./tests -v` 成功）。
+- `backend/auth` のミドルウェアユニットテストは修正後に全て成功。
+
+### 次の推奨アクション
+1. 全体テストを実行して最終確認: `go test ./... -v`
+2. 変更をコミット・プッシュ（必要なら私がコミットメッセージ案を作ります）
+3. `doc/api.md` に認可要件（管理者が必要なエンドポイント）を追記してドキュメントを最新化
+
+（備考）今後の作業は `doc/task.md` の TODO を更新しながら進めると追跡しやすくなります。
+
 ## 進行中のタスク
 1. RegisterUserHandler のテストケース作成に着手する
 2. カテゴリ一覧/更新/削除のハンドラー実装に着手する
