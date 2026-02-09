@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
+	testutil "sol_coffeesys/backend/handler/testutil"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -28,7 +29,7 @@ func TestCreateCategoryHandler(t *testing.T) {
 		name           string
 		requestBody    map[string]interface{}
 		expectedStatus int
-		setupMock      func(*MockDB)
+		setupMock      func(*testutil.MockDB)
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
 		{
@@ -38,7 +39,7 @@ func TestCreateCategoryHandler(t *testing.T) {
 				"description": "各種コーヒー豆を取り扱います",
 			},
 			expectedStatus: http.StatusCreated,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("CreateCategory", mock.Anything, db.CreateCategoryParams{
 					Name:        "コーヒー豆",
 					Description: sql.NullString{String: "各種コーヒー豆を取り扱います", Valid: true},
@@ -63,7 +64,7 @@ func TestCreateCategoryHandler(t *testing.T) {
 				"name": "紅茶",
 			},
 			expectedStatus: http.StatusCreated,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("CreateCategory", mock.Anything, db.CreateCategoryParams{
 					Name:        "紅茶",
 					Description: sql.NullString{String: "", Valid: false},
@@ -118,7 +119,7 @@ func TestCreateCategoryHandler(t *testing.T) {
 				"name": "コーヒー豆",
 			},
 			expectedStatus: http.StatusInternalServerError,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("CreateCategory", mock.Anything, mock.MatchedBy(func(arg db.CreateCategoryParams) bool {
 					return arg.Name == "コーヒー豆"
 				})).Return(db.Category{}, sql.ErrNoRows)
@@ -136,7 +137,7 @@ func TestCreateCategoryHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
-			mockDB := new(MockDB)
+			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
 			}
@@ -171,7 +172,7 @@ func TestUpdateCategoryHandler(t *testing.T) {
 		name           string
 		categoryID     int64
 		requestBody    map[string]interface{}
-		setupMock      func(m *MockDB)
+		setupMock      func(m *testutil.MockDB)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -183,7 +184,7 @@ func TestUpdateCategoryHandler(t *testing.T) {
 				"description": "高級コーヒー豆の取り扱い",
 			},
 			expectedStatus: http.StatusOK,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("UpdateCategory", mock.Anything, db.UpdateCategoryParams{
 					ID:          1,
 					Name:        "プレミアムコーヒー豆",
@@ -211,7 +212,7 @@ func TestUpdateCategoryHandler(t *testing.T) {
 				"description": "高級コーヒー豆の取り扱い",
 			},
 			expectedStatus: http.StatusNotFound,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("UpdateCategory", mock.Anything, mock.Anything).
 					Return(db.Category{}, sql.ErrNoRows)
 			},
@@ -287,7 +288,7 @@ func TestUpdateCategoryHandler(t *testing.T) {
 				"description": "高級コーヒー豆の取り扱い",
 			},
 			expectedStatus: http.StatusInternalServerError,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("UpdateCategory", mock.Anything, mock.Anything).
 					Return(db.Category{}, fmt.Errorf("DB接続エラー"))
 			},
@@ -302,7 +303,7 @@ func TestUpdateCategoryHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
-			mockDB := new(MockDB)
+			mockDB := new(testutil.MockDB)
 
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
@@ -343,11 +344,11 @@ func TestGetCategoriesHandler(t *testing.T) {
 		queryParams    string
 		expectedStatus int
 		expectedBody   string
-		setupMock      func(*MockDB)
+		setupMock      func(*testutil.MockDB)
 	}{
 		{
 			name: "正常系：カテゴリー一覧取得",
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("ListCategories", mock.Anything).
 					Return([]db.Category{
 						{ID: 1, Name: "コーヒー豆", Description: sql.NullString{String: "各種コーヒー豆を取り扱います", Valid: true}},
@@ -366,7 +367,7 @@ func TestGetCategoriesHandler(t *testing.T) {
 		},
 		{
 			name: "異常系：DB接続エラー",
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("ListCategories", mock.Anything).Return([]db.Category{}, errors.New("DB接続エラー"))
 			},
 			expectedStatus: http.StatusInternalServerError,
@@ -377,7 +378,7 @@ func TestGetCategoriesHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
-			mockDB := new(MockDB)
+			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
 			}
@@ -397,14 +398,14 @@ func TestDeleteCategoryHandler(t *testing.T) {
 	tests := []struct {
 		name           string
 		categoryID     string
-		setupMock      func(m *MockDB)
+		setupMock      func(m *testutil.MockDB)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
 		{
 			name:       "正常系：カテゴリ削除成功",
 			categoryID: "1",
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("DeleteCategory", mock.Anything, int64(1)).Return(nil)
 			},
 			expectedStatus: http.StatusNoContent,
@@ -415,7 +416,7 @@ func TestDeleteCategoryHandler(t *testing.T) {
 		{
 			name:       "異常系：カテゴリが存在しない",
 			categoryID: "999",
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("DeleteCategory", mock.Anything, int64(999)).Return(sql.ErrNoRows)
 			},
 			expectedStatus: http.StatusNotFound,
@@ -441,7 +442,7 @@ func TestDeleteCategoryHandler(t *testing.T) {
 		{
 			name:       "異常系：DB接続エラー",
 			categoryID: "1",
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("DeleteCategory", mock.Anything, int64(1)).Return(errors.New("DB接続エラー"))
 			},
 			expectedStatus: http.StatusInternalServerError,
@@ -458,7 +459,7 @@ func TestDeleteCategoryHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
-			mockDB := new(MockDB)
+			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
 			}

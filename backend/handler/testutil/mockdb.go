@@ -1,4 +1,4 @@
-package handler_test
+package testutil
 
 import (
 	"context"
@@ -43,5 +43,10 @@ func (m *MockDB) DeleteCategory(ctx context.Context, id int64) error {
 
 func (m *MockDB) CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error) {
 	args := m.Called(ctx, arg)
+	return args.Get(0).(db.User), args.Error(1)
+}
+
+func (m *MockDB) GetUserForUpdate(ctx context.Context, id int64) (db.User, error) {
+	args := m.Called(ctx, id)
 	return args.Get(0).(db.User), args.Error(1)
 }

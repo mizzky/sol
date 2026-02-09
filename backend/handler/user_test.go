@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
+	testutil "sol_coffeesys/backend/handler/testutil"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +34,7 @@ func TestLoginUserHandler(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    map[string]interface{}
-		setupMock      func(m *MockDB)
+		setupMock      func(m *testutil.MockDB)
 		setupTokenMock func(tg *MockTokenGenerator)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
@@ -45,7 +46,7 @@ func TestLoginUserHandler(t *testing.T) {
 				"password": "password123",
 			},
 			expectedStatus: http.StatusOK,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				passwordHash, err := handler.HashPassword("password123")
 				if err != nil {
 					t.Fatalf("パスワードのハッシュ化に失敗しました: %v", err)
@@ -73,7 +74,7 @@ func TestLoginUserHandler(t *testing.T) {
 				"password": "password",
 			},
 			expectedStatus: http.StatusUnauthorized,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("GetUserByEmail", mock.Anything, "notfound@example.com").
 					Return(db.User{}, errors.New("user not found"))
 			},
@@ -91,7 +92,7 @@ func TestLoginUserHandler(t *testing.T) {
 				"password": "wrongpassword",
 			},
 			expectedStatus: http.StatusUnauthorized,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				passwordHash, err := handler.HashPassword("password123")
 				if err != nil {
 					t.Fatalf("パスワードのハッシュ化に失敗しました: %v", err)
@@ -128,7 +129,7 @@ func TestLoginUserHandler(t *testing.T) {
 				"password": "password123",
 			},
 			expectedStatus: http.StatusInternalServerError,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				passwordHash, err := handler.HashPassword("password123")
 				if err != nil {
 					t.Fatalf("パスワードのハッシュ化に失敗しました: %v", err)
@@ -157,7 +158,7 @@ func TestLoginUserHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
-			mockDB := new(MockDB)
+			mockDB := new(testutil.MockDB)
 			mockTokenGenerator := new(MockTokenGenerator)
 
 			if tt.setupMock != nil {
@@ -202,7 +203,7 @@ func TestRegisterUserHandler(t *testing.T) {
 	tests := []struct {
 		name           string
 		requestBody    map[string]interface{}
-		setupMock      func(m *MockDB)
+		setupMock      func(m *testutil.MockDB)
 		expectedStatus int
 		checkResponse  func(*testing.T, *httptest.ResponseRecorder)
 	}{
@@ -214,7 +215,7 @@ func TestRegisterUserHandler(t *testing.T) {
 				"password": "password123",
 			},
 			expectedStatus: http.StatusCreated,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				hashedPassword, _ := handler.HashPassword("password123")
 				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
@@ -259,7 +260,7 @@ func TestRegisterUserHandler(t *testing.T) {
 				"password": "password123",
 			},
 			expectedStatus: http.StatusBadRequest,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "duplicate@example.com" &&
@@ -284,7 +285,7 @@ func TestRegisterUserHandler(t *testing.T) {
 				"password": "password123",
 			},
 			expectedStatus: http.StatusInternalServerError,
-			setupMock: func(m *MockDB) {
+			setupMock: func(m *testutil.MockDB) {
 				m.On("CreateUser", mock.Anything, mock.MatchedBy(func(params db.CreateUserParams) bool {
 					return params.Name == "Test User" &&
 						params.Email == "duplicate@example.com" &&
@@ -315,7 +316,7 @@ func TestRegisterUserHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
-			mockDB := new(MockDB)
+			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
 			} else {
