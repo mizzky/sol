@@ -17,10 +17,10 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.POST("/register", handler.RegisterUserHandler(queries))
 		api.POST("/login", handler.LoginUserHandler(queries, tokenGenerator))
 
-		api.POST("/categories", handler.CreateCategoryHandler(queries))
-		api.PUT("/categories/:id", handler.UpdateCategoryHandler(queries))
+		api.POST("/categories", auth.AdminOnly(queries), handler.CreateCategoryHandler(queries))
+		api.PUT("/categories/:id", auth.AdminOnly(queries), handler.UpdateCategoryHandler(queries))
+		api.DELETE("/categories/:id", auth.AdminOnly(queries), handler.DeleteCategoryHandler(queries))
 		api.GET("/categories", handler.GetCategoriesHandler(queries))
-		api.DELETE("/categories/:id", handler.DeleteCategoryHandler(queries))
 
 		api.GET("/products", func(c *gin.Context) {
 			products, err := queries.ListProducts(c.Request.Context())
