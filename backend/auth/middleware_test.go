@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -58,6 +59,13 @@ func (f *FakeQuerier) UpdateCategory(ctx context.Context, arg db.UpdateCategoryP
 	return db.Category{}, nil
 }
 
+// DB接続エラー用のQuerier
+type BadQuerier struct{ *FakeQuerier }
+
+func (b *BadQuerier) GetUserForUpdate(ctx context.Context, id int64) (db.User, error) {
+	return db.User{}, fmt.Errorf("db error")
+}
+
 func TestAdminOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -78,19 +86,20 @@ func TestAdminOnly(t *testing.T) {
 	})
 
 	tests := []struct {
-		name           string
-		authHeader     string
-		validateFunc   func(string) (*jwt.Token, error)
-		expectedStatus int
+		name            string
+		authHeader      string
+		validateFunc    func(string) (*jwt.Token, error)
+		expectedStatus  int
+		expectedBodyUID *int64
 	}{
 		{
-			name:           "トークン無し",
+			name:           "トークン無し->401",
 			authHeader:     "",
 			validateFunc:   nil,
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "不適切なトークン",
+			name:       "不適切なトークン->401",
 			authHeader: "Bearer invalid",
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return nil, fmt.Errorf("invalid")
@@ -98,7 +107,7 @@ func TestAdminOnly(t *testing.T) {
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "権限なし(non-admin)",
+			name:       "権限なし(non-admin)->403",
 			authHeader: "Bearer valid-nonadmin",
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(2)}}, nil
@@ -106,15 +115,16 @@ func TestAdminOnly(t *testing.T) {
 			expectedStatus: http.StatusForbidden,
 		},
 		{
-			name:       "権限あり(admin)",
+			name:       "権限あり(admin)->204",
 			authHeader: "Bearer valid-admin",
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
 			},
-			expectedStatus: http.StatusNoContent,
+			expectedStatus:  http.StatusNoContent,
+			expectedBodyUID: func() *int64 { v := int64(1); return &v }(),
 		},
 		{
-			name:       "DB該当ユーザー未検出",
+			name:       "DB該当ユーザー未検出->401",
 			authHeader: "Bearer valid-missing-user",
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(3)}}, nil
@@ -122,7 +132,7 @@ func TestAdminOnly(t *testing.T) {
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "クレーム無し",
+			name:       "クレーム無し->401",
 			authHeader: "Bearer non-claim",
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{}}, nil
@@ -130,11 +140,64 @@ func TestAdminOnly(t *testing.T) {
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "クレーム型不一致",
+			name:       "クレーム型一致(文字列数値)->204",
+			authHeader: "Bearer valid-admin",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": "1"}}, nil
+			},
+			expectedStatus:  http.StatusNoContent,
+			expectedBodyUID: func() *int64 { v := int64(1); return &v }(),
+		},
+		{
+			name:       "クレーム型不一致->401",
 			authHeader: "Bearer id-as-string",
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": "non-a-number"}}, nil
 			},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "Validateがnullを返す->401",
+			authHeader: "Bearer validate-null",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return nil, nil
+			},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "token.Valid == false ->401",
+			authHeader: "Bearer valid-false",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: false, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
+			},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "token.ClaimがJwt.MapClaimでない(&jwt.RegisteredClaims{})->401",
+			authHeader: "Bearer invalid-claim",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: &jwt.RegisteredClaims{}}, nil
+			},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "DB接続エラー",
+			authHeader: "Bearer DB-connect-err",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:           "ヘッダーフォーマット不正->401",
+			authHeader:     "invalidheader xyz",
+			validateFunc:   nil,
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "ヘッダーフォーマット欠損->401",
+			authHeader:     "Bearer",
+			validateFunc:   nil,
 			expectedStatus: http.StatusUnauthorized,
 		},
 	}
@@ -146,13 +209,37 @@ func TestAdminOnly(t *testing.T) {
 			} else {
 				auth.Validate = origValidate
 			}
+
+			localRouter := gin.New()
+			if tt.name == "DB接続エラー" {
+				badQ := &BadQuerier{FakeQuerier: &FakeQuerier{users: map[int64]db.User{}}}
+				localRouter.GET("/admin", auth.AdminOnly(badQ), func(c *gin.Context) {
+					c.Status(http.StatusNoContent)
+				})
+			} else {
+				localRouter.GET("/admin", auth.AdminOnly(fq), func(c *gin.Context) {
+					c.Status(http.StatusNoContent)
+				})
+			}
+
 			req := httptest.NewRequest(http.MethodGet, "/admin", nil)
 			if tt.authHeader != "" {
 				req.Header.Set("Authorization", tt.authHeader)
 			}
 			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+			localRouter.ServeHTTP(w, req)
 			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedBodyUID != nil && w.Code == http.StatusOK {
+				var body map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &body)
+				assert.NoError(t, err)
+				if v, ok := body["userID"]; ok {
+					assert.Equal(t, float64(*tt.expectedBodyUID), v)
+				} else {
+					t.Fatalf("userID not found in response body")
+				}
+			}
 		})
 	}
 }
