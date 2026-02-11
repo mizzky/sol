@@ -68,7 +68,7 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 		user, err := queries.GetUserForUpdate(c.Request.Context(), userID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondError(c, http.StatusForbidden, "管理者権限が必要です")
+				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
 				c.Abort()
 				return
 			}

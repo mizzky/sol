@@ -119,7 +119,7 @@ func TestAdminOnly(t *testing.T) {
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(3)}}, nil
 			},
-			expectedStatus: http.StatusForbidden,
+			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "クレーム無し",
