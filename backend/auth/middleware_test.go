@@ -59,6 +59,14 @@ func (f *FakeQuerier) UpdateCategory(ctx context.Context, arg db.UpdateCategoryP
 	return db.Category{}, nil
 }
 
+func (f *FakeQuerier) DeleteProduct(ctx context.Context, id int64) error {
+	return nil
+}
+
+func (f *FakeQuerier) UpdateProduct(ctx context.Context, arg db.UpdateProductParams) (db.Product, error) {
+	return db.Product{}, nil
+}
+
 // DB接続エラー用のQuerier
 type BadQuerier struct{ *FakeQuerier }
 

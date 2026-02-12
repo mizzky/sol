@@ -13,6 +13,7 @@ type Querier interface {
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCategory(ctx context.Context, id int64) error
+	DeleteProduct(ctx context.Context, id int64) error
 	GetCategory(ctx context.Context, id int64) (Category, error)
 	GetProduct(ctx context.Context, id int64) (Product, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
@@ -20,6 +21,7 @@ type Querier interface {
 	ListCategories(ctx context.Context) ([]Category, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error)
+	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 }
 
 var _ Querier = (*Queries)(nil)

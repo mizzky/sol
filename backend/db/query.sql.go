@@ -39,21 +39,35 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 
 const createProduct = `-- name: CreateProduct :one
 INSERT INTO products (
-    name, price, is_available
+    name, price, is_available, category_id, sku, description, image_url, stock_quantity
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at
 `
 
 type CreateProductParams struct {
-	Name        string `json:"name"`
-	Price       int32  `json:"price"`
-	IsAvailable bool   `json:"is_available"`
+	Name          string         `json:"name"`
+	Price         int32          `json:"price"`
+	IsAvailable   bool           `json:"is_available"`
+	CategoryID    int64          `json:"category_id"`
+	Sku           string         `json:"sku"`
+	Description   sql.NullString `json:"description"`
+	ImageUrl      sql.NullString `json:"image_url"`
+	StockQuantity int32          `json:"stock_quantity"`
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
-	row := q.db.QueryRowContext(ctx, createProduct, arg.Name, arg.Price, arg.IsAvailable)
+	row := q.db.QueryRowContext(ctx, createProduct,
+		arg.Name,
+		arg.Price,
+		arg.IsAvailable,
+		arg.CategoryID,
+		arg.Sku,
+		arg.Description,
+		arg.ImageUrl,
+		arg.StockQuantity,
+	)
 	var i Product
 	err := row.Scan(
 		&i.ID,
@@ -118,6 +132,16 @@ func (q *Queries) DeleteCategory(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteProduct = `-- name: DeleteProduct :exec
+DELETE FROM products
+WHERE id = $1
+`
+
+func (q *Queries) DeleteProduct(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteProduct, id)
+	return err
+}
+
 const getCategory = `-- name: GetCategory :one
 SELECT id, name, description, created_at, updated_at
 FROM categories
@@ -138,8 +162,10 @@ func (q *Queries) GetCategory(ctx context.Context, id int64) (Category, error) {
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at FROM products
-WHERE id = $1 LIMIT 1
+SELECT
+    id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at
+FROM products
+WHERE id = $1
 `
 
 func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
@@ -239,8 +265,10 @@ func (q *Queries) ListCategories(ctx context.Context) ([]Category, error) {
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at FROM products
-ORDER BY name
+SELECT
+    id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at
+FROM products
+ORDER BY id
 `
 
 func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
@@ -301,6 +329,63 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 		&i.ID,
 		&i.Name,
 		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateProduct = `-- name: UpdateProduct :one
+UPDATE products
+SET
+    name = COALESCE($1, name),
+    price = COALESCE($2, price),
+    is_available = COALESCE($3, is_available),
+    category_id = COALESCE($4, category_id),
+    sku = COALESCE($5, sku),
+    description = COALESCE($6, description),
+    image_url = COALESCE($7, image_url),
+    stock_quantity = COALESCE($8, stock_quantity),
+    updated_at = NOW()
+WHERE id = $9
+RETURNING id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at
+`
+
+type UpdateProductParams struct {
+	Name          string         `json:"name"`
+	Price         int32          `json:"price"`
+	IsAvailable   bool           `json:"is_available"`
+	CategoryID    int64          `json:"category_id"`
+	Sku           string         `json:"sku"`
+	Description   sql.NullString `json:"description"`
+	ImageUrl      sql.NullString `json:"image_url"`
+	StockQuantity int32          `json:"stock_quantity"`
+	ID            int64          `json:"id"`
+}
+
+func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error) {
+	row := q.db.QueryRowContext(ctx, updateProduct,
+		arg.Name,
+		arg.Price,
+		arg.IsAvailable,
+		arg.CategoryID,
+		arg.Sku,
+		arg.Description,
+		arg.ImageUrl,
+		arg.StockQuantity,
+		arg.ID,
+	)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Price,
+		&i.IsAvailable,
+		&i.CategoryID,
+		&i.Sku,
+		&i.Description,
+		&i.ImageUrl,
+		&i.StockQuantity,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
