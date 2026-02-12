@@ -1,134 +1,50 @@
-# タスク一覧（議事録: 2026/02/02 参照）
+## 商品管理CRUD（TODO）
 
-## 概要
-2026/02/02 の議事録に基づき、当面の実装優先度と具体タスクを整理する。
+### 目的
+- 商品の作成・更新・削除・取得（一覧/詳細）APIをTDDで実装し、API仕様と整合すること。
 
-## 優先タスク（Phase 1 — 商品・カテゴリ管理）
-- **マイグレーション**: `categories` / `products` テーブル作成（completed）
-- **sqlc 設定**: query 定義と `sqlc.yaml` の更新（completed）
-- **CRUD API 実装**: カテゴリと商品の登録・更新・削除・一覧（in-progress）
-    - カテゴリ作成（`POST /api/categories`）+ テスト（completed）
-    - カテゴリ一覧/更新/削除（in-progress）
-        - カテゴリ削除（`DELETE /api/categories/:id`）+ テスト（completed: 2026/02/07）
-    - 商品CRUD（not-started）
+### 前提・方針
+- 対象範囲: 商品CRUD（POST/PUT/DELETE/GET一覧/GET詳細）
+- 認可: `POST /api/products`, `PUT /api/products/:id`, `DELETE /api/products/:id` は管理者のみ。`GET` は認証不要。
+- エラー応答は `doc/api.md` の仕様に合わせる。
+- 実装はTDD: まずテストを作成してからプロダクトコードを実装する。
 
-## 次フェーズ（Phase 2 — カート機能）
-- **テーブル作成**: `carts` テーブル定義（not-started）
-- **API 実装**: カート追加・更新・削除（not-started）
+### TODO（優先度順）
+1. API仕様の確認・補完
+   - `doc/api.md` に商品エンドポイントの仕様（リクエスト/レスポンス/バリデーション/ステータスコード）を追加・整備。
+2. DBクエリの追加（sqlc用）
+   - `query.sql` に `CreateProduct`, `GetProduct`, `ListProducts`, `UpdateProduct`, `DeleteProduct` を定義。
+   - `sqlc generate` の実行手順を記載（実行は手元で行ってください）。
+3. ルーティング設計
+   - 既存ルートへ `/api/products` グループを追加。管理者ミドルウェアの適用範囲を決定。
+4. テスト設計（先行）
+   - `backend/handler/product_test.go` を作成し、正常系・異常系（バリデーション・JSON不正・ID不正・DBエラー）を網羅するテストを記述。
+5. ハンドラー実装
+   - テストが通る最小実装を行い、必要に応じてリファクタリング。
+6. 統合テスト
+   - ルーター経由で管理者認可ケースや未認証のGETを検証する統合テストを追加。
+7. 動作確認
+   - `go test ./...` を実行して全体のテストを確認。
+8. ドキュメント更新
+   - 実装・仕様変更を `doc/api.md` と本 `doc/task.md` に反映。
 
-## 取引系（Phase 3 — 注文・取引）
-- **テーブル作成**: `orders`, `order_items`（not-started）
-- **注文API**: 注文作成（トランザクション）、確認、キャンセル（not-started）
+### バリデーション案
+- `name`: 必須、文字数上限あり
+- `price`: 必須、数値、`price > 0`（仕様に合わせて調整）
+- `description`: 任意
 
-## 認可・ミドルウェア
--- **管理者チェックミドルウェア実装**: `AdminOnly()` 相当（in-progress）
+### 注意点
+- DBのNULL値（`sql.NullString` 等）はAPIレスポンスに変換する。
+- エラーフォーマットは `pkg/respond` の仕様に揃える。
 
-### カテゴリCRUDへの認証導入計画 (概要)
+### 実行コマンド例（参照）
+```bash
+# sqlc で型定義とクエリを生成（環境で実行してください）
+sqlc generate
 
-- **目的**: 管理操作（カテゴリの作成・更新・削除）を管理者のみが実行できるようにし、APIの誤用・不正利用を防止する。
-- **認証方式**: 既存の JWT 実装 (`auth.ValidateToken`) を利用し、トークン内の `user.id` クレームでユーザーを特定、DB の `users` テーブルの `role` を参照して `admin` 権限を確認する。
+# 全テスト実行
+go test ./...
+```
 
-### 実施手順（高レベル）
-
-1. `auth` パッケージにミドルウェアを追加
-  - 追加ファイル: `backend/auth/middleware.go`
-  - エンドポイントから `Authorization: Bearer <token>` を受け取り、`auth.ValidateToken` で検証。
-  - 検証済みユーザーID を Gin コンテキストにセット（例: `c.Set("userID", id)`)。
-  - ロール確認はミドルウェア内で DB クエリ（`GetUserByID` または `GetUserByEmail`）を実行して `role == "admin"` を確認。管理者でなければ `403 Forbidden` を返す。
-
-2. ルートにミドルウェアを組み込む
-  - 対象: `POST /api/categories`, `PUT /api/categories/:id`, `DELETE /api/categories/:id` など管理系のカテゴリルート
-  - ルート定義のある `backend/routes/routes.go` にミドルウェアを適用する。
-
-3. テストの更新
-  - 既存のハンドラーテストを修正して、認証ヘッダを付与するケースを追加（正常系: 管理者トークン付与、異常系: トークンなし/非管理者トークン/無効トークン）。
-  - テスト用に `auth` にテストトークン生成ヘルパーを追加（`auth/test_helper.go` またはモックトークンの埋め込み）。
-  - 既存のモックDBパターンを継続利用し、ロール確認の DB 呼び出しをモックする。
-
-4. ドキュメント更新
-  - `doc/api.md` のカテゴリエンドポイントに認証要件（管理者）を明記。
-  - `doc/task.md` に実施内容とテスト方針を記載（このファイルの更新を含む）。
-
-5. 検証・リリース準備
-  - `go test ./...` を実行し、ユニットテストを通す。
-  - 手動または簡易統合でエンドポイントに対して動作確認。
-
-### 影響範囲（ファイル）
-
-- `backend/auth/jwt.go`（既存利用）
-- `backend/auth/middleware.go`（新規）
-- `backend/routes/routes.go`（ミドルウェア組み込み）
-- `backend/handler/*.go`（必要に応じてコンテキストから userID を参照）
-- `backend/handler/*_test.go`（認証ヘッダを付与するための修正）
-- `doc/api.md`, `doc/task.md`（ドキュメント更新）
-
-### テスト方針（詳細）
-
-- 単体テスト: 既存ハンドラーテストに管理者トークンを付与する正常確認ケースと、トークンが無い/無効/非管理者の403を検証するケースを追加する。モックDBでユーザーの role を返すようにする。
-- 統合テスト（任意）: DB にテストユーザーを作成して実際にトークン発行・利用してエンドツーエンド確認。
-
-### 目安工数
-
-- 実装: 1〜2 日（ミドルウェア + ルート組込）
-- テスト更新: 0.5〜1 日
-- ドキュメント更新と検証: 0.5 日
-
-## 当面の短期タスク（今週）
-- ✅ user テストケースの不足分を追加（completed: 2026/02/02）
-  - `LoginUserHandler` の正常系・異常系テストケースを追加
-  - モックの共通化（`mockdb_test.go` を作成）
-  - 依存性注入の導入
-- RegisterUserHandler のテストケース作成（owner: backend）
-- カテゴリ一覧/更新/削除のハンドラー実装（owner: backend）
-    - ✅ カテゴリ削除のハンドラーとテスト（completed: 2026/02/07）
-- 商品CRUDのハンドラー実装（owner: backend）
-- 管理者ミドルウェアのスケルトン実装とハンドラーへの組み込み（owner: backend）
-- API エラー共通化の適用範囲整理（owner: backend）
-
-## 次のアクション
-1. 実装: `auth.AdminOnly` ミドルウェア作成（owner: backend, status: in-progress）
-2. ルート統合: カテゴリの管理系ルートへミドルウェアを適用（owner: backend, status: not-started）
-   - 対象ルート: `POST /api/categories`, `PUT /api/categories/:id`, `DELETE /api/categories/:id`
-   - 備考: ルート統合後は `backend/handler/category_test.go` のテストを更新する（`auth.Validate` をテスト内で差し替えるか、リクエストに `Authorization` ヘッダを付与し、`MockDB` に `GetUserForUpdate` のモックを追加する）。
-3. テスト: 既存ハンドラーテストへ認証ケースを追加（owner: backend, status: not-started）
-   - 修正対象（優先順）:
-     - `backend/handler/category_test.go` — 管理系エンドポイントの正常系/異常系を追加
-   - 推奨パターン:
-     - テストで `auth.Validate` を一時差し替え、`MockDB.On("GetUserForUpdate", ...).Return(db.User{ID:..., Role:"admin"}, nil)` をセットする方式が簡潔で安定。
-4. ドキュメント: `doc/api.md` に認証要件を明記（owner: backend, status: not-started）
-5. 検証: `go test ./...` 実行して修正（owner: backend, status: not-started）
-
-## Recent updates (2026/02/09)
-
-- **AdminOnly ミドルウェア修正**: `GetUserForUpdate` がレコード未検出のときは `403 Forbidden`、DB のその他エラー時は `500 Internal Server Error` を返すように修正しました（トークン無効/欠落は `401 Unauthorized` のまま）。
-- **MockDB の共通化**: テスト用モックを共有パッケージへ移動し再利用可能にしました（場所: `backend/handler/testutil/mockdb.go`）。
-- **統合テスト追加**: ルーター経由での統合テストを `backend/tests/category_integration_test.go` に追加しました。管理者／非管理者／未認証ケースをテーブル駆動で検証します。
-- **ユニットテスト修正**: `backend/auth/middleware_test.go` のテストケースを拡張し、DB未検出・クレーム欠落・クレーム型不一致などのエッジケースを検証しました。
-
-### 状態
-- `backend/tests` の統合テストは実行済み（`go test ./tests -v` 成功）。
-- `backend/auth` のミドルウェアユニットテストは修正後に全て成功。
-
-### 次の推奨アクション
-1. 全体テストを実行して最終確認: `go test ./... -v`
-2. 変更をコミット・プッシュ（必要なら私がコミットメッセージ案を作ります）
-3. `doc/api.md` に認可要件（管理者が必要なエンドポイント）を追記してドキュメントを最新化
-
-（備考）今後の作業は `doc/task.md` の TODO を更新しながら進めると追跡しやすくなります。
-
-## 進行中のタスク
-1. RegisterUserHandler のテストケース作成に着手する
-2. カテゴリ一覧/更新/削除のハンドラー実装に着手する
-3. 商品CRUDのハンドラー実装に着手する
-4. ミドルウェアの雛形を `auth` パッケージに追加する
-5. カテゴリ一覧取得関数のプロダクトコード実装に着手する
-6. カテゴリー削除機能のテストケース設計と実装（owner: backend, status: in-progress）
-
-## 完了したタスク
-- `RegisterUserHandler`のテストケース作成と改良。
-  - 重複メールエラーやデータベース接続エラーのシナリオをカバー。
-  - モック設定の調整。
-- `HashPassword`のエラーハンドリングテストの問題特定。
-  - `%w`を使用したエラーラッピングが原因のエラーメッセージ不一致問題を確認。
-- `HashPassword`のエラーメッセージ確認のテストをパス。
-- カテゴリ一覧取得関数のテストコードを完成。
+---
+作成日: 2026-02-12
