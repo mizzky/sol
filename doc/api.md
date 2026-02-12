@@ -159,6 +159,101 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
 | **500 Internal Server Error** | DB接続失敗など | `{"error": "予期せぬエラーが発生しました"}` |
 
 
+## 商品（Products）API
+
+商品関連の詳細なエンドポイントをまとめます。以下は `sku` が必須で、更新は `PATCH` を採用、管理者のみが `POST` / `PATCH` / `DELETE` を実行可能とする設計方針に基づく仕様です。
+
+- GET /api/products/:id
+  - 説明: 指定IDの単一商品を取得します。
+  - 認証: 不要
+  - レスポンス例 (200 OK):
+    ```json
+    {
+      "id": 1,
+      "name": "アラビカ豆",
+      "price": 1500,
+      "is_available": true,
+      "category_id": 1,
+      "sku": "COFFEE-001",
+      "description": "高品質なアラビカ豆",
+      "image_url": "https://example.com/image1.jpg",
+      "stock_quantity": 100,
+      "created_at": "2026-02-01T10:00:00Z",
+      "updated_at": "2026-02-01T10:00:00Z"
+    }
+    ```
+  - エラーレスポンス:
+    - 404 Not Found: `{"error": "商品が見つかりません"}`
+    - 400 Bad Request: `{"error": "IDが正しくありません"}`
+    - 500 Internal Server Error: `{"error": "予期せぬエラーが発生しました"}`
+
+- POST /api/products
+  - 説明: 新しい商品を作成します（管理者のみ）。
+  - 認証: JWT（管理者ロール）🔒
+  - バリデーション:
+    - `name` : 必須、非空、最大255文字
+    - `price` : 必須、0以上の整数
+    - `category_id` : 必須、存在するカテゴリID
+    - `sku` : 必須、一意（DBでユニーク制約）
+    - `stock_quantity` : 任意、整数（省略時は0）
+    - `image_url` : 任意、有効なURL形式
+  - リクエスト例:
+    ```json
+    {
+      "name": "アラビカ豆",
+      "price": 1500,
+      "category_id": 1,
+      "sku": "COFFEE-002",
+      "description": "新商品説明",
+      "image_url": "https://example.com/image2.jpg",
+      "stock_quantity": 50
+    }
+    ```
+  - 成功レスポンス: `201 Created`（作成した商品オブジェクト）
+  - エラーレスポンス:
+    - 400 Bad Request: バリデーションエラー `{"error":"リクエスト形式が正しくありません"}`
+    - 401 Unauthorized: `{"error":"認証が必要です"}`
+    - 403 Forbidden: `{"error":"管理者権限が必要です"}`
+    - 409 Conflict: `{"error":"SKUが既に存在します"}`
+    - 500 Internal Server Error: `{"error":"予期せぬエラーが発生しました"}`
+
+- PATCH /api/products/:id
+  - 説明: 商品の部分更新を行います（管理者のみ）。`PATCH` を採用し、送信されたフィールドのみ更新します。
+  - 認証: JWT（管理者ロール）🔒
+  - バリデーション:
+    - `sku` を送る場合は空にできない、一意性を保つ
+    - `price` が送られた場合は0以上の整数
+    - その他フィールドは型チェックおよび文字数制限を適用
+  - リクエスト例（価格と在庫のみ更新）:
+    ```json
+    {
+      "price": 1600,
+      "stock_quantity": 80
+    }
+    ```
+  - 成功レスポンス: `200 OK`（更新後の商品オブジェクト）
+  - エラーレスポンス:
+    - 400 Bad Request: `{"error":"リクエストが正しくありません"}`
+    - 401 Unauthorized / 403 Forbidden
+    - 404 Not Found: `{"error":"商品が見つかりません"}`
+    - 409 Conflict: `{"error":"SKUが既に存在します"}`
+    - 500 Internal Server Error
+
+- DELETE /api/products/:id
+  - 説明: 商品を削除します（管理者のみ）。物理削除または論理削除のいずれかを実装可。
+  - 認証: JWT（管理者ロール）🔒
+  - 成功レスポンス:
+    - 204 No Content
+  - エラーレスポンス:
+    - 401 / 403 / 404 / 500（上記と同様）
+
+### 実装メモ
+- ルーティング: `backend/routes/routes.go` にハンドラを追加
+- DB クエリ: `backend/query.sql` に CRUD 用クエリを追加（sku 一意制約を確認）
+- ハンドラ: `backend/handler/product.go` を作成/編集
+- テスト: `backend/handler/product_test.go` を追加/更新（正常系・異常系）
+- マイグレーション: 必要に応じて `backend/db/migrations/000004_alter_products_table.up.sql` を更新して `sku` カラムの制約やインデックスを追加
+
 ## 商品登録
 新しい商品を登録します。（管理者のみ）
 
