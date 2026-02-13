@@ -50,3 +50,28 @@ func (m *MockDB) GetUserForUpdate(ctx context.Context, id int64) (db.User, error
 	args := m.Called(ctx, id)
 	return args.Get(0).(db.User), args.Error(1)
 }
+
+func (m *MockDB) CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.Product, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.Product), args.Error(1)
+}
+
+func (m *MockDB) GetProduct(ctx context.Context, id int64) (db.Product, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(db.Product), args.Error(1)
+}
+
+func (m *MockDB) ListProducts(ctx context.Context) ([]db.Product, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]db.Product), args.Error(1)
+}
+
+func (m *MockDB) UpdateProduct(ctx context.Context, arg db.UpdateProductParams) (db.Product, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.Product), args.Error(1)
+}
+
+func (m *MockDB) DeleteProduct(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
