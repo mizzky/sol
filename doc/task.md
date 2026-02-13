@@ -15,11 +15,11 @@
 2. [x] DBクエリの追加（sqlc用）
    - `query.sql` に `CreateProduct`, `GetProduct`, `ListProducts`, `UpdateProduct`, `DeleteProduct` を定義。
    - `sqlc generate` の実行手順を記載（実行は手元で行ってください）。
-3. [ ] ルーティング設計
+3. [x] ルーティング設計
    - 既存ルートへ `/api/products` グループを追加。管理者ミドルウェアの適用範囲を決定。
-4. [ ] テスト設計（先行）
+4. [x] テスト設計（先行）
    - `backend/handler/product_test.go` を作成し、正常系・異常系（バリデーション・JSON不正・ID不正・DBエラー）を網羅するテストを記述。
-5. [ ] ハンドラー実装
+5. [x] ハンドラー実装
    - テストが通る最小実装を行い、必要に応じてリファクタリング。
 6. [ ] 統合テスト
    - ルーター経由で管理者認可ケースや未認証のGETを検証する統合テストを追加。
