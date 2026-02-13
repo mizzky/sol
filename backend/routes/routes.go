@@ -1,11 +1,9 @@
 package routes
 
 import (
-	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
-	"sol_coffeesys/backend/pkg/respond"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,36 +20,10 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.DELETE("/categories/:id", auth.AdminOnly(queries), handler.DeleteCategoryHandler(queries))
 		api.GET("/categories", handler.GetCategoriesHandler(queries))
 
-		api.GET("/products", func(c *gin.Context) {
-			products, err := queries.ListProducts(c.Request.Context())
-			if err != nil {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
-				return
-			}
-			c.JSON(http.StatusOK, products)
-		})
-
-		api.POST("/products", func(c *gin.Context) {
-			var input struct {
-				Name  string `json:"name"`
-				Price int32  `json:"price"`
-			}
-
-			if err := c.ShouldBindJSON(&input); err != nil {
-				respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
-				return
-			}
-			product, err := queries.CreateProduct(c.Request.Context(), db.CreateProductParams{
-				Name:        input.Name,
-				Price:       input.Price,
-				IsAvailable: true,
-			})
-			if err != nil {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
-				return
-			}
-			c.JSON(http.StatusCreated, product)
-		})
-
+		api.GET("/products", handler.ListProductsHandler(queries))
+		api.GET("/products/:id", handler.GetProductHandler(queries))
+		api.POST("/products", auth.AdminOnly(queries), handler.CreateProductHandler(queries))
+		api.PUT("/products/:id", auth.AdminOnly(queries), handler.UpdateProductHandler(queries))
+		api.DELETE("/products/:id", auth.AdminOnly(queries), handler.DeleteProductHandler(queries))
 	}
 }
