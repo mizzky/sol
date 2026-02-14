@@ -42,6 +42,8 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
 **管理者権限が必要なエンドポイント（抜粋）**
 
 - `POST /api/products` — 商品登録（管理者のみ）
+- `PUT /api/products/:id` — 商品更新（管理者のみ）
+- `DELETE /api/products/:id` — 商品削除（管理者のみ）
 - `POST /api/categories` — カテゴリ作成（管理者のみ）
 - `PUT /api/categories/:id` — カテゴリ更新（管理者のみ）
 - `DELETE /api/categories/:id` — カテゴリ削除（管理者のみ）
@@ -136,21 +138,23 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
 #### 成功レスポンス
 `200 OK`:
 ```json
-[
-  {
-    "id": 1,
-    "name": "アラビカ豆",
-    "price": 1500,
-    "is_available": true,
-    "category_id": 1,
-    "sku": "COFFEE-001",
-    "description": "高品質なアラビカ豆",
-    "image_url": "https://example.com/image1.jpg",
-    "stock_quantity": 100,
-    "created_at": "2026-02-01T10:00:00Z",
-    "updated_at": "2026-02-01T10:00:00Z"
-  }
-]
+{
+  "products": [
+    {
+      "id": 1,
+      "name": "アラビカ豆",
+      "price": 1500,
+      "is_available": true,
+      "category_id": 1,
+      "sku": "COFFEE-001",
+      "description": "高品質なアラビカ豆",
+      "image_url": "https://example.com/image1.jpg",
+      "stock_quantity": 100,
+      "created_at": "2026-02-01T10:00:00Z",
+      "updated_at": "2026-02-01T10:00:00Z"
+    }
+  ]
+}
 ```
 
 #### エラーレスポンス
@@ -161,7 +165,7 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
 
 ## 商品（Products）API
 
-商品関連の詳細なエンドポイントをまとめます。以下は `sku` が必須で、更新は `PATCH` を採用、管理者のみが `POST` / `PATCH` / `DELETE` を実行可能とする設計方針に基づく仕様です。
+商品関連の詳細なエンドポイントをまとめます。以下は `sku` が必須で、更新は `PUT` を採用、管理者のみが `POST` / `PUT` / `DELETE` を実行可能とする仕様です。
 
 - GET /api/products/:id
   - 説明: 指定IDの単一商品を取得します。
@@ -214,6 +218,7 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
     - 400 Bad Request: バリデーションエラー `{"error":"リクエスト形式が正しくありません"}`
     - 401 Unauthorized: `{"error":"認証が必要です"}`
     - 403 Forbidden: `{"error":"管理者権限が必要です"}`
+    - 404 Not Found: `{"error":"カテゴリが見つかりません"}`
     - 409 Conflict: `{"error":"SKUが既に存在します"}`
     - 500 Internal Server Error: `{"error":"予期せぬエラーが発生しました"}`
 
