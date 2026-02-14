@@ -27,15 +27,15 @@ func main() {
 	//3. Ginルーター初期化
 	r := gin.Default()
 
-	//4. ルーティング設定
-	routes.SetupRoutes(r, queries)
-
 	// CORS設定:Next.jsだけに絞る
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{"http://localhost:3000"},
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept"},
 	}))
+
+	//4. ルーティング設定
+	routes.SetupRoutes(r, queries)
 
 	//5. サーバー起動
 	log.Println("Server starting on :8080...")
