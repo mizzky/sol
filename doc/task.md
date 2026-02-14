@@ -11,10 +11,13 @@
 
 ### TODO（優先度順）
 1. [x] API仕様の整合（レスポンス形式/PUT方針/管理者要約/404追加）
-2. [ ] フロントのAPI利用設計
-   - `GET /api/products` のレスポンス形を反映
-   - `POST /api/login` のトークン保持方法を決定
-   - `POST /api/products` の必須項目を整理
+2. [x] フロントのAPI利用設計
+   - トークン保持: `localStorage`
+   - 状態管理: `zustand`
+   - API呼び出し: 小さな fetch util を作成し、認可ヘッダを共通化
+   - `GET /api/products` のレスポンス形（`{"products": [...]}`）を反映
+   - `POST /api/login` の `token` を保存し、`Authorization: Bearer <token>` で利用
+   - `POST /api/products` の必須項目（`name`, `price`, `category_id`, `sku`）を反映
 3. [ ] 画面設計（最小）
    - 商品一覧表示
    - ログインフォーム
