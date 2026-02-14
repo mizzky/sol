@@ -192,7 +192,7 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
   - 認証: JWT（管理者ロール）🔒
   - バリデーション:
     - `name` : 必須、非空、最大255文字
-    - `price` : 必須、0以上の整数
+    - `price` : 必須、正の整数（> 0）
     - `category_id` : 必須、存在するカテゴリID
     - `sku` : 必須、一意（DBでユニーク制約）
     - `stock_quantity` : 任意、整数（省略時は0）
@@ -217,17 +217,25 @@ APIでは、リクエストおよびレスポンスにおけるnull値の取り�
     - 409 Conflict: `{"error":"SKUが既に存在します"}`
     - 500 Internal Server Error: `{"error":"予期せぬエラーが発生しました"}`
 
-- PATCH /api/products/:id
-  - 説明: 商品の部分更新を行います（管理者のみ）。`PATCH` を採用し、送信されたフィールドのみ更新します。
+- PUT /api/products/:id
+  - 説明: 商品の全体更新を行います（管理者のみ）。`PUT` を採用し、全フィールドを送信することを前提とします。
   - 認証: JWT（管理者ロール）🔒
   - バリデーション:
-    - `sku` を送る場合は空にできない、一意性を保つ
-    - `price` が送られた場合は0以上の整数
+    - `name` : 必須、非空、最大255文字
+    - `price` : 必須、正の整数（> 0）
+    - `category_id` : 必須、存在するカテゴリID
+    - `sku` : 必須、一意（DBでユニーク制約）。重複時は `409 Conflict` を返す。
     - その他フィールドは型チェックおよび文字数制限を適用
-  - リクエスト例（価格と在庫のみ更新）:
+  - リクエスト例（フル更新）:
     ```json
     {
+      "name": "アラビカ豆",
       "price": 1600,
+      "is_available": true,
+      "category_id": 1,
+      "sku": "COFFEE-002",
+      "description": "更新後の説明",
+      "image_url": "https://example.com/image2.jpg",
       "stock_quantity": 80
     }
     ```
