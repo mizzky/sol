@@ -27,3 +27,27 @@
 
 記録者: 作業ペア
 作成日: 2026-02-14
+
+
+# 2026-02-14 学習ログ（追記）
+
+追記: フロントエンド認証・連携作業 (2026-02-14)
+
+- フロント側での準備:
+  - `frontend/lib/api.ts` に `API_URL` のエクスポートと API ユーティリティ（`getProducts` / `login` / `createProduct`）を整備。
+  - `frontend/store/useAuthStore.ts` を追加し、`token`/`user` の zustand ストア、localStorage 永続化、`loadFromStorage` に `/api/me` を試す復元ロジックを組み込んだ。
+  - `frontend/app/page.tsx` の fetch ハンドリングを型安全に修正（`unknown` の利用、`useCallback` 化）。
+
+- バックエンド対応・デバッグ:
+  - CORS エラー（ブラウザの `Failed to fetch`）を調査。原因は Gin のミドルウェア登録順がルート定義の後になっていて CORS ヘッダが付与されていなかったこと。
+  - `backend/main.go` で CORS ミドルウェアをルート設定の前に移動し、開発時の origin（http://localhost:3000, http://localhost:3001）を許可するよう修正。
+
+- 作業の結果:
+  - フロントからバックエンドへの API 呼び出しが正常化し、商品一覧取得のエラーが解消された。
+
+今後の注意点:
+- `loadFromStorage` はトークンでのサーバ復元(`/api/me`)を優先し、なければ `localStorage` の `auth_user` をフォールバックで利用する方針。
+- localStorage にトークンを保存する実装は学習用としては有用だが、本番では HttpOnly Cookie 等を検討する。
+
+記録者: 作業アシスタント
+作成日: 2026-02-14
