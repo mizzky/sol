@@ -2,6 +2,7 @@ package handler
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/respond"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 type ProductResponse struct {
@@ -138,6 +140,11 @@ func CreateProductHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 
+		if len(req.Name) > 255 {
+			respond.RespondError(c, http.StatusBadRequest, "nameは255文字以内である必要があります")
+			return
+		}
+
 		if _, err := q.GetCategory(c.Request.Context(), req.CategoryID); err != nil {
 			if err == sql.ErrNoRows {
 				respond.RespondError(c, http.StatusNotFound, "カテゴリが見つかりません")
@@ -167,6 +174,11 @@ func CreateProductHandler(q db.Querier) gin.HandlerFunc {
 			StockQuantity: req.StockQuantity,
 		})
 		if err != nil {
+			var pqErr *pq.Error
+			if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+				respond.RespondError(c, http.StatusConflict, "SKUが既に存在します")
+				return
+			}
 			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
 			return
 		}
@@ -223,6 +235,11 @@ func UpdateProductHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 
+		if len(req.Name) > 255 {
+			respond.RespondError(c, http.StatusBadRequest, "nameは255文字以内である必要があります")
+			return
+		}
+
 		// category 存在確認
 		if _, err := q.GetCategory(c.Request.Context(), req.CategoryID); err != nil {
 			if err == sql.ErrNoRows {
@@ -254,6 +271,12 @@ func UpdateProductHandler(q db.Querier) gin.HandlerFunc {
 			ID:            int64(id),
 		})
 		if err != nil {
+			var pqErr *pq.Error
+			if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+				respond.RespondError(c, http.StatusConflict, "SKUが既に存在します")
+				return
+			}
+
 			if err == sql.ErrNoRows {
 				respond.RespondError(c, http.StatusNotFound, "商品が見つかりません")
 			} else {

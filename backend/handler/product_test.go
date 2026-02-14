@@ -6,13 +6,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -190,6 +193,7 @@ func TestCreateProduct_ValidationTable(t *testing.T) {
 		{"price zero", map[string]interface{}{"name": "X", "price": 0, "sku": "S1"}, http.StatusBadRequest},
 		{"missing sku", map[string]interface{}{"name": "X", "price": 100}, http.StatusBadRequest},
 		{"invalid json", map[string]interface{}{}, http.StatusBadRequest},
+		{"too long name", map[string]interface{}{"name": strings.Repeat("a", 256), "price": 100, "sku": "S1"}, http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
@@ -360,6 +364,7 @@ func TestUpdateProducts_ValidationTable(t *testing.T) {
 		{"price zero", map[string]interface{}{"name": "X", "price": 0, "sku": "S1"}, http.StatusBadRequest},
 		{"missing sku", map[string]interface{}{"name": "X", "price": 100}, http.StatusBadRequest},
 		{"invalid json", map[string]interface{}{}, http.StatusBadRequest},
+		{"too long name", map[string]interface{}{"name": strings.Repeat("a", 256), "price": 100, "sku": "S1"}, http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
@@ -445,4 +450,143 @@ func TestDeleteProduct_InvalidID(t *testing.T) {
 	assert.Contains(t, resp["error"], "IDが正しくありません")
 
 	mockDB.AssertNotCalled(t, "DeleteProduct", mock.Anything, mock.Anything)
+}
+
+func TestCreateProduct_SkuConflict_409(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	mockDB := new(testutil.MockDB)
+
+	mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{
+		ID:   1,
+		Name: "テストカテゴリ",
+	}, nil)
+
+	mockDB.On("CreateProduct", mock.Anything, mock.Anything).Return(db.Product{}, &pq.Error{Code: "23505"})
+	router.POST("/api/products", handler.CreateProductHandler(mockDB))
+
+	body := map[string]interface{}{
+		"name":           "Coffee",
+		"price":          500,
+		"is_available":   true,
+		"category_id":    1,
+		"sku":            "DUP-001",
+		"description":    "Nice coffee",
+		"image_url":      "https://example.com/img.png",
+		"stock_quantity": 10,
+	}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/api/products", bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	mockDB.AssertExpectations(t)
+}
+
+func TestUpdateProduct_SkuConflict_409(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	mockDB := new(testutil.MockDB)
+
+	mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{
+		ID:   1,
+		Name: "テストカテゴリ",
+	}, nil)
+
+	mockDB.On("UpdateProduct", mock.Anything, mock.Anything).Return(db.Product{}, &pq.Error{Code: "23505"})
+
+	router.PUT("/api/products/:id", handler.UpdateProductHandler(mockDB))
+
+	updateBody := map[string]interface{}{
+		"name":           "Coffee Updated",
+		"price":          600,
+		"is_available":   true,
+		"category_id":    1,
+		"sku":            "DUP-001",
+		"description":    "Updated",
+		"image_url":      "https://example.com/img2.png",
+		"stock_quantity": 20,
+	}
+	b, _ := json.Marshal(updateBody)
+	req := httptest.NewRequest(http.MethodPut, "/api/products/1", bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	mockDB.AssertExpectations(t)
+
+}
+
+func TestProductAuth_AdminOnly_Routes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	mockDB := new(testutil.MockDB)
+
+	router := gin.Default()
+	router.POST("/api/products", auth.AdminOnly(mockDB), handler.CreateProductHandler(mockDB))
+
+	// 1)認証なし=>401
+	{
+		body := map[string]interface{}{"name": "X", "price": 100, "sku": "A1", "category_id": 1}
+		b, _ := json.Marshal(body)
+		req := httptest.NewRequest(http.MethodPost, "/api/products", bytes.NewBuffer(b))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	}
+	// 2)非管理者トークン=>403
+	mockDB.On("GetUserForUpdate", mock.Anything, int64(2)).Return(db.User{ID: 2, Role: "user"}, nil)
+	{
+		token, err := auth.DefaultTokenGenerator{}.GenerateToken(int64(2))
+		assert.NoError(t, err)
+		body := map[string]interface{}{"name": "X", "price": 100, "sku": "A2", "category_id": 1}
+		b, _ := json.Marshal(body)
+		req := httptest.NewRequest(http.MethodPost, "/api/products", bytes.NewBuffer(b))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	}
+
+	// 3)管理者トークン=>201
+	mockDB.On("GetUserForUpdate", mock.Anything, int64(1)).Return(db.User{ID: 1, Role: "admin"}, nil)
+	{
+		now := time.Now()
+		mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{ID: 1, Name: "テストカテゴリ"}, nil)
+		mockDB.On("CreateProduct", mock.Anything, mock.Anything).Return(db.Product{
+			ID:            10,
+			Name:          "AdminCreated",
+			Price:         100,
+			IsAvailable:   true,
+			CategoryID:    1,
+			Sku:           "ADM-001",
+			StockQuantity: 5,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}, nil)
+
+		token, err := auth.DefaultTokenGenerator{}.GenerateToken(int64(1))
+		assert.NoError(t, err)
+		body := map[string]interface{}{
+			"name":           "AdminCreated",
+			"price":          100,
+			"is_available":   true,
+			"category_id":    1,
+			"sku":            "ADM-001",
+			"stock_quantity": 5,
+		}
+		b, _ := json.Marshal(body)
+		req := httptest.NewRequest(http.MethodPost, "/api/products", bytes.NewBuffer(b))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusCreated, w.Code)
+		mockDB.AssertExpectations(t)
+	}
 }
