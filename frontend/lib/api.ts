@@ -1,7 +1,17 @@
 // Fallback to localhost:8080 if env is not available in dev client bundles
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export type ApiError = { status: number } & Record<string, unknown>;
+
+export interface LoginResponse {
+    message?: string;
+    token: string;
+    user: {
+        id: number;
+        name: string;
+        email: string;
+    };
+}
 
 export interface Product {
   id: number;
