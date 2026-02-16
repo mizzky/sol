@@ -52,6 +52,24 @@ func TestMeHandler(t *testing.T) {
 			},
 		},
 		{
+			name:       "クレームが数字文字列->200",
+			authHeader: "Bearer valid",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": "1"}}, nil
+			},
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(1)).Return(db.User{ID: 1, Name: "Taro", Email: "taro@example.com"}, nil)
+			},
+			expectStatus: http.StatusOK,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]interface{}
+				assert.NoError(t, json.Unmarshal(body, &resp))
+				user, ok := resp["user"].(map[string]interface{})
+				assert.True(t, ok)
+				assert.Equal(t, "taro@example.com", user["email"])
+			},
+		},
+		{
 			name:         "ヘッダ無し->401",
 			authHeader:   "",
 			validateFunc: nil,
@@ -91,6 +109,20 @@ func TestMeHandler(t *testing.T) {
 				_, ok := resp["error"]
 				assert.True(t, ok)
 			},
+		}, {
+			name:       "トークン欠落->401",
+			authHeader: "Bearer",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return nil, fmt.Errorf("invalid")
+			},
+			setupMock:    nil,
+			expectStatus: http.StatusUnauthorized,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]interface{}
+				assert.NoError(t, json.Unmarshal(body, &resp))
+				_, ok := resp["error"]
+				assert.True(t, ok)
+			},
 		},
 		{
 			name:         "クレームなし->401",
@@ -106,10 +138,55 @@ func TestMeHandler(t *testing.T) {
 			},
 		},
 		{
+			name:       "クレームの型が不正（bool）->401",
+			authHeader: "Bearer noclaim",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": true}}, nil
+			},
+			setupMock:    nil,
+			expectStatus: http.StatusUnauthorized,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]interface{}
+				assert.NoError(t, json.Unmarshal(body, &resp))
+				_, ok := resp["error"]
+				assert.True(t, ok)
+			},
+		},
+		{
+			name:       "token.Validがfalse->401",
+			authHeader: "Bearer noclaim",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: false, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
+			},
+			setupMock:    nil,
+			expectStatus: http.StatusUnauthorized,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]interface{}
+				assert.NoError(t, json.Unmarshal(body, &resp))
+				_, ok := resp["error"]
+				assert.True(t, ok)
+			},
+		},
+		{
 			name:       "ユーザー未検出->401",
 			authHeader: "Bearer missing",
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{}}, nil
+			},
+			setupMock:    nil,
+			expectStatus: http.StatusUnauthorized,
+			checkBody: func(t *testing.T, body []byte) {
+				var resp map[string]interface{}
+				assert.NoError(t, json.Unmarshal(body, &resp))
+				_, ok := resp["error"]
+				assert.True(t, ok)
+			},
+		},
+		{
+			name:       "トークン型アサーション失敗->401",
+			authHeader: "Bearer missing",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.RegisteredClaims{}}, nil
 			},
 			setupMock:    nil,
 			expectStatus: http.StatusUnauthorized,
