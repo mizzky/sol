@@ -75,7 +75,7 @@ func UpdateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 
-		id, err := strconv.Atoi(c.Param("id"))
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			respond.RespondError(c, http.StatusBadRequest, "IDが正しくありません")
 			return
@@ -154,7 +154,7 @@ func GetCategoriesHandler(queries db.Querier) gin.HandlerFunc {
 // ＋＋カテゴリー削除機能＋＋
 func DeleteCategoryHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.Atoi(c.Param("id"))
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			respond.RespondError(c, http.StatusBadRequest, "IDが正しくありません")
 			return
