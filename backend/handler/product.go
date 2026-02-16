@@ -79,7 +79,7 @@ func ListProductsHandler(q db.Querier) gin.HandlerFunc {
 // ＋＋商品取得機能＋＋
 func GetProductHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.Atoi(c.Param("id"))
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			respond.RespondError(c, http.StatusBadRequest, "IDが正しくありません")
 			return
@@ -211,7 +211,7 @@ func CreateProductHandler(q db.Querier) gin.HandlerFunc {
 // ＋＋商品更新機能＋＋
 func UpdateProductHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.Atoi(c.Param("id"))
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			respond.RespondError(c, http.StatusBadRequest, "IDが正しくありません")
 			return
@@ -313,7 +313,7 @@ func UpdateProductHandler(q db.Querier) gin.HandlerFunc {
 // ＋＋商品削除機能＋＋
 func DeleteProductHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		id, err := strconv.Atoi(c.Param("id"))
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			respond.RespondError(c, http.StatusBadRequest, "IDが正しくありません")
 			return
