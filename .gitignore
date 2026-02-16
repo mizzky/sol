@@ -23,3 +23,6 @@ main
 # Test coverage outputs
 *.out
 *.html
+
+# env file
+.env

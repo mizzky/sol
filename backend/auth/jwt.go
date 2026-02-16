@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -19,17 +20,20 @@ func (d DefaultTokenGenerator) GenerateToken(userID int64) (string, error) {
 		"iat":     time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(getJWTSecret())
 }
 
-var jwtSecret = []byte("your_secret_key")
+func getJWTSecret() []byte {
+	s := os.Getenv("JWT_SECRET")
+	return []byte(s)
+}
 
 func ValidateToken(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		return jwtSecret, nil
+		return getJWTSecret(), nil
 	})
 }
 
