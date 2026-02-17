@@ -91,7 +91,7 @@ INSERT INTO users (
 ) VALUES (
     $1, $2, $3, $4
 )
-RETURNING id, name, email, password_hash, role, status, created_at, updated_at
+RETURNING id, name, email, password_hash, role, status, created_at, updated_at, reset_token
 `
 
 type CreateUserParams struct {
@@ -118,6 +118,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResetToken,
 	)
 	return i, err
 }
@@ -188,7 +189,7 @@ func (q *Queries) GetProduct(ctx context.Context, id int64) (Product, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, password_hash, role, status, created_at, updated_at FROM users 
+SELECT id, name, email, password_hash, role, status, created_at, updated_at, reset_token FROM users 
 WHERE email = $1 LIMIT 1
 `
 
@@ -204,12 +205,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResetToken,
 	)
 	return i, err
 }
 
 const getUserForUpdate = `-- name: GetUserForUpdate :one
-SELECT id, name, email, password_hash, role, status, created_at, updated_at FROM users
+SELECT id, name, email, password_hash, role, status, created_at, updated_at, reset_token FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -225,6 +227,7 @@ func (q *Queries) GetUserForUpdate(ctx context.Context, id int64) (User, error) 
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResetToken,
 	)
 	return i, err
 }
