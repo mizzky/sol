@@ -15,6 +15,19 @@
    - 影響ファイル: backend/db/migrations, backend/db/models.go
    - 受け入れ条件: SQL草案と ER 図（簡易）がdocにあること。
 
+   - 補足（チケット1の設計メモ）
+      - 既に users に role/status が存在するため、P0では reset_token のみ追加を前提とする。
+
+      SQL草案（P0・設計）
+      ALTER TABLE users
+        ADD COLUMN reset_token VARCHAR(255) NULL;
+
+      - reset_token はハッシュ保存を想定（デファクト準拠）。
+      - 有効期限は仕様として定義（例: 30分〜1時間）。DBカラム追加はP1で検討。
+
+      簡易ER図（P0時点）
+      users (1) --- (N) orders
+
 2) ロール管理API: `SetUserRoleHandler` 実装 — Effort: Low, Priority: P0
    - 内容: 管理者のみが `/admin/users/:id/role` にPATCHできるエンドポイントを実装。リクエスト: { role: "user"|"admin" }。  
    - 影響ファイル: backend/handler/user.go, backend/routes/routes.go, backend/auth/middleware.go

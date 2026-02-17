@@ -16,7 +16,11 @@
 | `name` | varchar(255) | NOT NULL | 表示名 |
 | `email` | varchar(255) | NOT NULL, UNIQUE | ログイン用メールアドレス |
 | `password_hash` | text | NOT NULL | bcryptでハッシュ化したパスワード |
+| `role` | varchar(50) | NOT NULL, DEFAULT 'member' | 権限（DB既存） |
+| `status` | varchar(50) | NOT NULL, DEFAULT 'active' | アカウント状態（DB既存） |
+| `reset_token` | varchar(255) | NULL | パスワードリセット用トークン（ハッシュ保存想定） |
 | `created_at` | timestamp | DEFAULT NOW() | 登録日時 |
+| `updated_at` | timestamp | DEFAULT NOW() | 更新日時 |
 
 ## 3. 関連図（ER図）
 現在、単一テーブルですが、今後の拡張イメージ：
