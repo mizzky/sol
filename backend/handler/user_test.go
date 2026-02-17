@@ -10,6 +10,7 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -152,6 +153,36 @@ func TestLoginUserHandler(t *testing.T) {
 				assert.Contains(t, response["error"], "トークンの生成に失敗しました")
 			},
 		},
+		{
+			name: "異常系：バリデーションエラー（メール形式不正）",
+			requestBody: map[string]interface{}{
+				"email":    "bad-email-format",
+				"password": "Passw0rd",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response["error"])
+			},
+		},
+		{
+			name: "異常系：バリデーションエラー（パスワードが短すぎる）",
+			requestBody: map[string]interface{}{
+				"email":    "user@example.com",
+				"password": "short7",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response["error"])
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -274,6 +305,71 @@ func TestRegisterUserHandler(t *testing.T) {
 				assert.Contains(t, response["error"], "このメールアドレスは既に登録されています")
 			},
 		},
+		{
+			name: "異常系：バリデーションエラー（メール形式不正）",
+			requestBody: map[string]interface{}{
+				"name":     "Alice",
+				"email":    "alice-at-example.com",
+				"password": "Passw0rd",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response["error"])
+			},
+		},
+		{
+			name: "異常系：バリデーションエラー（パスワードに空白）",
+			requestBody: map[string]interface{}{
+				"name":     "Alice",
+				"email":    "alice@example.com",
+				"password": "pass word1",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response["error"])
+			},
+		},
+		{
+			name: "異常系：バリデーションエラー（パスワード長すぎ）",
+			requestBody: map[string]interface{}{
+				"name":     "Alice",
+				"email":    "alice@example.com",
+				"password": strings.Repeat("a", 65),
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response["error"])
+			},
+		},
+		{
+			name: "異常系：バリデーションエラー（名前長すぎ）",
+			requestBody: map[string]interface{}{
+				"name":     strings.Repeat("a", 256),
+				"email":    "alice@example.com",
+				"password": "Passw0rd",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response["error"])
+			},
+		},
+
 		// {
 		// 	name: "異常系：データベースエラー"
 		// },

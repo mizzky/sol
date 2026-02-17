@@ -7,6 +7,7 @@ import (
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/respond"
+	"sol_coffeesys/backend/pkg/validation"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
@@ -39,8 +40,19 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 
-		if req.Name == "" {
-			respond.RespondError(c, http.StatusBadRequest, "名前は必須です")
+		// バリデーションチェック
+		if err := validation.ValidateRegisterRequest(req.Name, req.Email, req.Password); err != nil {
+			switch {
+			case errors.Is(err, validation.ErrInvalidName):
+				respond.RespondError(c, http.StatusBadRequest, "名前は必須です")
+			case errors.Is(err, validation.ErrInvalidEmail):
+				respond.RespondError(c, http.StatusBadRequest, "メールアドレスの形式が正しくありません")
+			case errors.Is(err, validation.ErrInvalidPassword):
+				respond.RespondError(c, http.StatusBadRequest, "パスワードの形式が正しくありません")
+			default:
+				c.Error(err)
+				respond.RespondError(c, http.StatusBadRequest, "入力が不正です")
+			}
 			return
 		}
 
@@ -71,7 +83,7 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 
 // ＋＋　ログイン機能　＋＋
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -81,6 +93,16 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 		if err := c.ShouldBindJSON(&req); err != nil {
 			fmt.Printf("Bind Error: %v\n", err)
 			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			return
+		}
+
+		// バリデーションチェック
+		if err := validation.ValidateEmail(req.Email); err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "メールアドレスの形式が正しくありません")
+			return
+		}
+		if err := validation.ValidatePassword(req.Password); err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "パスワードの形式が正しくありません")
 			return
 		}
 
