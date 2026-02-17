@@ -9,7 +9,7 @@ services:
     # 開発を止めないための設定
     command: sleep infinity
     env_file:
-      - .env
+      - ../.env
 
   db:
     image: postgres:17-trixie # 最新のポスグレ
