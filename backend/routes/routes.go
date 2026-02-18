@@ -26,6 +26,8 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.PUT("/products/:id", auth.AdminOnly(queries), handler.UpdateProductHandler(queries))
 		api.DELETE("/products/:id", auth.AdminOnly(queries), handler.DeleteProductHandler(queries))
 
+		api.PATCH("/users/:id/role", auth.AdminOnly(queries), handler.SetUserRoleHandler(queries))
+
 		api.GET("/me", handler.MeHandler(queries))
 	}
 }

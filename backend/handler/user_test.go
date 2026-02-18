@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -224,6 +226,230 @@ func TestLoginUserHandler(t *testing.T) {
 			if tt.checkResponse != nil {
 				tt.checkResponse(t, w)
 			}
+		})
+	}
+}
+
+func TestSetUserRoleHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		userID         string
+		requestBody    map[string]string
+		setupMock      func(*testutil.MockDB)
+		setupAuth      func() (func(string) (*jwt.Token, error), func())
+		expectedStatus int
+		checkResponse  func(*testing.T, map[string]interface{})
+	}{
+		{
+			name:   "正常系：他ユーザーをadminに昇格",
+			userID: "2",
+			requestBody: map[string]string{
+				"role": "admin",
+			},
+			setupMock: func(m *testutil.MockDB) {
+
+				m.On("GetUserForUpdate", mock.Anything, int64(1)).
+					Return(db.User{ID: 1, Role: "admin"}, nil)
+				m.On("UpdateUserRole", mock.Anything, db.UpdateUserRoleParams{
+					Role: "admin",
+					ID:   2,
+				}).Return(db.User{
+					ID:    2,
+					Name:  "Bob",
+					Email: "bob@example.com",
+					Role:  "admin",
+				}, nil)
+			},
+			setupAuth: func() (func(string) (*jwt.Token, error), func()) {
+				org := auth.Validate
+				auth.Validate = func(string) (*jwt.Token, error) {
+					return &jwt.Token{
+						Valid:  true,
+						Claims: jwt.MapClaims{"user.id": float64(1)},
+					}, nil
+				}
+				return auth.Validate, func() { auth.Validate = org }
+			},
+			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, resp map[string]interface{}) {
+				assert.Equal(t, float64(2), resp["id"])
+				assert.Equal(t, "admin", resp["role"])
+			},
+		},
+		{
+			name:   "正常系: 管理者が他ユーザーをmemberに降格",
+			userID: "3",
+			requestBody: map[string]string{
+				"role": "member",
+			},
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(1)).
+					Return(db.User{ID: 1, Role: "admin"}, nil)
+				m.On("UpdateUserRole", mock.Anything, db.UpdateUserRoleParams{
+					Role: "member",
+					ID:   3,
+				}).Return(db.User{
+					ID:    3,
+					Name:  "Carol",
+					Email: "carol@example.com",
+					Role:  "member",
+				}, nil)
+			},
+			setupAuth: func() (func(string) (*jwt.Token, error), func()) {
+				org := auth.Validate
+				auth.Validate = func(string) (*jwt.Token, error) {
+					return &jwt.Token{
+						Valid:  true,
+						Claims: jwt.MapClaims{"user.id": float64(1)},
+					}, nil
+				}
+				return auth.Validate, func() { auth.Validate = org }
+			},
+			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, resp map[string]interface{}) {
+				assert.Equal(t, float64(3), resp["id"])
+				assert.Equal(t, "member", resp["role"])
+			},
+		},
+		{
+			name:   "異常系：自身のロール変更",
+			userID: "1",
+			requestBody: map[string]string{
+				"role": "member",
+			},
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(1)).
+					Return(db.User{ID: 1, Role: "admin"}, nil)
+			},
+			setupAuth: func() (func(string) (*jwt.Token, error), func()) {
+				org := auth.Validate
+				auth.Validate = func(string) (*jwt.Token, error) {
+					return &jwt.Token{
+						Valid:  true,
+						Claims: jwt.MapClaims{"user.id": float64(1)},
+					}, nil
+				}
+				return auth.Validate, func() { auth.Validate = org }
+			},
+			expectedStatus: http.StatusBadRequest,
+			checkResponse: func(t *testing.T, resp map[string]interface{}) {
+				assert.Contains(t, resp["error"], "自分自身のロールは変更できません")
+			},
+		},
+		{
+			name:   "異常系：不正なrole(user)",
+			userID: "2",
+			requestBody: map[string]string{
+				"role": "user",
+			},
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(1)).
+					Return(db.User{ID: 1, Role: "admin"}, nil)
+			},
+			setupAuth: func() (func(string) (*jwt.Token, error), func()) {
+				org := auth.Validate
+				auth.Validate = func(string) (*jwt.Token, error) {
+					return &jwt.Token{
+						Valid:  true,
+						Claims: jwt.MapClaims{"user.id": float64(1)},
+					}, nil
+				}
+				return auth.Validate, func() { auth.Validate = org }
+			},
+			expectedStatus: http.StatusBadRequest,
+			checkResponse: func(t *testing.T, resp map[string]interface{}) {
+				assert.Equal(t, resp["error"], "無効なロール")
+			},
+		},
+		{
+			name:   "異常系: 存在しないユーザー",
+			userID: "999",
+			requestBody: map[string]string{
+				"role": "admin",
+			},
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(1)).
+					Return(db.User{ID: 1, Role: "admin"}, nil)
+				m.On("UpdateUserRole", mock.Anything, db.UpdateUserRoleParams{
+					Role: "admin",
+					ID:   999,
+				}).Return(db.User{}, sql.ErrNoRows)
+			},
+			setupAuth: func() (func(string) (*jwt.Token, error), func()) {
+				org := auth.Validate
+				auth.Validate = func(string) (*jwt.Token, error) {
+					return &jwt.Token{
+						Valid:  true,
+						Claims: jwt.MapClaims{"user.id": float64(1)},
+					}, nil
+				}
+				return auth.Validate, func() { auth.Validate = org }
+			},
+			expectedStatus: http.StatusNotFound,
+			checkResponse: func(t *testing.T, resp map[string]interface{}) {
+				assert.Contains(t, resp["error"], "ユーザーが見つかりません")
+			},
+		},
+		{
+			name:   "異常系: role フィールドが空",
+			userID: "2",
+			requestBody: map[string]string{
+				"role": "",
+			},
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(1)).
+					Return(db.User{ID: 1, Role: "admin"}, nil)
+			},
+			setupAuth: func() (func(string) (*jwt.Token, error), func()) {
+				org := auth.Validate
+				auth.Validate = func(string) (*jwt.Token, error) {
+					return &jwt.Token{
+						Valid:  true,
+						Claims: jwt.MapClaims{"user.id": float64(1)},
+					}, nil
+				}
+				return auth.Validate, func() { auth.Validate = org }
+			},
+			expectedStatus: http.StatusBadRequest,
+			checkResponse: func(t *testing.T, resp map[string]interface{}) {
+				assert.Contains(t, resp["error"], "リクエストが不正です")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB := new(testutil.MockDB)
+			tt.setupMock(mockDB)
+
+			if tt.setupAuth != nil {
+				_, cleanup := tt.setupAuth()
+				defer cleanup()
+			}
+
+			router := gin.New()
+			router.PATCH("/admin/users/:id/role", auth.AdminOnly(mockDB), handler.SetUserRoleHandler(mockDB))
+
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest(http.MethodPatch, "/admin/users/"+tt.userID+"/role", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer dummy-token")
+
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			var resp map[string]interface{}
+			json.Unmarshal(w.Body.Bytes(), &resp)
+
+			if tt.checkResponse != nil {
+				tt.checkResponse(t, resp)
+			}
+
+			mockDB.AssertExpectations(t)
 		})
 	}
 }
@@ -456,8 +682,8 @@ func TestHashPassword(t *testing.T) {
 	})
 
 	t.Run("異常系：bcrypt.GenerateFromPasswordがエラーを返す", func(t *testing.T) {
-		original := handler.BcryptGenerateFromPassword
-		defer func() { handler.BcryptGenerateFromPassword = original }()
+		orginal := handler.BcryptGenerateFromPassword
+		defer func() { handler.BcryptGenerateFromPassword = orginal }()
 		handler.BcryptGenerateFromPassword = func(pwd []byte, cost int) ([]byte, error) {
 			return nil, errors.New("パスワードのハッシュ化に失敗しました")
 		}
