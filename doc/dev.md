@@ -50,6 +50,41 @@ backend/
 
     handler/ 内のロジックからその関数を呼び出す。
 
+### sqlc 再生成の詳細手順
+
+新しいクエリやカラムを追加した場合（例: reset_token カラム、GetUserByID クエリ）に実行します。
+
+1. **query.sql にクエリを追加**
+   ```sql
+   -- name: GetUserByID :one
+   SELECT * FROM users WHERE id = $1 LIMIT 1;
+   ```
+
+2. **sqlc generate を実行して Go コードを自動生成**
+   ```bash
+   cd backend
+   sqlc generate
+   ```
+
+3. **生成物を確認**
+   - `db/models.go` に新フィールド（例: `ResetToken *string`）が追加されたか確認
+   - `db/query.sql.go` に新関数（例: `GetUserByID()`）が生成されたか確認
+   - `db/querier.go` のインターフェースに新メソッドが追加されたか確認
+
+4. **テストで動作確認**
+   ```bash
+   cd backend
+   go test ./db -v
+   go test ./handler -v
+   ```
+
+5. **全テストが通ることを確認**
+   ```bash
+   go test ./...
+   ```
+
+6. **生成物をコミット** — models.go, query.sql.go, querier.go は自動生成だが git 管理対象です
+
 動作確認をしたいとき
 
     main.go を実行 (go run main.go)。
