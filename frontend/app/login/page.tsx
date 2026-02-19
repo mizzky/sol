@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "../../lib/api";
 import useAuthStore from "../../store/useAuthStore";
 
 export default function LoginPage() {
@@ -19,12 +18,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await login(email, password);
-      setToken(res.token);
-      setUser(res.user);
-      try {
-        localStorage.setItem("auth_user", JSON.stringify(res.user));
-      } catch {}
+      await useAuthStore.getState().login(email, password);
       router.push("/");
     } catch (err: unknown) {
       console.error("login failed", err);
