@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
@@ -38,14 +37,11 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		var req RegisterRequest
-		log.Println("📝 RegisterUserHandler called")
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Printf("❌ Binding error: %v", err) // ← 追加
 			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
 			return
 		}
-		log.Printf("📧 Registering user: %s", req.Email) // ← 追加
 		// バリデーションチェック
 		if err := validation.ValidateRegisterRequest(req.Name, req.Email, req.Password); err != nil {
 			switch {
@@ -64,12 +60,10 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 
 		hashed, err := HashPassword(req.Password)
 		if err != nil {
-			log.Printf("❌ HashPassword error: %v", err) // ← ここ
 			respond.RespondError(c, http.StatusInternalServerError, "パスワードのハッシュ化に失敗しました")
 			return
 		}
 
-		log.Printf("✅ Password hashed successfully")
 		user, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
 			Name:         req.Name,
 			Email:        req.Email,
@@ -77,7 +71,6 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 			Role:         "member",
 		})
 		if err != nil {
-			log.Printf("❌ CreateUser error: %v", err) // ← ここ追加
 			var pqErr *pq.Error
 			if errors.As(err, &pqErr) {
 				if pqErr.Code == "23505" {
@@ -89,7 +82,6 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("✅ User created: ID=%d", user.ID) // ← ここ
 		// 登録成功		migrate -path db/migrations -database "postgres://user:password@db:5432/coffeesys_db?sslmode=disable" up
 		c.JSON(http.StatusCreated, user)
 	}
