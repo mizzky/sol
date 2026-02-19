@@ -58,10 +58,15 @@
    - 影響ファイル: backend/auth/middleware.go (新規), doc/planning
    - 受け入れ条件: 設計文書と単体テストのテストケース案。
 
-8) フロント統合タスク — Effort: Low, Priority: P0
+8) フロント統合タスク — Effort: Low, Priority: P0 ✅ 完了 (2026-02-19)
    - 内容: `useAuthStore` のトークン取扱い（login/logout/refresh の呼び出し）をAPI定義に合わせる。  
    - 影響ファイル: frontend/store/useAuthStore.ts, frontend/lib/api.ts
    - 受け入れ条件: フロント側の簡易結合テスト（Jest）を追加。
+   - 完了内容:
+     - useAuthStore に login/register 関数を追加
+     - fetchWithAuth で認証ヘッダの自動付与を実装
+     - 401エラー時の自動ログアウトを実装
+     - 全17テストがPASS
 
 9) 監査ログ（ユーザロール変更） — Effort: Low, Priority: P1
    - 内容: 管理者によるロール変更を `audit_logs` テーブルに記録する設計。  
