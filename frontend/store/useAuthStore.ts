@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import {API_URL } from "../lib/api";
+import {API_URL, login as apiLogin, register as apiRegister } from "../lib/api";
 
 export interface User {
   id: number;
@@ -12,6 +12,8 @@ interface AuthState {
   user: User | null;
   setToken: (token: string | null) => void;
   setUser: (user: User | null) => void;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   loadFromStorage: () => void;
 }
@@ -36,6 +38,31 @@ export const useAuthStore = create<AuthState>((set) => ({
       } catch {}
     }
     set({ user: user ?? null });
+  },
+  login: async (email: string, password: string) => {
+    try {
+      const response = await apiLogin(email, password);
+      const token = response.token;
+      const user = response.user;
+      
+      set({ token, user });
+      
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, token);
+        localStorage.setItem("auth_user", JSON.stringify(user));
+      }
+    } catch (error) {
+      // エラーをそのまま再throw（呼び出し側でハンドリング）
+      throw error;
+    }
+  },
+  register: async (name: string, email: string, password: string) => {
+    try {
+      await apiRegister(name, email, password);
+      // 登録後は自動ログインしない設計とする
+    } catch (error) {
+      throw error;
+    }
   },
   logout: () => {
     if (typeof window !== "undefined") {

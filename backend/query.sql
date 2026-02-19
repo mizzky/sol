@@ -84,3 +84,21 @@ RETURNING id, name, description, created_at, updated_at;
 DELETE FROM categories
 WHERE id = $1;
 
+
+-- name: GetUserByID :one
+SELECT * FROM users
+WHERE id = $1 LIMIT 1;
+
+-- name: UpdateUserRole :one
+UPDATE users
+SET role = @role,
+    updated_at = NOW()
+WHERE id = @id
+RETURNING *;
+
+-- name: SetResetToken :one
+UPDATE users
+SET reset_token = @reset_token,
+    updated_at = NOW()
+WHERE id = @id
+RETURNING *;

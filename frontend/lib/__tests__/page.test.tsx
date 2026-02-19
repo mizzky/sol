@@ -7,6 +7,8 @@ import * as api from "../../lib/api";
 const mockPush = jest.fn();
 const mockSetToken = jest.fn();
 const mockSetUser = jest.fn();
+const mockLogin = jest.fn();
+const mockRegister = jest.fn();
 const mockLogout = jest.fn();
 const mockLoadFromStorage = jest.fn();
 
@@ -22,9 +24,24 @@ jest.mock("../../store/useAuthStore", () => {
       user: null,
       setToken: mockSetToken,
       setUser: mockSetUser,
+      login: mockLogin,
+      register: mockRegister,
       logout: mockLogout,
       loadFromStorage: mockLoadFromStorage,
     });
+
+  // getState() を呼び出すための実装
+  mock.getState = () => ({
+    token: null,
+    user: null,
+    setToken: mockSetToken,
+    setUser: mockSetUser,
+    login: mockLogin,
+    register: mockRegister,
+    logout: mockLogout,
+    loadFromStorage: mockLoadFromStorage,
+  });
+
   return { __esModule: true, default: mock };
 });
 
@@ -42,10 +59,7 @@ describe("LoginPage", () => {
   });
 
   it("submits credentials, updates store and redirects on success", async () => {
-    const loginMock = jest.spyOn(api, "login").mockResolvedValue({
-      token: "mock-token",
-      user: { id: 1, name: "User", email: "user@example.com" },
-    });
+    mockLogin.mockResolvedValue(undefined);
 
     render(<LoginPage />);
 
@@ -59,19 +73,13 @@ describe("LoginPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /ログイン/i }));
 
     await waitFor(() => {
-      expect(loginMock).toHaveBeenCalledWith("user@example.com", "password123");
-      expect(mockSetToken).toHaveBeenCalledWith("mock-token");
-      expect(mockSetUser).toHaveBeenCalledWith({
-        id: 1,
-        name: "User",
-        email: "user@example.com",
-      });
+      expect(mockLogin).toHaveBeenCalledWith("user@example.com", "password123");
       expect(mockPush).toHaveBeenCalledWith("/");
     });
   });
 
   it("shows error message on login failure", async () => {
-    jest.spyOn(api, "login").mockRejectedValue(new Error("invalid"));
+    mockLogin.mockRejectedValue(new Error("invalid"));
 
     render(<LoginPage />);
 

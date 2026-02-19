@@ -67,11 +67,50 @@ func (f *FakeQuerier) UpdateProduct(ctx context.Context, arg db.UpdateProductPar
 	return db.Product{}, nil
 }
 
+func (f *FakeQuerier) GetUserByID(ctx context.Context, id int64) (db.User, error) {
+	u, ok := f.users[id]
+	if !ok {
+		return db.User{}, sql.ErrNoRows
+	}
+	return u, nil
+}
+
+func (f *FakeQuerier) UpdateUserRole(ctx context.Context, arg db.UpdateUserRoleParams) (db.User, error) {
+	u, ok := f.users[arg.ID]
+	if !ok {
+		return db.User{}, sql.ErrNoRows
+	}
+	u.Role = arg.Role
+	f.users[arg.ID] = u
+	return u, nil
+}
+
+func (f *FakeQuerier) SetResetToken(ctx context.Context, arg db.SetResetTokenParams) (db.User, error) {
+	u, ok := f.users[arg.ID]
+	if !ok {
+		return db.User{}, sql.ErrNoRows
+	}
+	u.ResetToken = arg.ResetToken
+	f.users[arg.ID] = u
+	return u, nil
+}
+
 // DB接続エラー用のQuerier
 type BadQuerier struct{ *FakeQuerier }
 
 func (b *BadQuerier) GetUserForUpdate(ctx context.Context, id int64) (db.User, error) {
 	return db.User{}, fmt.Errorf("db error")
+}
+
+func (b *BadQuerier) GetUserByID(ctx context.Context, id int64) (db.User, error) {
+	return db.User{}, sql.ErrConnDone
+}
+
+func (b *BadQuerier) UpdateUserRole(ctx context.Context, arg db.UpdateUserRoleParams) (db.User, error) {
+	return db.User{}, sql.ErrConnDone
+}
+func (b *BadQuerier) SetResetToken(ctx context.Context, arg db.SetResetTokenParams) (db.User, error) {
+	return db.User{}, sql.ErrConnDone
 }
 
 func TestAdminOnly(t *testing.T) {

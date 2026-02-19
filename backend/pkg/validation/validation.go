@@ -12,6 +12,7 @@ var (
 	ErrInvalidEmail    = errors.New("invalid email")
 	ErrInvalidName     = errors.New("linvalid name")
 	ErrInvalidPassword = errors.New("invalid password")
+	ErrInvalidRole     = errors.New("invalid role")
 )
 
 func ValidateEmail(email string) error {
@@ -65,6 +66,17 @@ func ValidateRegisterRequest(name, email, password string) error {
 
 	if err := ValidateEmail(strings.TrimSpace(email)); err != nil {
 		return err
+	}
+	return nil
+}
+
+func ValidateRole(role string) error {
+	r := strings.TrimSpace(role)
+	if r == "" {
+		return ErrInvalidRole
+	}
+	if r != "admin" && r != "member" {
+		return ErrInvalidRole
 	}
 	return nil
 }

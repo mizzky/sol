@@ -210,6 +210,28 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, name, email, password_hash, role, status, created_at, updated_at, reset_token FROM users
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResetToken,
+	)
+	return i, err
+}
+
 const getUserForUpdate = `-- name: GetUserForUpdate :one
 SELECT id, name, email, password_hash, role, status, created_at, updated_at, reset_token FROM users
 WHERE id = $1 LIMIT 1
@@ -309,6 +331,36 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 	return items, nil
 }
 
+const setResetToken = `-- name: SetResetToken :one
+UPDATE users
+SET reset_token = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING id, name, email, password_hash, role, status, created_at, updated_at, reset_token
+`
+
+type SetResetTokenParams struct {
+	ResetToken sql.NullString `json:"reset_token"`
+	ID         int64          `json:"id"`
+}
+
+func (q *Queries) SetResetToken(ctx context.Context, arg SetResetTokenParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, setResetToken, arg.ResetToken, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResetToken,
+	)
+	return i, err
+}
+
 const updateCategory = `-- name: UpdateCategory :one
 UPDATE categories
 SET
@@ -391,6 +443,36 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (P
 		&i.StockQuantity,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserRole = `-- name: UpdateUserRole :one
+UPDATE users
+SET role = $1,
+    updated_at = NOW()
+WHERE id = $2
+RETURNING id, name, email, password_hash, role, status, created_at, updated_at, reset_token
+`
+
+type UpdateUserRoleParams struct {
+	Role string `json:"role"`
+	ID   int64  `json:"id"`
+}
+
+func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserRole, arg.Role, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ResetToken,
 	)
 	return i, err
 }

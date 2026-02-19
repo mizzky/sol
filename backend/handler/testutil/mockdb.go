@@ -75,3 +75,18 @@ func (m *MockDB) DeleteProduct(ctx context.Context, id int64) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
+
+func (m *MockDB) GetUserByID(ctx context.Context, id int64) (db.User, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(db.User), args.Error(1)
+}
+
+func (m *MockDB) UpdateUserRole(ctx context.Context, arg db.UpdateUserRoleParams) (db.User, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.User), args.Error(1)
+}
+
+func (m *MockDB) SetResetToken(ctx context.Context, arg db.SetResetTokenParams) (db.User, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.User), args.Error(1)
+}

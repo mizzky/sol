@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -110,6 +111,48 @@ func TestValidateRegisterRequest(t *testing.T) {
 			err := ValidateRegisterRequest(strings.TrimSpace(c.n), strings.TrimSpace(c.email), c.pw)
 			if (err == nil) != c.wantOk {
 				t.Fatalf("ValidateRegisterRequest(name=%q, email=%q, pw=%q) wantOk=%v err=%v", c.n, c.email, c.pw, c.wantOk, err)
+			}
+		})
+	}
+}
+
+func TestValidateRole(t *testing.T) {
+	tests := []struct {
+		name    string
+		role    string
+		wantErr error
+	}{
+		{
+			name:    "正常系：admin",
+			role:    "admin",
+			wantErr: nil,
+		},
+		{
+			name:    "正常系：member",
+			role:    "member",
+			wantErr: nil,
+		},
+		{
+			name:    "異常系：user(不正な値)",
+			role:    "user",
+			wantErr: ErrInvalidRole,
+		},
+		{
+			name:    "異常系：空文字",
+			role:    "",
+			wantErr: ErrInvalidRole,
+		},
+		{
+			name:    "異常系：大文字ADMIN",
+			role:    "ADMIN",
+			wantErr: ErrInvalidRole,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateRole(tt.role)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("ValidateRole() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

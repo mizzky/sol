@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/respond"
 	"sol_coffeesys/backend/pkg/validation"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
@@ -81,7 +83,7 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 	}
 }
 
-// ＋＋　ログイン機能　＋＋
+// ＋＋ログイン機能＋＋
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -133,5 +135,57 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 				"email": user.Email,
 			},
 		})
+	}
+}
+
+// ＋＋権限変更機能＋＋
+type SetUserRoleRequest struct {
+	Role string `json:"role" binding:"required"`
+}
+
+func SetUserRoleHandler(q db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idStr := c.Param("id")
+		userID, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "無効なユーザーIDです")
+			return
+		}
+		raw, exists := c.Get("userID")
+		if !exists {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+		adminID := raw.(int64)
+
+		if adminID == userID {
+			respond.RespondError(c, http.StatusBadRequest, "自分自身のロールは変更できません")
+			return
+		}
+
+		var req SetUserRoleRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "リクエストが不正です")
+			return
+		}
+
+		if err := validation.ValidateRole(req.Role); err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "無効なロール")
+			return
+		}
+
+		user, err := q.UpdateUserRole(c.Request.Context(), db.UpdateUserRoleParams{
+			ID:   userID,
+			Role: req.Role,
+		})
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				respond.RespondError(c, http.StatusNotFound, "ユーザーが見つかりません")
+				return
+			}
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+		c.JSON(http.StatusOK, user)
 	}
 }
