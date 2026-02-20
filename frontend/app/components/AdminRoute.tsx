@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useAuthStore from "../../store/useAuthStore";
 
@@ -7,22 +7,49 @@ type Props = { children: React.ReactNode };
 
 export default function AdminRoute({ children }: Props) {
   const router = useRouter();
-  const { token, user } = useAuthStore();
+  const { token, user, loadFromStorage, logout } = useAuthStore();
+  const [restoring, setRestoring] = useState<boolean>(true);
 
   useEffect(() => {
-    if (!token || !user) {
+    let mounted = true;
+    (async () => {
+      try {
+        await loadFromStorage();
+      } catch {
+        // ignore - state check below will handle
+      } finally {
+        // defer to next microtask to avoid sync state update warnings in tests
+        Promise.resolve().then(() => {
+          if (mounted) setRestoring(false);
+        });
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [loadFromStorage]);
+
+  useEffect(() => {
+    if (restoring) return;
+
+    if (!token) {
       router.push("/login");
       return;
     }
+
+    if (!user) {
+      logout();
+      router.push("/login");
+      return;
+    }
+
     if (user.role !== "admin") {
       router.push("/");
       return;
     }
-  }, [token, user, router]);
+  }, [restoring, token, user, router, logout]);
 
-  // 管理者であれば子コンテンツを表示（redirect が非同期なので短時間は既にレンダリングされるが、テストは push 呼び出しを見ている）
-  if (!token || !user || user.role !== "admin") {
-    return null;
-  }
+  if (restoring) return null;
+  if (!token || !user || user.role !== "admin") return null;
   return <>{children}</>;
 }
