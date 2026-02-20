@@ -10,6 +10,7 @@ export interface LoginResponse {
         id: number;
         name: string;
         email: string;
+        role: "admin" | "member";
     };
 }
 
@@ -38,15 +39,6 @@ export interface CreateProductRequest {
   stock_quantity: number;
 }
 
-export interface LoginResponse {
-  message?: string;
-  token: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
-}
 
 async function parseJsonSafe<T = Record<string, unknown>>(res: Response): Promise<T | Record<string, unknown>> {
   try {
@@ -145,8 +137,8 @@ export async function register(
 
   if (!res.ok) {
     const errorData = await parseJsonSafe<ApiError>(res);
-    const errorMessage = (errorData as any)?.error || "登録に失敗しました";
-    throw new Error(errorMessage);
+    const errorMessage = (errorData as Record<string, unknown>)?.error || "登録に失敗しました";
+    throw new Error(errorMessage as string);
   }
 }
 
