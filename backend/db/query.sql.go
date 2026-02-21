@@ -10,6 +10,72 @@ import (
 	"database/sql"
 )
 
+const addCartItem = `-- name: AddCartItem :one
+INSERT INTO cart_items (cart_id, product_id, quantity, price, created_at, updated_at)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
+ON CONFLICT(cart_id, product_id) DO UPDATE
+SET quantity = cart_items.quantity + EXCLUDED.quantity,
+    price = EXCLUDED.price,
+    updated_at = NOW()
+RETURNING id, cart_id, product_id, quantity, price, created_at, updated_at
+`
+
+type AddCartItemParams struct {
+	CartID    int64 `json:"cart_id"`
+	ProductID int64 `json:"product_id"`
+	Quantity  int32 `json:"quantity"`
+	Price     int64 `json:"price"`
+}
+
+// Requires UNIQUE(cart_id, product_id) on cart_item
+func (q *Queries) AddCartItem(ctx context.Context, arg AddCartItemParams) (CartItem, error) {
+	row := q.db.QueryRowContext(ctx, addCartItem,
+		arg.CartID,
+		arg.ProductID,
+		arg.Quantity,
+		arg.Price,
+	)
+	var i CartItem
+	err := row.Scan(
+		&i.ID,
+		&i.CartID,
+		&i.ProductID,
+		&i.Quantity,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const clearCart = `-- name: ClearCart :exec
+DELETE FROM cart_items
+WHERE cart_id = $1
+`
+
+func (q *Queries) ClearCart(ctx context.Context, cartID int64) error {
+	_, err := q.db.ExecContext(ctx, clearCart, cartID)
+	return err
+}
+
+const createCart = `-- name: CreateCart :one
+ INSERT INTO carts (user_id, created_at, updated_at)
+ VALUES($1, NOW(), NOW())
+ RETURNING id, user_id, created_at, updated_at
+`
+
+func (q *Queries) CreateCart(ctx context.Context, userID int64) (Cart, error) {
+	row := q.db.QueryRowContext(ctx, createCart, userID)
+	var i Cart
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createCategory = `-- name: CreateCategory :one
 INSERT INTO categories (
     name, description
@@ -141,6 +207,28 @@ WHERE id = $1
 func (q *Queries) DeleteProduct(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteProduct, id)
 	return err
+}
+
+const getCartItemByID = `-- name: GetCartItemByID :one
+SELECT id, cart_id, product_id, quantity, price, created_at, updated_at
+FROM cart_items
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetCartItemByID(ctx context.Context, id int64) (CartItem, error) {
+	row := q.db.QueryRowContext(ctx, getCartItemByID, id)
+	var i CartItem
+	err := row.Scan(
+		&i.ID,
+		&i.CartID,
+		&i.ProductID,
+		&i.Quantity,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getCategory = `-- name: GetCategory :one
@@ -331,6 +419,16 @@ func (q *Queries) ListProducts(ctx context.Context) ([]Product, error) {
 	return items, nil
 }
 
+const removeCartItem = `-- name: RemoveCartItem :exec
+DELETE FROM cart_items
+WHERE id = $1
+`
+
+func (q *Queries) RemoveCartItem(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, removeCartItem, id)
+	return err
+}
+
 const setResetToken = `-- name: SetResetToken :one
 UPDATE users
 SET reset_token = $1,
@@ -361,12 +459,39 @@ func (q *Queries) SetResetToken(ctx context.Context, arg SetResetTokenParams) (U
 	return i, err
 }
 
+const updateCartItemQty = `-- name: UpdateCartItemQty :one
+UPDATE cart_items
+SET quantity = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, cart_id, product_id, quantity, price, created_at, updated_at
+`
+
+type UpdateCartItemQtyParams struct {
+	ID       int64 `json:"id"`
+	Quantity int32 `json:"quantity"`
+}
+
+func (q *Queries) UpdateCartItemQty(ctx context.Context, arg UpdateCartItemQtyParams) (CartItem, error) {
+	row := q.db.QueryRowContext(ctx, updateCartItemQty, arg.ID, arg.Quantity)
+	var i CartItem
+	err := row.Scan(
+		&i.ID,
+		&i.CartID,
+		&i.ProductID,
+		&i.Quantity,
+		&i.Price,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateCategory = `-- name: UpdateCategory :one
 UPDATE categories
 SET
     name = $2,
     description = $3,
-    updated_at = NO()
+    updated_at = NOW()
 WHERE id = $1
 RETURNING id, name, description, created_at, updated_at
 `

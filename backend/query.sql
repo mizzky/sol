@@ -76,7 +76,7 @@ UPDATE categories
 SET
     name = $2,
     description = $3,
-    updated_at = NO()
+    updated_at = NOW()
 WHERE id = $1
 RETURNING id, name, description, created_at, updated_at;
 
@@ -102,3 +102,68 @@ SET reset_token = @reset_token,
     updated_at = NOW()
 WHERE id = @id
 RETURNING *;
+
+-- name: CreateCart :one
+ INSERT INTO carts (user_id, created_at, updated_at)
+ VALUES($1, NOW(), NOW())
+ RETURNING id, user_id, created_at, updated_at;
+
+ -- name: GetCartByUser :one
+ SELECT id, user_id, created_at, updated_at
+ FROM carts
+ WHERE user_id = $1
+ LIMIT 1;
+
+ -- name: GetOrCreateCartForUser :one
+ -- Requires UNIQUE(user_id) on carts
+ INSERT INTO carts(user_id, created_at, updated_at)
+ VALUES($1, NOW(), NOW())
+ ON CONFLICT (user_id) DO UPDATE SET updated_at = carts.updated_at
+ RETURNING id, user_id, created_at, updated_at;
+
+ -- name: ListCartItems :many
+ SELECT
+    ci.id,
+    ci.cart_id,
+    ci.product_id,
+    ci.quantity,
+    ci.price,
+    ci.created_at,
+    ci.updated_at,
+    p.name AS product_name,
+    p.price AS product_price,
+    p.stock AS product_stock
+FROM cart_items ci
+JOIN products p ON p.id = ci.product_id
+WHERE ci.cart_id = $1
+ORDER BY ci.id;
+
+-- name: AddCartItem :one
+-- Requires UNIQUE(cart_id, product_id) on cart_item
+INSERT INTO cart_items (cart_id, product_id, quantity, price, created_at, updated_at)
+VALUES ($1, $2, $3, $4, NOW(), NOW())
+ON CONFLICT(cart_id, product_id) DO UPDATE
+SET quantity = cart_items.quantity + EXCLUDED.quantity,
+    price = EXCLUDED.price,
+    updated_at = NOW()
+RETURNING id, cart_id, product_id, quantity, price, created_at, updated_at;
+
+-- name: GetCartItemByID :one
+SELECT id, cart_id, product_id, quantity, price, created_at, updated_at
+FROM cart_items
+WHERE id = $1
+LIMIT 1;
+
+-- name: UpdateCartItemQty :one
+UPDATE cart_items
+SET quantity = $2, updated_at = NOW()
+WHERE id = $1
+RETURNING id, cart_id, product_id, quantity, price, created_at, updated_at;
+
+-- name: RemoveCartItem :exec
+DELETE FROM cart_items
+WHERE id = $1;
+
+-- name: ClearCart :exec
+DELETE FROM cart_items
+WHERE cart_id = $1;
