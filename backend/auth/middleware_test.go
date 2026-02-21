@@ -95,6 +95,30 @@ func (f *FakeQuerier) SetResetToken(ctx context.Context, arg db.SetResetTokenPar
 	return u, nil
 }
 
+func (f *FakeQuerier) CreateCart(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, nil
+}
+
+func (f *FakeQuerier) AddCartItem(ctx context.Context, arg db.AddCartItemParams) (db.CartItem, error) {
+	return db.CartItem{}, nil
+}
+
+func (f *FakeQuerier) GetCartItemByID(ctx context.Context, id int64) (db.CartItem, error) {
+	return db.CartItem{}, nil
+}
+
+func (f *FakeQuerier) UpdateCartItemQty(ctx context.Context, arg db.UpdateCartItemQtyParams) (db.CartItem, error) {
+	return db.CartItem{}, nil
+}
+
+func (f *FakeQuerier) RemoveCartItem(ctx context.Context, id int64) error {
+	return nil
+}
+
+func (f *FakeQuerier) ClearCart(ctx context.Context, cartID int64) error {
+	return nil
+}
+
 // DB接続エラー用のQuerier
 type BadQuerier struct{ *FakeQuerier }
 
@@ -111,6 +135,30 @@ func (b *BadQuerier) UpdateUserRole(ctx context.Context, arg db.UpdateUserRolePa
 }
 func (b *BadQuerier) SetResetToken(ctx context.Context, arg db.SetResetTokenParams) (db.User, error) {
 	return db.User{}, sql.ErrConnDone
+}
+
+func (b *BadQuerier) CreateCart(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, sql.ErrConnDone
+}
+
+func (b *BadQuerier) AddCartItem(ctx context.Context, arg db.AddCartItemParams) (db.CartItem, error) {
+	return db.CartItem{}, sql.ErrConnDone
+}
+
+func (b *BadQuerier) GetCartItemByID(ctx context.Context, id int64) (db.CartItem, error) {
+	return db.CartItem{}, sql.ErrConnDone
+}
+
+func (b *BadQuerier) UpdateCartItemQty(ctx context.Context, arg db.UpdateCartItemQtyParams) (db.CartItem, error) {
+	return db.CartItem{}, sql.ErrConnDone
+}
+
+func (b *BadQuerier) RemoveCartItem(ctx context.Context, id int64) error {
+	return sql.ErrConnDone
+}
+
+func (b *BadQuerier) ClearCart(ctx context.Context, cartID int64) error {
+	return sql.ErrConnDone
 }
 
 func TestAdminOnly(t *testing.T) {
