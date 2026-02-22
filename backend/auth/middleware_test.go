@@ -3,7 +3,6 @@ package auth_test
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -103,6 +102,14 @@ func (f *FakeQuerier) AddCartItem(ctx context.Context, arg db.AddCartItemParams)
 	return db.CartItem{}, nil
 }
 
+func (f *FakeQuerier) GetCartByUser(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, nil
+}
+
+func (f *FakeQuerier) GetOrCreateCartForUser(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, nil
+}
+
 func (f *FakeQuerier) GetCartItemByID(ctx context.Context, id int64) (db.CartItem, error) {
 	return db.CartItem{}, nil
 }
@@ -111,12 +118,32 @@ func (f *FakeQuerier) UpdateCartItemQty(ctx context.Context, arg db.UpdateCartIt
 	return db.CartItem{}, nil
 }
 
+func (f *FakeQuerier) UpdateCartItemQtyByUser(ctx context.Context, arg db.UpdateCartItemQtyByUserParams) (db.CartItem, error) {
+	return db.CartItem{}, nil
+}
+
 func (f *FakeQuerier) RemoveCartItem(ctx context.Context, id int64) error {
+	return nil
+}
+
+func (f *FakeQuerier) RemoveCartItemByUser(ctx context.Context, arg db.RemoveCartItemByUserParams) error {
 	return nil
 }
 
 func (f *FakeQuerier) ClearCart(ctx context.Context, cartID int64) error {
 	return nil
+}
+
+func (f *FakeQuerier) ClearCartByUser(ctx context.Context, userID int64) error {
+	return nil
+}
+
+func (f *FakeQuerier) ListCartItems(ctx context.Context, cartID int64) ([]db.ListCartItemsRow, error) {
+	return []db.ListCartItemsRow{}, nil
+}
+
+func (f *FakeQuerier) ListCartItemsByUser(ctx context.Context, cartID int64) ([]db.ListCartItemsByUserRow, error) {
+	return []db.ListCartItemsByUserRow{}, nil
 }
 
 // DB接続エラー用のQuerier
@@ -161,6 +188,10 @@ func (b *BadQuerier) ClearCart(ctx context.Context, cartID int64) error {
 	return sql.ErrConnDone
 }
 
+func (b *BadQuerier) GetOrCreateCartForUser(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, sql.ErrConnDone
+}
+
 func TestAdminOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -181,11 +212,10 @@ func TestAdminOnly(t *testing.T) {
 	})
 
 	tests := []struct {
-		name            string
-		authHeader      string
-		validateFunc    func(string) (*jwt.Token, error)
-		expectedStatus  int
-		expectedBodyUID *int64
+		name           string
+		authHeader     string
+		validateFunc   func(string) (*jwt.Token, error)
+		expectedStatus int
 	}{
 		{
 			name:           "トークン無し->401",
@@ -215,8 +245,7 @@ func TestAdminOnly(t *testing.T) {
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
 			},
-			expectedStatus:  http.StatusNoContent,
-			expectedBodyUID: func() *int64 { v := int64(1); return &v }(),
+			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:       "DB該当ユーザー未検出->401",
@@ -240,8 +269,7 @@ func TestAdminOnly(t *testing.T) {
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": "1"}}, nil
 			},
-			expectedStatus:  http.StatusNoContent,
-			expectedBodyUID: func() *int64 { v := int64(1); return &v }(),
+			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:       "クレーム型不一致->401",
@@ -324,16 +352,8 @@ func TestAdminOnly(t *testing.T) {
 			w := httptest.NewRecorder()
 			localRouter.ServeHTTP(w, req)
 			assert.Equal(t, tt.expectedStatus, w.Code)
-
-			if tt.expectedBodyUID != nil && w.Code == http.StatusOK {
-				var body map[string]interface{}
-				err := json.Unmarshal(w.Body.Bytes(), &body)
-				assert.NoError(t, err)
-				if v, ok := body["userID"]; ok {
-					assert.Equal(t, float64(*tt.expectedBodyUID), v)
-				} else {
-					t.Fatalf("userID not found in response body")
-				}
+			if w.Code == http.StatusNoContent {
+				assert.Equal(t, 0, w.Body.Len())
 			}
 		})
 	}

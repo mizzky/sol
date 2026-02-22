@@ -9,26 +9,34 @@ import (
 )
 
 type Querier interface {
-	// Requires UNIQUE(cart_id, product_id) on cart_item
+	// Requires UNIQUE(cart_id, product_id) on cart_items
 	AddCartItem(ctx context.Context, arg AddCartItemParams) (CartItem, error)
 	ClearCart(ctx context.Context, cartID int64) error
+	ClearCartByUser(ctx context.Context, userID int64) error
 	CreateCart(ctx context.Context, userID int64) (Cart, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCategory(ctx context.Context, id int64) error
 	DeleteProduct(ctx context.Context, id int64) error
+	GetCartByUser(ctx context.Context, userID int64) (Cart, error)
 	GetCartItemByID(ctx context.Context, id int64) (CartItem, error)
 	GetCategory(ctx context.Context, id int64) (Category, error)
+	// Requires UNIQUE(user_id) on carts
+	GetOrCreateCartForUser(ctx context.Context, userID int64) (Cart, error)
 	GetProduct(ctx context.Context, id int64) (Product, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserForUpdate(ctx context.Context, id int64) (User, error)
+	ListCartItems(ctx context.Context, cartID int64) ([]ListCartItemsRow, error)
+	ListCartItemsByUser(ctx context.Context, userID int64) ([]ListCartItemsByUserRow, error)
 	ListCategories(ctx context.Context) ([]Category, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	RemoveCartItem(ctx context.Context, id int64) error
+	RemoveCartItemByUser(ctx context.Context, arg RemoveCartItemByUserParams) error
 	SetResetToken(ctx context.Context, arg SetResetTokenParams) (User, error)
 	UpdateCartItemQty(ctx context.Context, arg UpdateCartItemQtyParams) (CartItem, error)
+	UpdateCartItemQtyByUser(ctx context.Context, arg UpdateCartItemQtyByUserParams) (CartItem, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error)
