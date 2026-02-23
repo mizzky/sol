@@ -78,7 +78,7 @@
    - 完了日: 2026-02-19
    - 影響: `frontend/app/register/page.tsx` (新規)
    
-2. [ ] **チケット11**: トップページと管理ページの分離 (P0)
+2. [x] **チケット11**: トップページと管理ページの分離 (P0)
    - 11-1: トップページから商品登録フォームを削除
    - 11-2: `/admin/products` に管理ページ作成
    - 11-3: ヘッダーナビゲーション実装
@@ -89,7 +89,7 @@
      - `frontend/app/components/Header.tsx` (新規)
      - `frontend/app/layout.tsx` (修正)
    
-3. [ ] **チケット12**: 管理者権限チェックミドルウェア (P1)
+3. [x] **チケット12**: 管理者権限チェックミドルウェア (P1)
    - `/admin/*` へのアクセス制御
    - 未ログイン → `/login` リダイレクト
    - 非管理者 → `/` リダイレクト
@@ -107,3 +107,116 @@
 
 ---
 追加日: 2026-02-19
+
+---
+
+## カート操作ハンドラ実装（TDD）（新規追加: 2026-02-23）
+
+### 背景
+- DBスキーマとsqlcクエリは完成済み（[cart-plan-2026-02-16.md](planning/cart-plan-2026-02-16.md) チケット2, 3）
+- カート操作のAPIハンドラとルーティングが未実装
+- ログイン必須のカート機能をTDDサイクルで実装
+
+### 目的
+- カート操作の5つのエンドポイントを実装（追加、取得、数量更新、削除、全削除）
+- 既存パターン（`handler/product.go`, `handler/user.go`）に準拠
+- TDD（テスト駆動開発）で実装し、学習効果を最大化
+
+### 実装方針
+- **認証**: ログイン必須（`RequireAuth`ミドルウェアを新規作成）
+- **権限**: ユーザーは自分のカートのみ操作可（`ByUser`系クエリを使用）
+- **テスト**: テーブル駆動テスト + `testutil.MockDB`
+- **開発サイクル**: TDD Mentor スキルに従う（Red → Green → Refactor）
+
+### TODO（優先度順）
+
+#### ステップ1: ブランチ作成
+- [x] 作業ブランチ作成: `feature/cart-handlers`
+
+#### ステップ2: 認証ミドルウェア実装（チケット5対応）
+- [ ] **チケット13**: `RequireAuth` ミドルウェア実装 (P0)
+  - 2-1: テスト設計（正常系、未認証、トークン不正、ユーザー不在）
+  - 2-2: テストコード作成（`auth/middleware_test.go`）
+  - 2-3: プロダクトコード実装（`auth/middleware.go`）
+  - 2-4: テスト実行・確認
+  - 影響: `backend/auth/middleware.go`, `backend/auth/middleware_test.go`
+  - 受け入れ条件: `AdminOnly`と同様のロジックだがロール確認を除外、`c.Set("userID", user.ID)`を設定
+  - コミット: `feat(auth): add RequireAuth middleware for general users`
+
+#### ステップ3: カートハンドラ実装（チケット4対応）
+
+- [ ] **チケット14**: GetCartHandler - カート内容取得 (P0)
+  - 3-1: 仕様設計（エンドポイント、レスポンス形式）
+  - 3-2: テスト設計（正常系、空カート、DBエラー）
+  - 3-3: テストコード作成（`handler/cart_test.go`）
+  - 3-4: プロダクトコード実装（`handler/cart.go`）
+  - 3-5: テスト実行・確認
+  - エンドポイント: `GET /api/cart`
+  - レスポンス: `{"items": [...]}`
+  - コミット: `feat(handler): add GetCartHandler with tests`
+
+- [ ] **チケット15**: AddToCartHandler - 商品追加 (P0)
+  - 3-6: 仕様設計（在庫確認ロジック含む）
+  - 3-7: テスト設計（正常系、商品不在、在庫不足、数量不正）
+  - 3-8: テストコード作成
+  - 3-9: プロダクトコード実装
+  - 3-10: テスト実行・確認
+  - エンドポイント: `POST /api/cart/items`
+  - リクエスト: `{"product_id": 1, "quantity": 2}`
+  - コミット: `feat(handler): add AddToCartHandler with inventory check`
+
+- [ ] **チケット16**: UpdateCartItemHandler - 数量更新 (P0)
+  - 3-11: 仕様設計
+  - 3-12: テスト設計（正常系、アイテム不在、他ユーザー、数量不正）
+  - 3-13: テストコード作成
+  - 3-14: プロダクトコード実装
+  - 3-15: テスト実行・確認
+  - エンドポイント: `PUT /api/cart/items/:id`
+  - リクエスト: `{"quantity": 5}`
+  - コミット: `feat(handler): add UpdateCartItemHandler with authorization`
+
+- [ ] **チケット17**: RemoveCartItemHandler - アイテム削除 (P0)
+  - 3-16: 仕様設計
+  - 3-17: テスト設計（正常系、アイテム不在）
+  - 3-18: テストコード作成
+  - 3-19: プロダクトコード実装
+  - 3-20: テスト実行・確認
+  - エンドポイント: `DELETE /api/cart/items/:id`
+  - コミット: `feat(handler): add RemoveCartItemHandler`
+
+- [ ] **チケット18**: ClearCartHandler - カート全削除 (P0)
+  - 3-21: 仕様設計
+  - 3-22: テスト設計（正常系）
+  - 3-23: テストコード作成
+  - 3-24: プロダクトコード実装
+  - 3-25: テスト実行・確認
+  - エンドポイント: `DELETE /api/cart`
+  - コミット: `feat(handler): add ClearCartHandler`
+
+#### ステップ4: ルーティング設定
+- [ ] **チケット19**: カートエンドポイント登録 (P0)
+  - 4-1: `routes/routes.go` に5つのエンドポイント追加
+  - 4-2: ルーティングテスト実行
+  - 影響: `backend/routes/routes.go`
+  - コミット: `feat(routes): register cart endpoints with RequireAuth`
+
+#### ステップ5: 検証
+- [ ] **チケット20**: 統合テスト・手動テスト (P1)
+  - 5-1: 統合テスト作成（`tests/cart_integration_test.go`）
+  - 5-2: `test.http` にカート操作のリクエスト例追加
+  - 5-3: 動作確認（ログイン → カート操作の一連フロー）
+  - コミット: `test(integration): add cart flow tests and HTTP examples`
+
+### 参考資料
+- 詳細計画: [doc/planning/cart-plan-2026-02-16.md](planning/cart-plan-2026-02-16.md)
+- 既存ハンドラパターン: [backend/handler/product.go](../backend/handler/product.go), [backend/handler/user.go](../backend/handler/user.go)
+- 既存ミドルウェア: [backend/auth/middleware.go](../backend/auth/middleware.go)
+- 既存テストパターン: [backend/handler/product_test.go](../backend/handler/product_test.go)
+
+### 進捗メモ
+- 開始日: 2026-02-23
+- 現在のステップ: ステップ1完了待ち
+- 学習ポイント: TDDサイクル、テーブル駆動テスト、認証ミドルウェア
+
+---
+追加日: 2026-02-23
