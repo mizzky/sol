@@ -4,16 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/handler/testutil"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 type FakeQuerier struct {
@@ -103,6 +106,14 @@ func (f *FakeQuerier) AddCartItem(ctx context.Context, arg db.AddCartItemParams)
 	return db.CartItem{}, nil
 }
 
+func (f *FakeQuerier) GetCartByUser(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, nil
+}
+
+func (f *FakeQuerier) GetOrCreateCartForUser(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, nil
+}
+
 func (f *FakeQuerier) GetCartItemByID(ctx context.Context, id int64) (db.CartItem, error) {
 	return db.CartItem{}, nil
 }
@@ -111,12 +122,32 @@ func (f *FakeQuerier) UpdateCartItemQty(ctx context.Context, arg db.UpdateCartIt
 	return db.CartItem{}, nil
 }
 
+func (f *FakeQuerier) UpdateCartItemQtyByUser(ctx context.Context, arg db.UpdateCartItemQtyByUserParams) (db.CartItem, error) {
+	return db.CartItem{}, nil
+}
+
 func (f *FakeQuerier) RemoveCartItem(ctx context.Context, id int64) error {
+	return nil
+}
+
+func (f *FakeQuerier) RemoveCartItemByUser(ctx context.Context, arg db.RemoveCartItemByUserParams) error {
 	return nil
 }
 
 func (f *FakeQuerier) ClearCart(ctx context.Context, cartID int64) error {
 	return nil
+}
+
+func (f *FakeQuerier) ClearCartByUser(ctx context.Context, userID int64) error {
+	return nil
+}
+
+func (f *FakeQuerier) ListCartItems(ctx context.Context, cartID int64) ([]db.ListCartItemsRow, error) {
+	return []db.ListCartItemsRow{}, nil
+}
+
+func (f *FakeQuerier) ListCartItemsByUser(ctx context.Context, cartID int64) ([]db.ListCartItemsByUserRow, error) {
+	return []db.ListCartItemsByUserRow{}, nil
 }
 
 // DB接続エラー用のQuerier
@@ -161,6 +192,10 @@ func (b *BadQuerier) ClearCart(ctx context.Context, cartID int64) error {
 	return sql.ErrConnDone
 }
 
+func (b *BadQuerier) GetOrCreateCartForUser(ctx context.Context, userID int64) (db.Cart, error) {
+	return db.Cart{}, sql.ErrConnDone
+}
+
 func TestAdminOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -181,11 +216,10 @@ func TestAdminOnly(t *testing.T) {
 	})
 
 	tests := []struct {
-		name            string
-		authHeader      string
-		validateFunc    func(string) (*jwt.Token, error)
-		expectedStatus  int
-		expectedBodyUID *int64
+		name           string
+		authHeader     string
+		validateFunc   func(string) (*jwt.Token, error)
+		expectedStatus int
 	}{
 		{
 			name:           "トークン無し->401",
@@ -215,8 +249,7 @@ func TestAdminOnly(t *testing.T) {
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
 			},
-			expectedStatus:  http.StatusNoContent,
-			expectedBodyUID: func() *int64 { v := int64(1); return &v }(),
+			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:       "DB該当ユーザー未検出->401",
@@ -240,8 +273,7 @@ func TestAdminOnly(t *testing.T) {
 			validateFunc: func(ts string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": "1"}}, nil
 			},
-			expectedStatus:  http.StatusNoContent,
-			expectedBodyUID: func() *int64 { v := int64(1); return &v }(),
+			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:       "クレーム型不一致->401",
@@ -324,17 +356,138 @@ func TestAdminOnly(t *testing.T) {
 			w := httptest.NewRecorder()
 			localRouter.ServeHTTP(w, req)
 			assert.Equal(t, tt.expectedStatus, w.Code)
+			if w.Code == http.StatusNoContent {
+				assert.Equal(t, 0, w.Body.Len())
+			}
+		})
+	}
+}
 
-			if tt.expectedBodyUID != nil && w.Code == http.StatusOK {
+func makeTokenWithClaim(userID interface{}) *jwt.Token {
+	return &jwt.Token{
+		Valid:  true,
+		Claims: jwt.MapClaims{"user.id": userID},
+	}
+}
+
+func TestRequireAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		setupMock      func(m *testutil.MockDB)
+		validateStub   func(string) (*jwt.Token, error)
+		authHeader     string
+		expectedStatus int
+		expectedUserID interface{}
+	}{
+		{
+			name: "authorized",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(42)).Return(db.User{ID: 42, Name: "u"}, nil)
+			},
+			validateStub:   func(s string) (*jwt.Token, error) { return makeTokenWithClaim(int64(42)), nil },
+			authHeader:     "Bearer valid",
+			expectedStatus: http.StatusOK,
+			expectedUserID: float64(42), // JSON decode yields float64 for numbers
+		},
+		{
+			name: "authorized claims->string",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(42)).Return(db.User{ID: 42, Name: "u"}, nil)
+			},
+			validateStub:   func(s string) (*jwt.Token, error) { return makeTokenWithClaim("42"), nil },
+			authHeader:     "Bearer valid",
+			expectedStatus: http.StatusOK,
+			expectedUserID: float64(42), // JSON decode yields float64 for numbers
+		},
+		{
+			name:           "no header",
+			setupMock:      nil,
+			validateStub:   nil,
+			authHeader:     "",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "bad scheme",
+			setupMock:      nil,
+			validateStub:   nil,
+			authHeader:     "Token abc",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "invalid token",
+			setupMock:      nil,
+			validateStub:   func(s string) (*jwt.Token, error) { return nil, errors.New("invalid") },
+			authHeader:     "Bearer bad",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:      "missing claim",
+			setupMock: nil,
+			validateStub: func(s string) (*jwt.Token, error) {
+				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{}}, nil
+			},
+			expectedStatus: http.StatusUnauthorized,
+		},
+
+		{
+			name: "user not found",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(99)).Return(db.User{}, sql.ErrNoRows)
+			},
+			validateStub: func(s string) (*jwt.Token, error) {
+				return makeTokenWithClaim(int64(99)), nil
+			},
+			authHeader:     "Bearer t2",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "db error",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(100)).Return(db.User{}, errors.New("db"))
+			},
+			validateStub:   func(s string) (*jwt.Token, error) { return makeTokenWithClaim(int64(100)), nil },
+			authHeader:     "Bearer t3",
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			mockDB := new(testutil.MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			router.GET("/protected", auth.RequireAuth(mockDB), func(c *gin.Context) {
+				raw, _ := c.Get("userID")
+				c.JSON(http.StatusOK, gin.H{"user_id": raw})
+			})
+
+			orgValidate := auth.Validate
+			if tt.validateStub != nil {
+				auth.Validate = tt.validateStub
+			}
+			defer func() { auth.Validate = orgValidate }()
+
+			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			if tt.authHeader != "" {
+				req.Header.Set("Authorization", tt.authHeader)
+			}
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedStatus == http.StatusOK {
 				var body map[string]interface{}
 				err := json.Unmarshal(w.Body.Bytes(), &body)
 				assert.NoError(t, err)
-				if v, ok := body["userID"]; ok {
-					assert.Equal(t, float64(*tt.expectedBodyUID), v)
-				} else {
-					t.Fatalf("userID not found in response body")
-				}
+				assert.Equal(t, tt.expectedUserID, body["user_id"])
 			}
+			mockDB.AssertExpectations(t)
 		})
 	}
 }

@@ -108,20 +108,20 @@ RETURNING *;
  VALUES($1, NOW(), NOW())
  RETURNING id, user_id, created_at, updated_at;
 
- -- name: GetCartByUser :one
+-- name: GetCartByUser :one
  SELECT id, user_id, created_at, updated_at
  FROM carts
  WHERE user_id = $1
  LIMIT 1;
 
- -- name: GetOrCreateCartForUser :one
- -- Requires UNIQUE(user_id) on carts
+-- name: GetOrCreateCartForUser :one
+-- Requires UNIQUE(user_id) on carts
  INSERT INTO carts(user_id, created_at, updated_at)
  VALUES($1, NOW(), NOW())
  ON CONFLICT (user_id) DO UPDATE SET updated_at = carts.updated_at
  RETURNING id, user_id, created_at, updated_at;
 
- -- name: ListCartItems :many
+-- name: ListCartItems :many
  SELECT
     ci.id,
     ci.cart_id,
@@ -132,14 +132,32 @@ RETURNING *;
     ci.updated_at,
     p.name AS product_name,
     p.price AS product_price,
-    p.stock AS product_stock
+    p.stock_quantity AS product_stock
 FROM cart_items ci
 JOIN products p ON p.id = ci.product_id
 WHERE ci.cart_id = $1
 ORDER BY ci.id;
 
+-- name: ListCartItemsByUser :many
+SELECT
+    ci.id,
+    ci.cart_id,
+    ci.product_id,
+    ci.quantity,
+    ci.price,
+    ci.created_at,
+    ci.updated_at,
+    p.name AS product_name,
+    p.price AS product_price,
+    p.stock_quantity AS product_stock
+FROM cart_items ci
+JOIN carts c ON ci.cart_id = c.id
+JOIN products p ON p.id = ci.product_id
+WHERE c.user_id = $1
+ORDER BY ci.id;
+
 -- name: AddCartItem :one
--- Requires UNIQUE(cart_id, product_id) on cart_item
+-- Requires UNIQUE(cart_id, product_id) on cart_items
 INSERT INTO cart_items (cart_id, product_id, quantity, price, created_at, updated_at)
 VALUES ($1, $2, $3, $4, NOW(), NOW())
 ON CONFLICT(cart_id, product_id) DO UPDATE
@@ -160,10 +178,32 @@ SET quantity = $2, updated_at = NOW()
 WHERE id = $1
 RETURNING id, cart_id, product_id, quantity, price, created_at, updated_at;
 
+-- name: UpdateCartItemQtyByUser :one
+UPDATE cart_items ci
+SET quantity = $2, updated_at = NOW()
+FROM carts c
+WHERE ci.id = $1
+and ci.cart_id = c.id
+AND c.user_id = $3
+RETURNING ci.id, ci.cart_id, ci.product_id, ci.quantity, ci.price, ci.created_at, ci.updated_at;
+
 -- name: RemoveCartItem :exec
 DELETE FROM cart_items
 WHERE id = $1;
 
+-- name: RemoveCartItemByUser :exec
+DELETE FROM cart_items ci
+USING carts c
+WHERE ci.id = $1
+AND ci.cart_id = c.id
+AND c.user_id = $2;
+
 -- name: ClearCart :exec
 DELETE FROM cart_items
 WHERE cart_id = $1;
+
+-- name: ClearCartByUser :exec
+DELETE FROM cart_items
+WHERE cart_id = (
+    SELECT id FROM carts WHERE user_id = $1
+);
