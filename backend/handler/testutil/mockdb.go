@@ -90,3 +90,11 @@ func (m *MockDB) SetResetToken(ctx context.Context, arg db.SetResetTokenParams) 
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.User), args.Error(1)
 }
+
+func (m *MockDB) ListCartItemsByUser(ctx context.Context, userID int64) ([]db.ListCartItemsByUserRow, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]db.ListCartItemsByUserRow), args.Error(1)
+}
