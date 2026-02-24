@@ -133,8 +133,8 @@
 #### ステップ1: ブランチ作成
 - [x] 作業ブランチ作成: `feature/cart-handlers`
 
-#### ステップ2: 認証ミドルウェア実装（チケット5対応）
-- [ ] **チケット13**: `RequireAuth` ミドルウェア実装 (P0)
+-#### ステップ2: 認証ミドルウェア実装（チケット5対応）
+- [x] **チケット13**: `RequireAuth` ミドルウェア実装 (P0)
   - 2-1: テスト設計（正常系、未認証、トークン不正、ユーザー不在）
   - 2-2: テストコード作成（`auth/middleware_test.go`）
   - 2-3: プロダクトコード実装（`auth/middleware.go`）
@@ -213,9 +213,9 @@
 - 既存ミドルウェア: [backend/auth/middleware.go](../backend/auth/middleware.go)
 - 既存テストパターン: [backend/handler/product_test.go](../backend/handler/product_test.go)
 
-### 進捗メモ
+-### 進捗メモ
 - 開始日: 2026-02-23
-- 現在のステップ: ステップ1完了待ち
+- 現在のステップ: ステップ2完了
 - 学習ポイント: TDDサイクル、テーブル駆動テスト、認証ミドルウェア
 
 ---
