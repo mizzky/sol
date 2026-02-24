@@ -384,9 +384,20 @@ func TestRequireAuth(t *testing.T) {
 		{
 			name: "authorized",
 			setupMock: func(m *testutil.MockDB) {
-				m.On("GetUserForUpdate", mock.Anything)
+				m.On("GetUserForUpdate", mock.Anything, int64(42)).Return(db.User{ID: 42, Name: "u"}, nil)
 			},
 			validateStub:   func(s string) (*jwt.Token, error) { return makeTokenWithClaim(int64(42)), nil },
+			authHeader:     "Bearer valid",
+			expectedStatus: http.StatusOK,
+			expectedUserID: float64(42), // JSON decode yields float64 for numbers
+		},
+		{
+			name: "authorized claims->string",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(42)).Return(db.User{ID: 42, Name: "u"}, nil)
+			},
+			validateStub:   func(s string) (*jwt.Token, error) { return makeTokenWithClaim("42"), nil },
+			authHeader:     "Bearer valid",
 			expectedStatus: http.StatusOK,
 			expectedUserID: float64(42), // JSON decode yields float64 for numbers
 		},
@@ -417,6 +428,7 @@ func TestRequireAuth(t *testing.T) {
 			validateStub: func(s string) (*jwt.Token, error) {
 				return &jwt.Token{Valid: true, Claims: jwt.MapClaims{}}, nil
 			},
+			expectedStatus: http.StatusUnauthorized,
 		},
 
 		{
