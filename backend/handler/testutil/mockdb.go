@@ -98,3 +98,13 @@ func (m *MockDB) ListCartItemsByUser(ctx context.Context, userID int64) ([]db.Li
 	}
 	return args.Get(0).([]db.ListCartItemsByUserRow), args.Error(1)
 }
+
+func (m *MockDB) GetOrCreateCartForUser(ctx context.Context, userID int64) (db.Cart, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(db.Cart), args.Error(1)
+}
+
+func (m *MockDB) AddCartItem(ctx context.Context, arg db.AddCartItemParams) (db.CartItem, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.CartItem), args.Error(1)
+}
