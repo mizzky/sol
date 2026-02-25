@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/respond"
@@ -52,5 +53,71 @@ func GetCartHandler(q db.Querier) gin.HandlerFunc {
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"items": items})
+	}
+}
+
+type addToCartRequest struct {
+	ProductID int64 `json:"product_id"`
+	Quantity  int32 `json:"quantity"`
+}
+
+func AddToCartHandler(q db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req addToCartRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			return
+		}
+		if req.Quantity <= 0 {
+			respond.RespondError(c, http.StatusBadRequest, "quantityは1以上である必要があります")
+			return
+		}
+
+		uid, ok := c.Get("userID")
+		if !ok {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+		var userID int64
+		switch v := uid.(type) {
+		case int64:
+			userID = v
+		case int:
+			userID = int64(v)
+		case float64:
+			userID = int64(v)
+		default:
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		product, err := q.GetProduct(c.Request.Context(), req.ProductID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respond.RespondError(c, http.StatusNotFound, "商品が見つかりません")
+			} else {
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			}
+			return
+		}
+
+		cart, err := q.GetOrCreateCartForUser(c.Request.Context(), userID)
+		if err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+
+		item, err := q.AddCartItem(c.Request.Context(), db.AddCartItemParams{
+			CartID:    cart.ID,
+			ProductID: req.ProductID,
+			Quantity:  req.Quantity,
+			Price:     int64(product.Price),
+		})
+		if err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"item": item})
 	}
 }

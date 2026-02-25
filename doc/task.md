@@ -145,7 +145,7 @@
 
 #### ステップ3: カートハンドラ実装（チケット4対応）
 
-- [ ] **チケット14**: GetCartHandler - カート内容取得 (P0)
+- [x] **チケット14**: GetCartHandler - カート内容取得 (P0)
   - 3-1: 仕様設計（エンドポイント、レスポンス形式）
   - 3-2: テスト設計（正常系、空カート、DBエラー）
   - 3-3: テストコード作成（`handler/cart_test.go`）
@@ -213,9 +213,9 @@
 - 既存ミドルウェア: [backend/auth/middleware.go](../backend/auth/middleware.go)
 - 既存テストパターン: [backend/handler/product_test.go](../backend/handler/product_test.go)
 
--### 進捗メモ
+### 進捗メモ
 - 開始日: 2026-02-23
-- 現在のステップ: ステップ2完了
+- 現在のステップ: ステップ3（GetCartHandler）完了
 - 学習ポイント: TDDサイクル、テーブル駆動テスト、認証ミドルウェア
 
 ---
