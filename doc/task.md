@@ -155,15 +155,15 @@
   - レスポンス: `{"items": [...]}`
   - コミット: `feat(handler): add GetCartHandler with tests`
 
-- [ ] **チケット15**: AddToCartHandler - 商品追加 (P0)
-  - 3-6: 仕様設計（在庫確認ロジック含む）
-  - 3-7: テスト設計（正常系、商品不在、在庫不足、数量不正）
-  - 3-8: テストコード作成
-  - 3-9: プロダクトコード実装
-  - 3-10: テスト実行・確認
+- [x] **チケット15**: AddToCartHandler - 商品追加 (P0) (完了: 2026-02-25)
+  - 3-6: 仕様設計（在庫確認はCheckout時に実施する方針で合意）
+  - 3-7: テスト設計（正常系、商品不在、数量不正、未認証、DBエラー）
+  - 3-8: テストコード作成（`TestAddToCartHandler` を追加、表駆動）
+  - 3-9: プロダクトコード実装（`backend/handler/cart.go` に最小実装を追加）
+  - 3-10: テスト実行・確認（ユニットテスト全件通過、カバレッジ100%）
   - エンドポイント: `POST /api/cart/items`
   - リクエスト: `{"product_id": 1, "quantity": 2}`
-  - コミット: `feat(handler): add AddToCartHandler with inventory check`
+  - ブランチ/コミット: `feat/handler/add-to-cart` で実装・テストを追加
 
 - [ ] **チケット16**: UpdateCartItemHandler - 数量更新 (P0)
   - 3-11: 仕様設計
