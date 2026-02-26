@@ -108,3 +108,8 @@ func (m *MockDB) AddCartItem(ctx context.Context, arg db.AddCartItemParams) (db.
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.CartItem), args.Error(1)
 }
+
+func (m *MockDB) UpdateCartItemQtyByUser(ctx context.Context, arg db.UpdateCartItemQtyByUserParams) (db.CartItem, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.CartItem), args.Error(1)
+}
