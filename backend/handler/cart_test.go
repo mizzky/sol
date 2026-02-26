@@ -544,7 +544,7 @@ func TestUpdateCartItemHandler(t *testing.T) {
 			setupMock: func(m *testutil.MockDB) {
 				m.On("UpdateCartItemQtyByUser", mock.Anything, db.UpdateCartItemQtyByUserParams{
 					ID:       999,
-					Quantity: 2,
+					Quantity: 10,
 					UserID:   42,
 				}).Return(db.CartItem{}, sql.ErrNoRows)
 			},
@@ -563,6 +563,76 @@ func TestUpdateCartItemHandler(t *testing.T) {
 				}).Return(db.CartItem{}, errors.New("db connection failed"))
 			},
 		},
+		{
+			name:           "userID as int",
+			itemID:         "1",
+			userID:         int(42),
+			expectedStatus: http.StatusOK,
+			body:           map[string]interface{}{"quantity": 5},
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("UpdateCartItemQtyByUser", mock.Anything, db.UpdateCartItemQtyByUserParams{
+					ID:       1,
+					Quantity: 5,
+					UserID:   42,
+				}).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+			},
+		},
+		{
+			name:           "userID as float",
+			itemID:         "1",
+			userID:         float64(42),
+			expectedStatus: http.StatusOK,
+			body:           map[string]interface{}{"quantity": 5},
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("UpdateCartItemQtyByUser", mock.Anything, db.UpdateCartItemQtyByUserParams{
+					ID:       1,
+					Quantity: 5,
+					UserID:   42,
+				}).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+			},
+		},
+		{
+			name:           "missing userID",
+			itemID:         "1",
+			expectedStatus: http.StatusUnauthorized,
+			setupMock:      nil,
+		},
+		{
+			name:           "invalid type userID",
+			userID:         "non-an-id",
+			itemID:         "1",
+			body:           map[string]interface{}{"quantity": 1},
+			expectedStatus: http.StatusUnauthorized,
+			setupMock:      nil,
+		},
+		{
+			name:           "invalid JSON type",
+			userID:         int64(50),
+			itemID:         "1",
+			body:           nil,
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -580,8 +650,13 @@ func TestUpdateCartItemHandler(t *testing.T) {
 				handler.UpdateCartItemHandler(mockDB)(c)
 			})
 
-			b, _ := json.Marshal(tt.body)
-			req := httptest.NewRequest(http.MethodPut, "/api/cart/item/"+tt.itemID, bytes.NewBuffer(b))
+			var b []byte
+			if tt.name == "invalid JSON type" {
+				b = []byte(`{broken json`)
+			} else {
+				b, _ = json.Marshal(tt.body)
+			}
+			req := httptest.NewRequest(http.MethodPut, "/api/cart/items/"+tt.itemID, bytes.NewBuffer(b))
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)

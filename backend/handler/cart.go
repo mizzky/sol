@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/respond"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,12 @@ type addToCartRequest struct {
 
 func AddToCartHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		uid, ok := c.Get("userID")
+		if !ok {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
 		var req addToCartRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
@@ -73,11 +80,6 @@ func AddToCartHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 
-		uid, ok := c.Get("userID")
-		if !ok {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
-			return
-		}
 		var userID int64
 		switch v := uid.(type) {
 		case int64:
@@ -119,5 +121,65 @@ func AddToCartHandler(q db.Querier) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusCreated, gin.H{"item": item})
+	}
+}
+
+type updateCartItemRequest struct {
+	Quantity int32 `json:"quantity"`
+}
+
+func UpdateCartItemHandler(q db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// URL pramの解析
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "idが正しくありません")
+			return
+		}
+
+		uid, ok := c.Get("userID")
+		if !ok {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+		var req updateCartItemRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			return
+		}
+
+		if req.Quantity <= 0 {
+			respond.RespondError(c, http.StatusBadRequest, "quantitiyは１以上である必要があります")
+			return
+		}
+
+		var userID int64
+		switch v := uid.(type) {
+		case int64:
+			userID = v
+		case int:
+			userID = int64(v)
+		case float64:
+			userID = int64(v)
+		default:
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		item, err := q.UpdateCartItemQtyByUser(c.Request.Context(), db.UpdateCartItemQtyByUserParams{
+			ID:       id,
+			Quantity: req.Quantity,
+			UserID:   userID,
+		})
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respond.RespondError(c, http.StatusNotFound, "カートアイテムが見つかりません")
+			} else {
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			}
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"item": item})
 	}
 }
