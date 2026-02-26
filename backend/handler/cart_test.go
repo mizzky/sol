@@ -470,3 +470,123 @@ func TestAddToCartHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateCartItemHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name           string
+		itemID         string
+		userID         interface{}
+		body           map[string]interface{}
+		setupMock      func(*testutil.MockDB)
+		expectedStatus int
+	}{
+		{
+			name:           "success",
+			itemID:         "1",
+			userID:         int64(42),
+			expectedStatus: http.StatusOK,
+			body:           map[string]interface{}{"quantity": 5},
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("UpdateCartItemQtyByUser", mock.Anything, db.UpdateCartItemQtyByUserParams{
+					ID:       1,
+					Quantity: 5,
+					UserID:   42,
+				}).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+			},
+		},
+		{
+			name:           "invalid quantity(zero)",
+			expectedStatus: http.StatusBadRequest,
+			userID:         int64(42),
+			itemID:         "1",
+			body:           map[string]interface{}{"quantyty": 0},
+			setupMock:      nil,
+		},
+		{
+			name:           "invalid quantity(negative)",
+			expectedStatus: http.StatusBadRequest,
+			userID:         int64(42),
+			itemID:         "1",
+			body:           map[string]interface{}{"quantity": -10},
+			setupMock:      nil,
+		},
+		{
+			name:           "unauthorized",
+			userID:         nil,
+			itemID:         "1",
+			expectedStatus: http.StatusUnauthorized,
+			setupMock:      nil,
+		},
+		{
+			name:           "invalid id param",
+			userID:         int64(42),
+			itemID:         "abc",
+			expectedStatus: http.StatusBadRequest,
+			setupMock:      nil,
+		},
+		{
+			name:           "item not found or not owned",
+			userID:         int64(42),
+			itemID:         "999",
+			body:           map[string]interface{}{"quantity": 10},
+			expectedStatus: http.StatusNotFound,
+			setupMock: func(m *testutil.MockDB) {
+				m.On("UpdateCartItemQtyByUser", mock.Anything, db.UpdateCartItemQtyByUserParams{
+					ID:       999,
+					Quantity: 2,
+					UserID:   42,
+				}).Return(db.CartItem{}, sql.ErrNoRows)
+			},
+		},
+		{
+			name:           "db error",
+			userID:         int64(42),
+			itemID:         "1",
+			body:           map[string]interface{}{"quantity": 3},
+			expectedStatus: http.StatusInternalServerError,
+			setupMock: func(m *testutil.MockDB) {
+				m.On("UpdateCartItemQtyByUser", mock.Anything, db.UpdateCartItemQtyByUserParams{
+					ID:       1,
+					Quantity: 3,
+					UserID:   42,
+				}).Return(db.CartItem{}, errors.New("db connection failed"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			mockDB := new(testutil.MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			router.PUT("/api/cart/items/:id", func(c *gin.Context) {
+				if tt.userID != nil {
+					c.Set("userID", tt.userID)
+				}
+				handler.UpdateCartItemHandler(mockDB)(c)
+			})
+
+			b, _ := json.Marshal(tt.body)
+			req := httptest.NewRequest(http.MethodPut, "/api/cart/item/"+tt.itemID, bytes.NewBuffer(b))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockDB.AssertExpectations(t)
+		})
+	}
+}
