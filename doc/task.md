@@ -165,7 +165,7 @@
   - リクエスト: `{"product_id": 1, "quantity": 2}`
   - ブランチ/コミット: `feat/handler/add-to-cart` で実装・テストを追加
 
-- [ ] **チケット16**: UpdateCartItemHandler - 数量更新 (P0)
+- [x] **チケット16**: UpdateCartItemHandler - 数量更新 (P0)
   - 3-11: 仕様設計
   - 3-12: テスト設計（正常系、アイテム不在、他ユーザー、数量不正）
   - 3-13: テストコード作成
