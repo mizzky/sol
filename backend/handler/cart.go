@@ -183,3 +183,9 @@ func UpdateCartItemHandler(q db.Querier) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"item": item})
 	}
 }
+
+func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+	}
+}
