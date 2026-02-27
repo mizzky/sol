@@ -183,3 +183,68 @@ func UpdateCartItemHandler(q db.Querier) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"item": item})
 	}
 }
+
+func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			respond.RespondError(c, http.StatusBadRequest, "idが正しくありません")
+			return
+		}
+
+		uid, ok := c.Get("userID")
+		if !ok {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+		var userID int64
+		switch v := uid.(type) {
+		case int64:
+			userID = v
+		case int:
+			userID = int64(v)
+		case float64:
+			userID = int64(v)
+		default:
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		item, err := q.GetCartItemByID(c.Request.Context(), id)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respond.RespondError(c, http.StatusNotFound, "カートアイテムが見つかりません")
+			} else {
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			}
+			return
+		}
+
+		cart, err := q.GetCartByUser(c.Request.Context(), userID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respond.RespondError(c, http.StatusNotFound, "カートが見つかりません")
+			} else {
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			}
+			return
+		}
+
+		if item.CartID != cart.ID {
+			respond.RespondError(c, http.StatusNotFound, "カートアイテムが見つかりません")
+			return
+		}
+
+		if err := q.RemoveCartItemByUser(c.Request.Context(), db.RemoveCartItemByUserParams{
+			ID:     id,
+			UserID: userID,
+		}); err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+
+		c.Status(http.StatusNoContent)
+
+	}
+}

@@ -666,3 +666,261 @@ func TestUpdateCartItemHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveCartItemHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name           string
+		itemID         string
+		userID         interface{}
+		setupMock      func(*testutil.MockDB)
+		expectedStatus int
+	}{
+		{
+			name:           "success",
+			expectedStatus: http.StatusNoContent,
+			userID:         int64(42),
+			itemID:         "1",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(1)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{
+						ID:        10,
+						UserID:    42,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("RemoveCartItemByUser", mock.Anything, db.RemoveCartItemByUserParams{ID: 1, UserID: 42}).Return(nil)
+			},
+		},
+		{
+			name:           "item not found",
+			expectedStatus: http.StatusNotFound,
+			userID:         int64(42),
+			itemID:         "999",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetCartItemByID", mock.Anything, int64(999)).Return(
+					db.CartItem{}, sql.ErrNoRows,
+				)
+			},
+		},
+		{
+			name:           "item belongs to another user",
+			expectedStatus: http.StatusNotFound,
+			userID:         int64(42),
+			itemID:         "5",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(5)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    99,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{
+						ID:        10,
+						UserID:    42,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+			},
+		},
+		{
+			name:           "user has no cart",
+			expectedStatus: http.StatusNotFound,
+			userID:         int64(42),
+			itemID:         "5",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(5)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    99,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{}, sql.ErrNoRows,
+				)
+			},
+		},
+		{
+			name:           "unauthorized(userID nil)",
+			expectedStatus: http.StatusUnauthorized,
+			userID:         nil,
+			itemID:         "1",
+			setupMock:      nil,
+		},
+		{
+			name:           "invalid id param",
+			expectedStatus: http.StatusBadRequest,
+			userID:         int64(42),
+			itemID:         "abc",
+			setupMock:      nil,
+		},
+		{
+			name:           "db error on GetCartItemByID",
+			expectedStatus: http.StatusInternalServerError,
+			userID:         int64(42),
+			itemID:         "1",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetCartItemByID", mock.Anything, int64(1)).Return(
+					db.CartItem{}, errors.New("db access failed"),
+				)
+			},
+		},
+		{
+			name:           "db error on GetCartByUser",
+			expectedStatus: http.StatusInternalServerError,
+			userID:         int64(42),
+			itemID:         "1",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(1)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{}, errors.New("db access failed"),
+				)
+			},
+		},
+		{
+			name:           "db error on RemoveCartItemByUser",
+			expectedStatus: http.StatusInternalServerError,
+			userID:         int64(42),
+			itemID:         "1",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(1)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{
+						ID:        10,
+						UserID:    42,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("RemoveCartItemByUser", mock.Anything, db.RemoveCartItemByUserParams{ID: 1, UserID: 42}).Return(errors.New("db access failed"))
+			},
+		},
+		{
+			name:           "userID as int",
+			expectedStatus: http.StatusNoContent,
+			userID:         int(42),
+			itemID:         "1",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(1)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{
+						ID:        10,
+						UserID:    42,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("RemoveCartItemByUser", mock.Anything, db.RemoveCartItemByUserParams{ID: 1, UserID: 42}).Return(nil)
+			},
+		},
+		{
+			name:           "userID as float64",
+			expectedStatus: http.StatusNoContent,
+			userID:         float64(42),
+			itemID:         "1",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(1)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{
+						ID:        10,
+						UserID:    42,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("RemoveCartItemByUser", mock.Anything, db.RemoveCartItemByUserParams{ID: 1, UserID: 42}).Return(nil)
+			},
+		},
+		{
+			name:           "invalid type userID",
+			expectedStatus: http.StatusUnauthorized,
+			userID:         "not-an-id",
+			itemID:         "1",
+			setupMock:      nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			mockDB := new(testutil.MockDB)
+
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			router.DELETE("/api/cart/items/:id", func(c *gin.Context) {
+				if tt.userID != nil {
+					c.Set("userID", tt.userID)
+				}
+				handler.RemoveCartItemHandler(mockDB)(c)
+			})
+
+			req := httptest.NewRequest(http.MethodDelete, "/api/cart/items/"+tt.itemID, nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockDB.AssertExpectations(t)
+
+		})
+	}
+}
