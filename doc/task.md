@@ -182,6 +182,9 @@
   - 3-19: プロダクトコード実装
   - 3-20: テスト実行・確認
   - エンドポイント: `DELETE /api/cart/items/:id`
+  - APIステータス方針メモ（2026-02-27）:
+    - `UpdateCartItemHandler`: `sql.ErrNoRows` は `404 Not Found`
+    - `RemoveCartItemHandler`: 本プロジェクトでは `404 Not Found` に統一（不存在/非所有を同一扱い）
   - コミット: `feat(handler): add RemoveCartItemHandler`
 
 - [ ] **チケット18**: ClearCartHandler - カート全削除 (P0)
