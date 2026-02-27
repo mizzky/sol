@@ -788,6 +788,28 @@ func TestRemoveCartItemHandler(t *testing.T) {
 			},
 		},
 		{
+			name:           "db error on GetCartByUser",
+			expectedStatus: http.StatusInternalServerError,
+			userID:         int64(42),
+			itemID:         "1",
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetCartItemByID", mock.Anything, int64(1)).Return(
+					db.CartItem{
+						ID:        1,
+						CartID:    10,
+						ProductID: 100,
+						Quantity:  5,
+						Price:     1500,
+						CreatedAt: now,
+						UpdatedAt: now,
+					}, nil)
+				m.On("GetCartByUser", mock.Anything, int64(42)).Return(
+					db.Cart{}, errors.New("db access failed"),
+				)
+			},
+		},
+		{
 			name:           "db error on RemoveCartItemByUser",
 			expectedStatus: http.StatusInternalServerError,
 			userID:         int64(42),
