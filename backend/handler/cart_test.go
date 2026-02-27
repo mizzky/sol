@@ -205,7 +205,8 @@ func TestGetCartHandler(t *testing.T) {
 				items, ok := body["items"].([]interface{})
 				assert.True(t, ok, "items should be an array")
 				assert.Equal(t, tt.expectedItemLen, len(items))
-			} else if tt.expectedStatus == http.StatusInternalServerError {
+			}
+			if tt.expectedStatus == http.StatusInternalServerError {
 				var errBody map[string]interface{}
 				json.Unmarshal(w.Body.Bytes(), &errBody)
 				assert.Equal(t, "予期せぬエラーが発生しました", errBody["error"])
