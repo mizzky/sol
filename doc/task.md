@@ -187,7 +187,7 @@
     - `RemoveCartItemHandler`: 本プロジェクトでは `404 Not Found` に統一（不存在/非所有を同一扱い）
   - コミット: `feat(handler): add RemoveCartItemHandler`
 
-- [ ] **チケット18**: ClearCartHandler - カート全削除 (P0)
+- [x] **チケット18**: ClearCartHandler - カート全削除 (P0)
   - 3-21: 仕様設計
   - 3-22: テスト設計（正常系）
   - 3-23: テストコード作成
