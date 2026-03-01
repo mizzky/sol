@@ -175,7 +175,7 @@
   - リクエスト: `{"quantity": 5}`
   - コミット: `feat(handler): add UpdateCartItemHandler with authorization`
 
-- [ ] **チケット17**: RemoveCartItemHandler - アイテム削除 (P0)
+- [x] **チケット17**: RemoveCartItemHandler - アイテム削除 (P0)
   - 3-16: 仕様設計
   - 3-17: テスト設計（正常系、アイテム不在）
   - 3-18: テストコード作成
