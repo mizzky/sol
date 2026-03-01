@@ -194,6 +194,8 @@
   - 3-24: プロダクトコード実装
   - 3-25: テスト実行・確認
   - エンドポイント: `DELETE /api/cart`
+  - APIステータス方針メモ(2026-03-01):
+    - `ClearCartHandler`:Delete処理はカートの有無にかかわらず`204 No Content`を返す（冪等性の保持）
   - コミット: `feat(handler): add ClearCartHandler`
 
 #### ステップ4: ルーティング設定

@@ -128,3 +128,13 @@ func (m *MockDB) RemoveCartItemByUser(ctx context.Context, arg db.RemoveCartItem
 	args := m.Called(ctx, arg)
 	return args.Error(0)
 }
+
+func (m *MockDB) ClearCart(ctx context.Context, userID int64) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}
+
+func (m *MockDB) ClearCartByUser(ctx context.Context, userID int64) error {
+	args := m.Called(ctx, userID)
+	return args.Error(0)
+}

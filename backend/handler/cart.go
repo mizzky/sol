@@ -248,3 +248,32 @@ func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
 
 	}
 }
+
+func ClearCartHandler(q db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uid, ok := c.Get("userID")
+		if !ok {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+		var userID int64
+		switch v := uid.(type) {
+		case int64:
+			userID = v
+		case int:
+			userID = int64(v)
+		case float64:
+			userID = int64(v)
+		default:
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		if err := q.ClearCartByUser(c.Request.Context(), userID); err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+
+		c.Status(http.StatusNoContent)
+	}
+}
