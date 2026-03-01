@@ -175,7 +175,7 @@
   - リクエスト: `{"quantity": 5}`
   - コミット: `feat(handler): add UpdateCartItemHandler with authorization`
 
-- [ ] **チケット17**: RemoveCartItemHandler - アイテム削除 (P0)
+- [x] **チケット17**: RemoveCartItemHandler - アイテム削除 (P0)
   - 3-16: 仕様設計
   - 3-17: テスト設計（正常系、アイテム不在）
   - 3-18: テストコード作成
@@ -187,13 +187,15 @@
     - `RemoveCartItemHandler`: 本プロジェクトでは `404 Not Found` に統一（不存在/非所有を同一扱い）
   - コミット: `feat(handler): add RemoveCartItemHandler`
 
-- [ ] **チケット18**: ClearCartHandler - カート全削除 (P0)
+- [x] **チケット18**: ClearCartHandler - カート全削除 (P0)
   - 3-21: 仕様設計
   - 3-22: テスト設計（正常系）
   - 3-23: テストコード作成
   - 3-24: プロダクトコード実装
   - 3-25: テスト実行・確認
   - エンドポイント: `DELETE /api/cart`
+  - APIステータス方針メモ(2026-03-01):
+    - `ClearCartHandler`:Delete処理はカートの有無にかかわらず`204 No Content`を返す（冪等性の保持）
   - コミット: `feat(handler): add ClearCartHandler`
 
 #### ステップ4: ルーティング設定

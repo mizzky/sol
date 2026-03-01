@@ -924,3 +924,81 @@ func TestRemoveCartItemHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestClearCartHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	tests := []struct {
+		name           string
+		userID         interface{}
+		setupMock      func(*testutil.MockDB)
+		expectedStatus int
+	}{
+		{
+			name:           "success: clear existing cart",
+			expectedStatus: http.StatusNoContent,
+			userID:         int64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ClearCartByUser", mock.Anything, int64(1)).Return(nil)
+			},
+		},
+		{
+			name:           "unauthorized(missing userID)",
+			expectedStatus: http.StatusUnauthorized,
+			userID:         nil,
+			setupMock:      nil,
+		},
+		{
+			name:           "db error",
+			expectedStatus: http.StatusInternalServerError,
+			userID:         int64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ClearCartByUser", mock.Anything, int64(1)).Return(errors.New("db access error"))
+			},
+		},
+		{
+			name:           "userID as int",
+			expectedStatus: http.StatusNoContent,
+			userID:         int(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ClearCartByUser", mock.Anything, int64(1)).Return(nil)
+			},
+		},
+		{
+			name:           "userID as float",
+			expectedStatus: http.StatusNoContent,
+			userID:         float64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ClearCartByUser", mock.Anything, int64(1)).Return(nil)
+			},
+		},
+		{
+			name:           "invalid type userID",
+			expectedStatus: http.StatusUnauthorized,
+			userID:         "not-an-id",
+			setupMock:      nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			mockDB := new(testutil.MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			router.DELETE("/api/cart", func(c *gin.Context) {
+				if tt.userID != nil {
+					c.Set("userID", tt.userID)
+				}
+				handler.ClearCartHandler(mockDB)(c)
+			})
+
+			req := httptest.NewRequest(http.MethodDelete, "/api/cart", nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockDB.AssertExpectations(t)
+		})
+	}
+}
