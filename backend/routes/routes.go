@@ -28,6 +28,12 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 
 		api.PATCH("/users/:id/role", auth.AdminOnly(queries), handler.SetUserRoleHandler(queries))
 
+		api.GET("/cart", auth.RequireAuth(queries), handler.GetCartHandler(queries))
+		api.POST("/cart/items", auth.RequireAuth(queries), handler.AddToCartHandler(queries))
+		api.PUT("/cart/items/:id", auth.RequireAuth(queries), handler.UpdateCartItemHandler(queries))
+		api.DELETE("/cart/items/:id", auth.RequireAuth(queries), handler.RemoveCartItemHandler(queries))
+		api.DELETE("/cart", auth.RequireAuth(queries), handler.ClearCartHandler(queries))
+
 		api.GET("/me", handler.MeHandler(queries))
 	}
 }
