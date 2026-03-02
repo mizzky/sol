@@ -199,11 +199,11 @@
   - コミット: `feat(handler): add ClearCartHandler`
 
 #### ステップ4: ルーティング設定
-- [ ] **チケット19**: カートエンドポイント登録 (P0)
+- [x] **チケット19**: カートエンドポイント登録 (P0)
   - 4-1: `routes/routes.go` に5つのエンドポイント追加
   - 4-2: ルーティングテスト実行
   - 影響: `backend/routes/routes.go`
-  - コミット: `feat(routes): register cart endpoints with RequireAuth`
+  - コミット: `feat(routes): register cart endpoints with RequireAuth` (完了日: 2026-03-02)
 
 #### ステップ5: 検証
 - [ ] **チケット20**: 統合テスト・手動テスト (P1)
