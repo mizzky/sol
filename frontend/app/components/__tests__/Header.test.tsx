@@ -1,3 +1,13 @@
+import { render } from "@testing-library/react";
+import Header from "../Header";
+import React from "react";
+
+describe("Header", () => {
+  it("renders without crashing", () => {
+    const { getByText } = render(<Header />);
+    expect(getByText(/Home/)).toBeTruthy();
+  });
+});
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { useRouter } from "next/navigation";

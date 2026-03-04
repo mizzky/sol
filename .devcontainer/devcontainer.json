@@ -14,7 +14,8 @@
         "yzhang.markdown-all-in-one",
         "GitHub.copilot",
         "GitHub.copilot-chat",
-        "cweijan.vscode-database-client2"
+        "cweijan.vscode-database-client2",
+        "humao.rest-client"
       ],
       "settings": {
         // ターミナルのフォントなどはホスト側の設定に依存しますが、
