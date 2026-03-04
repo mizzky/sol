@@ -75,38 +75,81 @@
    - 名前、メール、パスワード入力フォーム
    - `useAuthStore.register()` 連携
    - 登録成功後は `/login` へリダイレクト
+   - 実装詳細:
+     - 入力項目: 名前、メールアドレス、パスワード、パスワード確認
+     - バリデーション: メール形式、パスワード8文字以上、確認一致チェック
+     - エラー表示: バリデーションエラー、400/500エラー、重複メールアドレス
    - 完了日: 2026-02-19
    - 影響: `frontend/app/register/page.tsx` (新規)
+   - コミット例: `feat(frontend): add user registration page`
    
 2. [x] **チケット11**: トップページと管理ページの分離 (P0)
-   - 11-1: トップページから商品登録フォームを削除
-   - 11-2: `/admin/products` に管理ページ作成
-   - 11-3: ヘッダーナビゲーション実装
-   - 11-4: 全ページにヘッダー適用
-   - 影響: 
-     - `frontend/app/page.tsx` (修正)
-     - `frontend/app/admin/products/page.tsx` (新規)
-     - `frontend/app/components/Header.tsx` (新規)
-     - `frontend/app/layout.tsx` (修正)
+   - **11-1: トップページのリファクタリング**
+     - 商品登録フォームを削除
+     - 商品一覧表示のみに特化
+     - ローディング状態の改善
+     - 影響: `frontend/app/page.tsx` (修正)
+   
+   - **11-2: 管理ページの作成**
+     - `/admin/products` ページ新規作成
+     - 商品追加フォーム（トップページから移行）
+     - 商品一覧（編集・削除ボタン付き）
+     - ロール確認: 管理者のみアクセス可
+     - 影響: `frontend/app/admin/products/page.tsx` (新規)
+   
+   - **11-3: ナビゲーションヘッダーの実装**
+     - ロゴ/タイトル（トップページへのリンク）
+     - 状態別ナビゲーション:
+       - 未ログイン: [ログイン] [新規登録]
+       - ログイン済み（一般）: [ユーザー名] [ログアウト]
+       - ログイン済み（管理者）: [ユーザー名（管理者）] [商品管理] [ログアウト]
+     - 影響: `frontend/app/components/Header.tsx` (新規)
+   
+   - **11-4: レイアウトの更新**
+     - Header コンポーネントを全ページに適用
+     - 影響: `frontend/app/layout.tsx` (修正)
+   
+   - 完了日: 2026-02-26
+   - 関連テストファイル: `frontend/app/__tests__/` (ページコンポーネントテスト、Header テスト)
+   - コミット例: 
+     - `feat(frontend): refactor top page (remove form)`
+     - `feat(frontend): create admin products page`
+     - `feat(frontend): add header navigation component`
+     - `feat(frontend): integrate header to all pages`
    
 3. [x] **チケット12**: 管理者権限チェックミドルウェア (P1)
-   - `/admin/*` へのアクセス制御
-   - 未ログイン → `/login` リダイレクト
-   - 非管理者 → `/` リダイレクト
+   - HOC`AdminRoute` の実装
+   - 未ログイン → `/login` へリダイレクト
+   - ログイン済みだが非管理者 → `/` へリダイレクト + エラーメッセージ表示
+   - ローディング状態の適切な表示
+   - 実装詳細:
+     - `useAuthStore()` から `user` とロール情報を取得
+     - 権限チェック後にページレンダリング
+     - リダイレクトロジックをテストカバー
+   - 完了日: 2026-02-27
    - 影響: `frontend/app/components/AdminRoute.tsx` (新規)
+   - テスト: `frontend/app/__tests__/AdminRoute.test.tsx` (新規)
+   - コミット例: `feat(frontend): add admin authorization middleware`
 
-### あるべきページ構成
+### あるべきページ構成（実装完了）
 ```
-/                     → 商品一覧（誰でも閲覧可）
-/login                → ログイン ✅
-/register             → ユーザー登録 ❌
-/admin/products       → 商品管理（管理者のみ）❌
+/                     → 商品一覧（誰でも閲覧可）✅ 実装済み
+/login                → ログイン ✅ 実装済み
+/register             → ユーザー登録 ✅ 実装済み (チケット10)
+/admin/products       → 商品管理（管理者のみ）✅ 実装済み (チケット11-2)
 ```
+
+**実装完了日**: 2026-02-27 (チケット12 完了で全タスク完了)
+
+**ナビゲーション**: Header コンポーネントで状態別メニビ表示 ✅ 実装済み (チケット11-3)
+
+**管理者権限チェック**: AdminRoute HOC で保護 ✅ 実装済み (チケット12)
 
 詳細: [doc/planning/frontend-pages-plan-2026-02-19.md](planning/frontend-pages-plan-2026-02-19.md)
 
 ---
 追加日: 2026-02-19
+最終更新: 2026-03-04
 
 ---
 
@@ -206,7 +249,7 @@
   - コミット: `feat(routes): register cart endpoints with RequireAuth` (完了日: 2026-03-02)
 
 #### ステップ5: 検証
-- [ ] **チケット20**: 統合テスト・手動テスト (P1)
+- [x] **チケット20**: 統合テスト・手動テスト (P1)
   - 5-1: 統合テスト作成（`tests/cart_integration_test.go`）
   - 5-2: `test.http` にカート操作のリクエスト例追加
   - 5-3: 動作確認（ログイン → カート操作の一連フロー）
@@ -225,3 +268,79 @@
 
 ---
 追加日: 2026-02-23
+
+---
+
+## フロント: カート機能実装タスク（追加: 2026-03-04）
+
+### 目的
+- トップページにカート機能を追加して、商品を選んでカートへ入れる一連のUXを提供する。
+
+### 実装方針（決定済み）
+- カートAPIはバックエンドで実装済みのため、フロントはAPI統合とUI実装に集中する。
+- 状態管理は `zustand` を採用し、ヘッダーで数量バッジを常時表示する。
+- 詳細なカート操作は専用ページ `/cart` で行えるようにする。
+
+### 実行タスク（優先度順）
+
+- [ ] **チケット21**: API層を実装する (P0)
+  - ファイル: `frontend/lib/api.ts`
+  - 内容: `getCart()`, `addToCart(productId, quantity)`, `updateCartItem(itemId, quantity)`, `removeFromCart(itemId)`, `clearCart()` を実装
+  - 影響: `frontend/lib/api.ts` (修正)
+  - コミット例: `feat(frontend): add cart API functions`
+
+- [ ] **チケット22**: カート状態管理を作成 (P0)
+  - ファイル: `frontend/store/useCartStore.ts`
+  - 内容: `items`, `totalPrice`, `totalQuantity` と、`setCart`, `addItem`, `updateItem`, `removeItem`, `clearCart` を実装
+  - 初期同期で `getCart()` を呼ぶ
+  - 影響: `frontend/store/useCartStore.ts` (新規)
+  - コミット例: `feat(frontend): add cart state management with Zustand`
+
+- [ ] **チケット23**: ヘッダーにカート表示追加 (P0)
+  - ファイル: `frontend/app/components/Header.tsx` (既存)
+  - 内容: カートアイコン + 数量バッジ。クリックで `/cart` へ遷移
+  - `useCartStore` から `totalQuantity` を購読してバッジに表示
+  - 影響: `frontend/app/components/Header.tsx` (修正)
+  - コミット例: `feat(frontend): add cart icon with badge to header`
+
+- [ ] **チケット24**: 商品カードに追加ボタン実装 (P0)
+  - ファイル: `frontend/app/page.tsx`（既存の商品の表示箇所）
+  - 内容: 各商品に数量入力と「カートに追加」ボタンを追加。押下で `addToCart()` を呼ぶ
+  - トースト通知で追加完了を表示
+  - 影響: `frontend/app/page.tsx` (修正)
+  - コミット例: `feat(frontend): add "Add to Cart" button to product cards`
+
+- [ ] **チケット25**: カート詳細ページを作成 (P0)
+  - ファイル: `frontend/app/cart/page.tsx`
+  - 内容: カート内アイテム一覧、数量変更、削除、合計金額表示、クリア/チェックアウトボタン
+  - 空カート時の表示対応
+  - 影響: `frontend/app/cart/page.tsx` (新規)
+  - コミット例: `feat(frontend): create cart detail page with full CRUD operations`
+
+- [ ] **チケット26**: レイアウトへヘッダー統合 (P1)
+  - ファイル: `frontend/app/layout.tsx`
+  - 内容: 全ページで `Header` を表示するように調整（既に実装済みの可能性あり、確認が必要）
+  - 影響: `frontend/app/layout.tsx` (確認・修正)
+  - コミット例: `refactor(frontend): ensure header displays on all pages`
+
+- [ ] **チケット27**: テストを作成・実行 (P1)
+  - ファイル例:
+    - `frontend/store/__tests__/useCartStore.test.ts`
+    - `frontend/app/components/__tests__/Header.test.tsx`（カートバッジ部分）
+    - `frontend/app/cart/__tests__/page.test.tsx`
+  - 内容: 状態更新、バッジ表示、数量変更等のユニット/コンポーネントテストを作成
+  - 影響: 複数のテストファイル (新規)
+  - コミット例: `test(frontend): add comprehensive tests for cart functionality`
+
+- [x] **チケット28**: ドキュメントにタスク追記 (P0)
+  - ファイル: `doc/task.md`（追記済み）
+  - 完了日: 2026-03-04
+
+### 受け入れ基準
+- 商品一覧から商品を追加するとヘッダーのバッジが即時更新される
+- `/cart` ページで数量変更・削除が可能で、合計金額が正しく計算される
+- APIエラーや未認証時の挙動が適切にハンドリングされる
+
+---
+
+作成日: 2026-03-04
