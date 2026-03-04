@@ -283,47 +283,47 @@
 
 ### 実行タスク（優先度順）
 
-- [ ] **チケット21**: API層を実装する (P0)
+- [x] **チケット21**: API層を実装する (P0)
   - ファイル: `frontend/lib/api.ts`
   - 内容: `getCart()`, `addToCart(productId, quantity)`, `updateCartItem(itemId, quantity)`, `removeFromCart(itemId)`, `clearCart()` を実装
   - 影響: `frontend/lib/api.ts` (修正)
   - コミット例: `feat(frontend): add cart API functions`
 
-- [ ] **チケット22**: カート状態管理を作成 (P0)
+- [x] **チケット22**: カート状態管理を作成 (P0)
   - ファイル: `frontend/store/useCartStore.ts`
   - 内容: `items`, `totalPrice`, `totalQuantity` と、`setCart`, `addItem`, `updateItem`, `removeItem`, `clearCart` を実装
   - 初期同期で `getCart()` を呼ぶ
   - 影響: `frontend/store/useCartStore.ts` (新規)
   - コミット例: `feat(frontend): add cart state management with Zustand`
 
-- [ ] **チケット23**: ヘッダーにカート表示追加 (P0)
+- [x] **チケット23**: ヘッダーにカート表示追加 (P0)
   - ファイル: `frontend/app/components/Header.tsx` (既存)
   - 内容: カートアイコン + 数量バッジ。クリックで `/cart` へ遷移
   - `useCartStore` から `totalQuantity` を購読してバッジに表示
   - 影響: `frontend/app/components/Header.tsx` (修正)
   - コミット例: `feat(frontend): add cart icon with badge to header`
 
-- [ ] **チケット24**: 商品カードに追加ボタン実装 (P0)
+- [x] **チケット24**: 商品カードに追加ボタン実装 (P0)
   - ファイル: `frontend/app/page.tsx`（既存の商品の表示箇所）
   - 内容: 各商品に数量入力と「カートに追加」ボタンを追加。押下で `addToCart()` を呼ぶ
   - トースト通知で追加完了を表示
   - 影響: `frontend/app/page.tsx` (修正)
   - コミット例: `feat(frontend): add "Add to Cart" button to product cards`
 
-- [ ] **チケット25**: カート詳細ページを作成 (P0)
+- [x] **チケット25**: カート詳細ページを作成 (P0)
   - ファイル: `frontend/app/cart/page.tsx`
   - 内容: カート内アイテム一覧、数量変更、削除、合計金額表示、クリア/チェックアウトボタン
   - 空カート時の表示対応
   - 影響: `frontend/app/cart/page.tsx` (新規)
   - コミット例: `feat(frontend): create cart detail page with full CRUD operations`
 
-- [ ] **チケット26**: レイアウトへヘッダー統合 (P1)
+- [x] **チケット26**: レイアウトへヘッダー統合 (P1)
   - ファイル: `frontend/app/layout.tsx`
   - 内容: 全ページで `Header` を表示するように調整（既に実装済みの可能性あり、確認が必要）
   - 影響: `frontend/app/layout.tsx` (確認・修正)
   - コミット例: `refactor(frontend): ensure header displays on all pages`
 
-- [ ] **チケット27**: テストを作成・実行 (P1)
+- [x] **チケット27**: テストを作成・実行 (P1)
   - ファイル例:
     - `frontend/store/__tests__/useCartStore.test.ts`
     - `frontend/app/components/__tests__/Header.test.tsx`（カートバッジ部分）
@@ -344,3 +344,12 @@
 ---
 
 作成日: 2026-03-04
+
+
+## 次にやりたいこと
+
+- [ ] APIドキュメント整備
+  - [ ] 実装済みのAPIについてドキュメンテーション
+  - [ ] 今後実装予定のAPIについてAPI定義の設計
+
+
