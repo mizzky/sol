@@ -30,3 +30,54 @@ Content-Type: application/json
     "email": "yamada@example.com",
     "password": "wrongpassword"
 }
+
+###ユーザー登録テスト
+POST http://localhost:8080/api/register
+Content-Type: application/json
+
+{ 
+    "name": "admin",
+    "email": "admin@example.com",
+    "password": "password000"
+}
+
+
+
+###管理者ログイン（トークン取得）
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+"email": "admin@example.com",
+"password": "password000"
+}
+
+###カテゴリ作成（任意、存在しない場合）
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzI3MDYyMTcsImlhdCI6MTc3MjYxOTgxNywidXNlci5pZCI6MTR9.fpq9V-rjk77ZppsZRbTouvVQFbWmA5B3FnWMBG0251U
+
+{
+"name": "E2E Category",
+"description": "自動作成カテゴリ"
+}
+
+###商品追加（POST /api/products）
+POST http://localhost:8080/api/products
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzI3MDYyMTcsImlhdCI6MTc3MjYxOTgxNywidXNlci5pZCI6MTR9.fpq9V-rjk77ZppsZRbTouvVQFbWmA5B3FnWMBG0251U
+
+{
+"name": "テスト商品 E2E",
+"price": 1500,
+"is_available": true,
+"category_id": 1,
+"sku": "E2E-SKU-20260304-001",
+"description": "E2Eテスト用の商品説明",
+"image_url": "https://example.com/image.jpg",
+"stock_quantity": 20
+}
+
+###商品削除（DELETE /api/products/:id）
+DELETE http://localhost:8080/api/products/<PRODUCT_ID>
+Authorization: Bearer <ADMIN_TOKEN>
