@@ -39,6 +39,22 @@ export interface CreateProductRequest {
   stock_quantity: number;
 }
 
+export interface CartItem {
+  id: number;
+  cart_id: number;
+  product_id: number;
+  quantity: number;
+  price: number;
+  created_at?: string;
+  updated_at?: string;
+  // サーバーが埋めてくれる場合があるためオプショナルでプロダクト情報を含める
+  product?: Product;
+}
+
+export interface CartResponse {
+  items: CartItem[];
+}
+
 
 async function parseJsonSafe<T = Record<string, unknown>>(res: Response): Promise<T | Record<string, unknown>> {
   try {
@@ -154,4 +170,72 @@ export async function createProduct(product: CreateProductRequest): Promise<Prod
     throw { status: response.status, ...payload } as ApiError;
   }
   return data as Product;
+}
+
+// ----------------------
+// Cart API functions
+// ----------------------
+
+export async function getCart(): Promise<CartItem[]> {
+  const res = await fetchWithAuth(`${API_URL}/api/cart`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  const data = await parseJsonSafe<CartResponse>(res);
+  if (!res.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: res.status, ...payload } as ApiError;
+  }
+  return Array.isArray((data as CartResponse)?.items) ? (data as CartResponse).items : [];
+}
+
+export async function addToCart(productId: number, quantity: number): Promise<CartItem> {
+  const res = await fetchWithAuth(`${API_URL}/api/cart/items`, {
+    method: "POST",
+    body: JSON.stringify({ product_id: productId, quantity }),
+  });
+
+  const data = await parseJsonSafe<CartItem>(res);
+  if (!res.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: res.status, ...payload } as ApiError;
+  }
+  return data as CartItem;
+}
+
+export async function updateCartItem(itemId: number, quantity: number): Promise<CartItem> {
+  const res = await fetchWithAuth(`${API_URL}/api/cart/items/${itemId}`, {
+    method: "PUT",
+    body: JSON.stringify({ quantity }),
+  });
+
+  const data = await parseJsonSafe<CartItem>(res);
+  if (!res.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: res.status, ...payload } as ApiError;
+  }
+  return data as CartItem;
+}
+
+export async function removeFromCart(itemId: number): Promise<void> {
+  const res = await fetchWithAuth(`${API_URL}/api/cart/items/${itemId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const data = await parseJsonSafe<Record<string, unknown>>(res);
+    const payload = data as Record<string, unknown>;
+    throw { status: res.status, ...payload } as ApiError;
+  }
+}
+
+export async function clearCart(): Promise<void> {
+  const res = await fetchWithAuth(`${API_URL}/api/cart`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const data = await parseJsonSafe<Record<string, unknown>>(res);
+    const payload = data as Record<string, unknown>;
+    throw { status: res.status, ...payload } as ApiError;
+  }
 }
