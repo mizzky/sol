@@ -17,6 +17,43 @@ components:
       bearerFormat: JWT
 
   schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password_hash:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        reset_token:
+          type: string
+          nullable: true
+
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+
     RegisterRequest:
       type: object
       required: [name, email, password]
@@ -41,30 +78,15 @@ components:
           type: string
           format: password
 
-    TokenResponse:
+    LoginResponse:
       type: object
       properties:
-        access_token:
+        message:
           type: string
-        token_type:
+        token:
           type: string
-          example: Bearer
         user:
-          $ref: '#/components/schemas/UserResponse'
-
-    UserResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        role:
-          type: string
-          example: user
+          $ref: '#/components/schemas/UserPublic'
 
     ErrorResponse:
       type: object
@@ -79,6 +101,83 @@ components:
           type: integer
         name:
           type: string
+        description:
+          type: string
+          nullable: true
+
+    CategoriesListResponse:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+
+    ProductResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        price:
+          type: integer
+        is_available:
+          type: boolean
+        category_id:
+          type: integer
+        sku:
+          type: string
+        description:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        stock_quantity:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductsListResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductResponse'
+      
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - price
+        - category_id
+        - sku
+        - stock_quantity
+      properties:
+        name:
+          type: string
+        price:
+          type: integer
+        is_available:
+          type: boolean
+        category_id:
+          type: integer
+        sku:
+          type: string
+        description:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        stock_quantity:
+          type: integer
 
     Product:
       type: object
@@ -97,19 +196,6 @@ components:
         created_at:
           type: string
           format: date-time
-
-    CreateProductRequest:
-      type: object
-      required: [name, price, category_id]
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        price:
-          type: number
-        category_id:
-          type: integer
 
 tags:
   - name: Auth
@@ -142,7 +228,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/User'
         '400':
           description: Bad request
           content:
@@ -175,7 +261,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TokenResponse'
+                $ref: '#/components/schemas/LoginResponse'
         '401':
           description: Unauthorized
           content:
@@ -198,7 +284,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Category'
+                  $ref: '#/components/schemas/CategoriesListResponse'
     post:
       summary: Create category (admin)
       description: カテゴリー登録
@@ -325,7 +411,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Product'
+                  $ref: '#/components/schemas/ProductsListResponse'
     post:
       summary: Create product (admin)
       description: 商品登録
