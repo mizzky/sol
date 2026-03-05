@@ -352,4 +352,17 @@
   - [ ] 実装済みのAPIについてドキュメンテーション
   - [ ] 今後実装予定のAPIについてAPI定義の設計
 
+---
+
+## API ドキュメント作成 (OpenAPI) — タスク
+
+- [ ] [doc/openapi.yaml](doc/openapi.yaml) の初版ドラフトを作成（[backend/routes/routes.go](backend/routes/routes.go) を基に paths を埋める）
+- [ ] components.schemas をハンドラの構造体に基づき追加（[backend/handler/](backend/handler/) を参照）
+- [ ] JWT 認証（bearerAuth）と共通エラーレスポンスを components に定義（backend/auth を参照）
+- [ ] swagger-cli と spectral で YAML の検証と lint を実行
+- [ ] Redoc によるバンドルと doc/ 配置（例: doc/openapi.html を生成）
+- [ ] CI（GitHub Actions）に OpenAPI lint を追加（/.github/workflows/openapi-lint.yml）
+
+担当: あなた（backend を編集） — 私はドラフト作成支援・レビューツールや CI スニペットを提供します。
+
 
