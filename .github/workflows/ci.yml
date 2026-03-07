@@ -61,6 +61,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      - name: Upgrade npm
+        run: npm install -g npm@11.11.0
+        working-directory: frontend
+        
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
