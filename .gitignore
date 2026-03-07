@@ -26,3 +26,7 @@ main
 
 # env file
 .env
+
+learning/
+
+.github/agents/tech-mentor.md
