@@ -20,4 +20,4 @@ jobs:
           node-version: 18
 
       - name: Run Spectral lint
-        run: npx @stoplight/spectral-cli@6.6.0 lint --ruleset "spectral:oas" doc/openapi.yaml
+        run: npx @stoplight/spectral-cli@6.6.0 lint --ruleset .spectral.yaml doc/openapi.yaml
