@@ -365,4 +365,229 @@
 
 担当: あなた（backend を編集） — 私はドラフト作成支援・レビューツールや CI スニペットを提供します。
 
+---
+
+## 注文・在庫システム実装タスク（新規追加: 2026-03-08）
+
+### 目的
+- EC サイトの注文作成・キャンセル機能を実装し、同時実行での在庫整合性を保証する
+- TDD サイクルで、テストを軸に安全で保守性の高いコードを構築
+
+### 実装スコープ
+✅ 対象（チケット 1-4, 7-8）:
+- DB マイグレーション（orders, order_items, payments）
+- sqlc クエリ（FOR UPDATE 含む）
+- CreateOrderHandler（注文作成）
+- CancelOrderHandler（注文キャンセル）
+- 同時性テスト（オーバーソール防止確認）
+- エラーハンドリング（HTTP ステータス・エラーコード）
+
+⛔ 除外（将来タスク）:
+- チケット 5: 決済抽象化（テスト用モック実装のみ）
+- チケット 6: 冪等性（idempotency-key）
+- チケット 9: メトリクス/監視
+
+### API 仕様（確定）
+- `GET /api/orders` — 認証済みユーザーの注文一覧取得
+- `POST /api/orders` — 注文作成（商品 ID + 数量リストを受け取り）
+- `POST /api/orders/:id/cancel` — 注文キャンセル（ステータス pending → cancelled、在庫巻き戻し）
+
+### 実装計画（優先度順）
+
+#### フェーズ 0: 設計（完了日: 2026-03-08）
+- [x] **チケット 0-1**: 要件定義・API 設計ドキュメント完成
+  - ファイル: `doc/planning/orders-design-2026-03-08.md`（本ドラフト）
+  - 内容: ユースケース、API 仕様、DB スキーマ、トランザクションフロー、テスト戦略
+  
+- [ ] **チケット 0-2**: DB マイグレーション番号確定（v8, v9, v10）
+  - スキーマ最終確認後にファイル名を決定
+
+#### フェーズ 1: DB マイグレーション実装（予定: 3/10）
+- [ ] **チケット 1**: DB マイグレーション作成 (P0, Effort: High)
+  - 前提: DB スキーマ最終確認
+  - 内容:
+    - `000008_create_orders_table.up/down.sql`
+    - `000009_create_order_items_table.up/down.sql`
+    - `000010_create_payments_table.up/down.sql`
+  - 受け入れ条件:
+    - [ ] マイグレーション実行で 3 テーブル作成
+    - [ ] リバート確認（down スクリプト実行で テーブル削除）
+    - [ ] sqlc code generation で型生成に支障なし
+  - ファイル影響: `backend/db/migrations/`
+  - コミット例: `feat(db): create orders, order_items, payments tables`
+
+#### フェーズ 2: sqlc クエリ層実装（予定: 3/12）
+- [ ] **チケット 2**: sqlc クエリ拡張 (P0, Effort: High)
+  - 前提: マイグレーション実行済み
+  - 内容:
+    - `GetProductForUpdate(ctx, id)` — FOR UPDATE で在庫ロック
+    - `UpdateProductStock(ctx, id, decrement)` — 在庫デクリメント/インクリメント
+    - `CreateOrder(ctx, userID, total, status)` — 注文ヘッダ作成
+    - `CreateOrderItem(ctx, orderID, productID, qty, unitPrice)` — 注文アイテム作成（複数行可）
+    - `GetOrdersByUser(ctx, userID)` — ユーザーの注文一覧取得
+    - `GetOrderByID(ctx, id)` — 注文取得（FOR UPDATE 版あり）
+    - `GetOrderItemsByOrderID(ctx, orderID)` — 注文の商品明細取得
+    - `UpdateOrderStatus(ctx, id, status)` — ステータス更新
+    - `GetOrderCount(ctx, userID)` — ユーザーの注文件数（ページネーション用）
+  - 受け入れ条件:
+    - [ ] `backend/query.sql` にクエリを追記
+    - [ ] `sqlc generate` 実行成功
+    - [ ] `backend/db/querier.go` に新メソッドが型安全に追加
+  - ファイル影響: `backend/query.sql`, `backend/db/querier.go`
+  - コミット例: `feat(db): add order-related sqlc queries with FOR UPDATE`
+
+- [ ] **チケット 2-1**: Transaction Handler Pattern Design (P0, Effort: Medium)
+  - 前提: チケット 2 完了後
+  - 目的: handler 内での db.BeginTx() 呼び出しパターンと WithTx の使用法を統一化
+  - 内容:
+    - [ ] handler 内での `db.BeginTx(ctx context.Context, opts *sql.TxOptions)` 呼び出しパターンを決定
+    - [ ] `Queries.WithTx(tx *sql.Tx)` による再バインディング方法を確認・ドキュメント化
+    - [ ] ユニットテスト時の MockDB 制限（Tx をモックできない）を認識→統合テストで Tx 検証するアプローチを決定
+    - [ ] Service 層導入か handler 内ローカル処理か、チームで統一パターンを決定
+    - [ ] 決定内容を `Transaction Pattern.md` にドキュメント（チケット 3-5 の実装ガイドラインとして利用）
+  - 受け入れ条件:
+    - [ ] Transaction Pattern.md が作成され、handler 内 Tx 処理のサンプルコードを掲載
+    - [ ] チケット 3-5 の実装者が参照できるレベルの詳細度
+  - ファイル影響: `doc/planning/Transaction-Pattern.md` (新規)
+  - コミット例: `docs(design): add transaction handler pattern documentation`
+
+#### フェーズ 3: ハンドラー層実装 - TDD（予定: 3/17）
+
+- [ ] **チケット 3**: CreateOrderHandler 実装 (P0, Effort: High)
+  - タイプ: TDD サイクル（Red → Green → Refactor）
+  - ステップ 1: テスト設計
+    - [ ] テストケースリスト作成（正常系、異常系、エッジケース）
+    - [ ] MockDB の準備確認
+  - ステップ 2: テストコード作成（`handler/order_test.go`）
+    - [ ] テストケース実装（テーブル駆動）
+      - 正常系: 複数商品の注文作成成功
+      - 異常系: 認証なし、商品不在、在庫不足、DB エラー
+      - 副作用: 在庫正確にデクリメント、合計金額計算
+    - [ ] テスト実行でサイクル確認（Red）
+  - ステップ 3: プロダクトコード実装（`handler/order.go`）
+    - [ ] トランザクション開始
+    - [ ] 各商品を FOR UPDATE で取得＆ロック
+    - [ ] 在庫チェック → 不足時は 409 Conflict（ロールバック）
+    - [ ] デクリメント＆ orders, order_items 作成
+    - [ ] コミット後にレスポンス返却（201 Created）
+    - [ ] テスト全 PASS（Green）
+  - ステップ 4: リファクタリング（Refactor）
+    - [ ] エラーハンドリング改善
+    - [ ] トランザクション処理の可読性向上
+  - 受け入れ条件:
+    - [ ] ユニットテスト全 PASS、カバレッジ > 80%
+    - [ ] 在庫がトランザクション内で正確にデクリメント
+    - [ ] 在庫不足時にロールバック・409 返却
+  - ファイル影響: `backend/handler/order.go` (新規), `backend/handler/order_test.go` (新規)
+  - コミット例: `feat(handler): add CreateOrderHandler with TDD (tests + implementation)`
+
+- [ ] **チケット 4**: CancelOrderHandler 実装 (P0, Effort: High)
+  - タイプ: TDD サイクル（Red → Green → Refactor）
+  - ステップ 1: テスト設計
+    - [ ] テストケースリスト作成
+  - ステップ 2: テストコード作成（`handler/order_test.go` に追加）
+    - [ ] テーブル駆動テスト
+      - 正常系: ステータス pending → cancelled、在庫巻き戻し
+      - 異常系: 注文不在(404)、非所有(404)、既にキャンセル済み(400)
+      - 副作用: 各商品の在庫が正確にインクリメント
+    - [ ] テスト実行でサイクル確認（Red）
+  - ステップ 3: プロダクトコード実装（`handler/order.go` に追加）
+    - [ ] authorization チェック（自分の注文のみ）
+    - [ ] トランザクション開始 & orders を FOR UPDATE 取得
+    - [ ] ステータスチェック（pending のみキャンセル可）
+    - [ ] order_items を全取得 → 各商品インクリメント
+    - [ ] orders.status = 'cancelled', cancelled_at = NOW()
+    - [ ] コミット＆レスポンス（200 OK）
+    - [ ] テスト全 PASS（Green）
+  - ステップ 4: リファクタリング（Refactor）
+  - 受け入れ条件:
+    - [ ] ユニットテスト全 PASS
+    - [ ] キャンセル後の在庫が統合テストで確認可能
+  - コミット例: `feat(handler): add CancelOrderHandler with authorization and rollback`
+
+- [ ] **チケット 5**: GetOrdersHandler 実装 (P0, Effort: Med)
+  - タイプ: 標準実装（既存パターン参考）
+  - 内容:
+    - [ ] ユーザーの注文一覧を取得（自分の注文のみ）
+    - [ ] ステータスフィルター機能（?status=pending など）
+    - [ ] order_items と紐付けて返却
+  - テストケース: 正常系、認証なし、空一覧、フィルター検証
+  - ファイル影響: `backend/handler/order.go`
+  - コミット例: `feat(handler): add GetOrdersHandler with status filtering`
+
+#### フェーズ 4: 検証テスト（予定: 3/20）
+
+- [ ] **チケット 6**: 同時性テスト実装 (P0, Effort: High)
+  - ファイル: `backend/tests/order_concurrency_test.go` (新規)
+  - 内容:
+    - [ ] 複数 goroutine で同じ商品に対して並列 CreateOrder
+    - [ ] 在庫が正確にデクリメント（オーバーソールなし）
+    - [ ] テスト シナリオ:
+      - 在庫 10 個の商品を、5 ユーザーが各 3 個ずつ同時注文 → 最後の 2 個は 409 Conflict
+      - 並列度: N=50 程度の大量リクエスト確認
+  - 受け入れ条件:
+    - [ ] テスト実行で 100% 成功（キャンセル時には確認ポイント多し）
+    - [ ] 結果ログで在庫が正確に管理されていることを確認
+  - コミット例: `test(order): add concurrency tests for overbooking prevention`
+
+- [ ] **チケット 7**: エラーハンドリング・エッジケース (P1, Effort: Low)
+  - 内容:
+    - [ ] HTTP ステータス確認（400/401/404/409/500）
+    - [ ] エラーレスポンス形式確認（error, message, details）
+    - [ ] トランザクション失敗時の振る舞い
+    - [ ] テストケース: 不正リクエスト、DB エラーシミュレーション
+  - ファイル影響: `backend/handler/order_test.go`, `backend/pkg/respond/`（必要に応じて）
+  - コミット例: `test(handler): add error handling and edge case tests for orders`
+
+#### フェーズ 5: 統合・ルーティング（予定: 3/21）
+
+- [ ] **チケット 8**: ルーティング登録 + 最終確認 (P0)
+  - 前提: すべてのハンドラー実装 + テスト全 PASS
+  - 内容:
+    - [ ] `backend/routes/routes.go` に 3 エンドポイント登録
+      - `GET /api/orders` — GetOrdersHandler
+      - `POST /api/orders` — CreateOrderHandler
+      - `POST /api/orders/:id/cancel` — CancelOrderHandler
+    - [ ] RequireAuth ミドルウェア装着（認証必須）
+    - [ ] `backend/test.http` に実行例追記
+      - ログイン → 注文作成 → 注文一覧 → キャンセル の一連フロー
+    - [ ] 手動テスト実行確認（API 全体連携確認）
+  - ファイル影響: `backend/routes/routes.go`, `backend/test.http`
+  - コミット例: `feat(routes): register order endpoints with RequireAuth`
+
+- [ ] **チケット 9**: ドキュメント更新 (P1)
+  - 内容:
+    - [ ] `doc/api.md` に注文 API セクション追記（エンドポイント、リクエスト/レスポンス例）
+    - [ ] `backend/test.http` の実行例説明を追記
+    - [ ] `doc/task.md` に本タスク群の完了マーク
+  - ファイル影響: `doc/api.md`, `doc/task.md`
+  - コミット例: `docs(api): add order endpoints documentation`
+
+### 受け入れ基準（全体）
+- [ ] マイグレーション v8, v9, v10 が実行・リバート可能
+- [ ] 3 ハンドラー（Get/Create/Cancel）が GET /api/products と同レベルの品質でテストカバー
+- [ ] `handler/order_test.go` で正常系・異常系・エッジケースが全網羅
+- [ ] 同時性テストで 50+ 並列リクエストでのオーバーソール防止を確認
+- [ ] 手動テスト（test.http）で既存 API との連携確認
+
+### タイムライン
+| フェーズ | 期限 | 工数 | 成果物 |
+|---------|-----|------|--------|
+| 0: 設計 | 3/8（完了） | 1日 | 要件定義・API設計ドキュメント ✅ |
+| 1: マイグレーション | 3/10 | 1日 | マイグレーション 3 個 |
+| 2: sqlc クエリ | 3/12 | 1.5日 | query.sql 拡張・querier.go code gen |
+| 3: ハンドラー層 | 3/17 | 2.5日 | 3 ハンドラー + テスト（TDD） |
+| 4: 検証テスト | 3/20 | 1.5日 | 同時性テスト + エラーハンドリング |
+| 5: 統合 | 3/21 | 1日 | ルーティング + ドキュメント |
+| **合計** | **3/21** | **~9日** | **注文・在庫システム完成** |
+
+### 詳細設計書
+- 詳細計画（テストケース、スキーマ詳細、トランザクションフロー）: [doc/planning/orders-design-2026-03-08.md](planning/orders-design-2026-03-08.md)
+
+### 推奨開発スタイル
+- **TDD 推奨**: ハンドラー層（チケット 3-5）ではテストファイルを先に作成し、プロダクトコードを実装
+- **メンター支援**: TDD メンター agent を活用して、テスト設計 → テストコード → 実装 のサイクルをガイド
+
+---
+
 
