@@ -15,7 +15,8 @@
         "GitHub.copilot",
         "GitHub.copilot-chat",
         "cweijan.vscode-database-client2",
-        "humao.rest-client"
+        "humao.rest-client",
+        "eamodio.gitlens"
       ],
       "settings": {
         // ターミナルのフォントなどはホスト側の設定に依存しますが、
