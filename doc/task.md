@@ -399,20 +399,20 @@
   - ファイル: `doc/planning/orders-design-2026-03-08.md`（本ドラフト）
   - 内容: ユースケース、API 仕様、DB スキーマ、トランザクションフロー、テスト戦略
   
-- [ ] **チケット 0-2**: DB マイグレーション番号確定（v8, v9, v10）
+- [x] **チケット 0-2**: DB マイグレーション番号確定（v8, v9, v10）
   - スキーマ最終確認後にファイル名を決定
 
 #### フェーズ 1: DB マイグレーション実装（予定: 3/10）
-- [ ] **チケット 1**: DB マイグレーション作成 (P0, Effort: High)
+- [x] **チケット 1**: DB マイグレーション作成 (P0, Effort: High)
   - 前提: DB スキーマ最終確認
   - 内容:
     - `000008_create_orders_table.up/down.sql`
     - `000009_create_order_items_table.up/down.sql`
     - `000010_create_payments_table.up/down.sql`
   - 受け入れ条件:
-    - [ ] マイグレーション実行で 3 テーブル作成
-    - [ ] リバート確認（down スクリプト実行で テーブル削除）
-    - [ ] sqlc code generation で型生成に支障なし
+    - [x] マイグレーション実行で 3 テーブル作成
+    - [x] リバート確認（down スクリプト実行で テーブル削除）
+    - [x] sqlc code generation で型生成に支障なし
   - ファイル影響: `backend/db/migrations/`
   - コミット例: `feat(db): create orders, order_items, payments tables`
 
