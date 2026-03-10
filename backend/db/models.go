@@ -52,6 +52,7 @@ type OrderItem struct {
 	UnitPrice           int64     `json:"unit_price"`
 	ProductNameSnapshot string    `json:"product_name_snapshot"`
 	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type Payment struct {

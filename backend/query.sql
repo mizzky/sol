@@ -207,3 +207,76 @@ DELETE FROM cart_items
 WHERE cart_id = (
     SELECT id FROM carts WHERE user_id = $1
 );
+
+-- name: GetProductForUpdate :one
+SELECT
+    id, name, price, is_available, category_id, sku, description, image_url, stock_quantity, created_at, updated_at
+FROM products
+WHERE id = $1
+FOR UPDATE;
+
+-- name: UpdateProductStock :one
+UPDATE products
+SET
+    stock_quantity = stock_quantity + $2,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, stock_quantity;
+
+-- name: CreateOrder :one
+INSERT INTO orders (
+    user_id, total, status, created_at, updated_at
+) VALUES (
+    $1, $2, $3, NOW(), NOW()
+)
+RETURNING id, user_id, total, status, created_at, updated_at;
+
+-- name: CreateOrderItem :one
+INSERT INTO order_items (
+    order_id, product_id, quantity, unit_price, created_at, updated_at
+) VALUES (
+    $1, $2, $3, $4, NOW(), NOW()
+)
+RETURNING id, order_id, product_id, quantity, unit_price, created_at, updated_at;
+
+-- name: ListOrdersByUser :many
+SELECT
+    id, user_id, total, status, created_at, updated_at
+FROM orders
+WHERE user_id = $1
+ORDER BY created_at DESC;
+
+-- name: GetOrderByID :one
+SELECT
+    id, user_id, total, status, created_at, updated_at
+FROM orders
+WHERE id = $1
+LIMIT 1;
+
+-- name: GetOrderByIDForUpdate :one
+SELECT
+    id, user_id, total, status, created_at, updated_at
+FROM orders
+WHERE id = $1
+LIMIT 1
+FOR UPDATE;
+
+-- name: ListOrderItemsByOrderID :many
+SELECT
+    id, order_id, product_id, quantity, unit_price, created_at, updated_at
+FROM order_items
+WHERE order_id = $1
+ORDER BY id;
+
+-- name: UpdateOrderStatus :one
+UPDATE orders
+SET
+    status = $2,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, total, status, created_at, updated_at;
+
+-- name: GetOrderCountByUser :one
+SELECT COUNT(*) AS count
+FROM orders
+WHERE user_id = $1;

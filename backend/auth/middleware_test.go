@@ -20,7 +20,8 @@ import (
 )
 
 type FakeQuerier struct {
-	users map[int64]db.User
+	users  map[int64]db.User
+	orders map[int64][]db.ListOrdersByUserRow
 }
 
 func (f *FakeQuerier) CreateCategory(ctx context.Context, arg db.CreateCategoryParams) (db.Category, error) {
@@ -148,6 +149,50 @@ func (f *FakeQuerier) ListCartItems(ctx context.Context, cartID int64) ([]db.Lis
 
 func (f *FakeQuerier) ListCartItemsByUser(ctx context.Context, cartID int64) ([]db.ListCartItemsByUserRow, error) {
 	return []db.ListCartItemsByUserRow{}, nil
+}
+
+func (f *FakeQuerier) CreateOrder(ctx context.Context, arg db.CreateOrderParams) (db.CreateOrderRow, error) {
+	return db.CreateOrderRow{}, nil
+}
+
+func (f *FakeQuerier) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.CreateOrderItemRow, error) {
+	return db.CreateOrderItemRow{}, nil
+}
+
+func (f *FakeQuerier) GetOrderByID(ctx context.Context, id int64) (db.GetOrderByIDRow, error) {
+	return db.GetOrderByIDRow{}, nil
+}
+
+func (f *FakeQuerier) GetOrderByIDForUpdate(ctx context.Context, id int64) (db.GetOrderByIDForUpdateRow, error) {
+	return db.GetOrderByIDForUpdateRow{}, nil
+}
+
+func (f *FakeQuerier) GetOrderCountByUser(ctx context.Context, userID int64) (int64, error) {
+	if f.orders == nil {
+		return 0, nil
+	}
+	return int64(len(f.orders[userID])), nil
+
+}
+
+func (f *FakeQuerier) GetProductForUpdate(ctx context.Context, id int64) (db.Product, error) {
+	return db.Product{}, nil
+}
+
+func (f *FakeQuerier) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]db.ListOrderItemsByOrderIDRow, error) {
+	return []db.ListOrderItemsByOrderIDRow{}, nil
+}
+
+func (f *FakeQuerier) ListOrdersByUser(ctx context.Context, userID int64) ([]db.ListOrdersByUserRow, error) {
+	return []db.ListOrdersByUserRow{}, nil
+}
+
+func (f *FakeQuerier) UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.UpdateOrderStatusRow, error) {
+	return db.UpdateOrderStatusRow{}, nil
+}
+
+func (f *FakeQuerier) UpdateProductStock(ctx context.Context, arg db.UpdateProductStockParams) (db.UpdateProductStockRow, error) {
+	return db.UpdateProductStockRow{}, nil
 }
 
 // DB接続エラー用のQuerier

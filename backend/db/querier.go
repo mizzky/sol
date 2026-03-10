@@ -15,6 +15,8 @@ type Querier interface {
 	ClearCartByUser(ctx context.Context, userID int64) error
 	CreateCart(ctx context.Context, userID int64) (Cart, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
+	CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error)
+	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (CreateOrderItemRow, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCategory(ctx context.Context, id int64) error
@@ -24,13 +26,19 @@ type Querier interface {
 	GetCategory(ctx context.Context, id int64) (Category, error)
 	// Requires UNIQUE(user_id) on carts
 	GetOrCreateCartForUser(ctx context.Context, userID int64) (Cart, error)
+	GetOrderByID(ctx context.Context, id int64) (GetOrderByIDRow, error)
+	GetOrderByIDForUpdate(ctx context.Context, id int64) (GetOrderByIDForUpdateRow, error)
+	GetOrderCountByUser(ctx context.Context, userID int64) (int64, error)
 	GetProduct(ctx context.Context, id int64) (Product, error)
+	GetProductForUpdate(ctx context.Context, id int64) (Product, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserForUpdate(ctx context.Context, id int64) (User, error)
 	ListCartItems(ctx context.Context, cartID int64) ([]ListCartItemsRow, error)
 	ListCartItemsByUser(ctx context.Context, userID int64) ([]ListCartItemsByUserRow, error)
 	ListCategories(ctx context.Context) ([]Category, error)
+	ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]ListOrderItemsByOrderIDRow, error)
+	ListOrdersByUser(ctx context.Context, userID int64) ([]ListOrdersByUserRow, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	RemoveCartItem(ctx context.Context, id int64) error
 	RemoveCartItemByUser(ctx context.Context, arg RemoveCartItemByUserParams) error
@@ -38,7 +46,9 @@ type Querier interface {
 	UpdateCartItemQty(ctx context.Context, arg UpdateCartItemQtyParams) (CartItem, error)
 	UpdateCartItemQtyByUser(ctx context.Context, arg UpdateCartItemQtyByUserParams) (CartItem, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error)
+	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (UpdateOrderStatusRow, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
+	UpdateProductStock(ctx context.Context, arg UpdateProductStockParams) (UpdateProductStockRow, error)
 	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error)
 }
 
