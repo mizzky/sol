@@ -28,7 +28,8 @@
   "features": {
     "ghcr.io/devcontainers/features/common-utils:1": {
       "configureZshAsDefaultShell": true
-    }
+    },
+    "ghcr.io/devcontainers/features/github-cli:1":{}
   },
   "forwardPorts": [3000, 8080, 5432],
   "remoteUser": "vscode",
