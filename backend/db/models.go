@@ -34,6 +34,37 @@ type Category struct {
 	UpdatedAt   time.Time      `json:"updated_at"`
 }
 
+type Order struct {
+	ID          int64        `json:"id"`
+	UserID      int64        `json:"user_id"`
+	Status      string       `json:"status"`
+	Total       int64        `json:"total"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+	CancelledAt sql.NullTime `json:"cancelled_at"`
+}
+
+type OrderItem struct {
+	ID                  int64     `json:"id"`
+	OrderID             int64     `json:"order_id"`
+	ProductID           int64     `json:"product_id"`
+	Quantity            int32     `json:"quantity"`
+	UnitPrice           int64     `json:"unit_price"`
+	ProductNameSnapshot string    `json:"product_name_snapshot"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
+type Payment struct {
+	ID                    int64          `json:"id"`
+	OrderID               int64          `json:"order_id"`
+	Amount                int64          `json:"amount"`
+	Status                string         `json:"status"`
+	PaymentMethod         sql.NullString `json:"payment_method"`
+	ExternalTransactionID sql.NullString `json:"external_transaction_id"`
+	CreatedAt             time.Time      `json:"created_at"`
+	UpdatedAt             time.Time      `json:"updated_at"`
+}
+
 type Product struct {
 	ID            int64          `json:"id"`
 	Name          string         `json:"name"`
