@@ -436,19 +436,21 @@
   - ファイル影響: `backend/query.sql`, `backend/db/querier.go`
   - コミット例: `feat(db): add order-related sqlc queries with FOR UPDATE`
 
-- [ ] **チケット 2-1**: Transaction Handler Pattern Design (P0, Effort: Medium)
+- [x] **チケット 2-1**: Transaction Handler Pattern Design (P0, Effort: Medium)
   - 前提: チケット 2 完了後
   - 目的: handler 内での db.BeginTx() 呼び出しパターンと WithTx の使用法を統一化
   - 内容:
-    - [ ] handler 内での `db.BeginTx(ctx context.Context, opts *sql.TxOptions)` 呼び出しパターンを決定
-    - [ ] `Queries.WithTx(tx *sql.Tx)` による再バインディング方法を確認・ドキュメント化
-    - [ ] ユニットテスト時の MockDB 制限（Tx をモックできない）を認識→統合テストで Tx 検証するアプローチを決定
-    - [ ] Service 層導入か handler 内ローカル処理か、チームで統一パターンを決定
-    - [ ] 決定内容を `Transaction Pattern.md` にドキュメント（チケット 3-5 の実装ガイドラインとして利用）
+    - [x] handler 内での `db.BeginTx(ctx context.Context, opts *sql.TxOptions)` 呼び出しパターンを決定
+    - [x] `Queries.WithTx(tx *sql.Tx)` による再バインディング方法を確認・ドキュメント化
+    - [x] ユニットテスト時の MockDB 制限（Tx をモックできない）を認識→統合テストで Tx 検証するアプローチを決定
+    - [x] Service 層導入か handler 内ローカル処理か、チームで統一パターンを決定
+    - [x] 決定内容を `Transaction Pattern.md` にドキュメント（チケット 3-5 の実装ガイドラインとして利用）
   - 受け入れ条件:
-    - [ ] Transaction Pattern.md が作成され、handler 内 Tx 処理のサンプルコードを掲載
-    - [ ] チケット 3-5 の実装者が参照できるレベルの詳細度
+    - [x] Transaction Pattern.md が作成され、handler 内 Tx 処理のサンプルコードを掲載
+    - [x] チケット 3-5 の実装者が参照できるレベルの詳細度
   - ファイル影響: `doc/planning/Transaction-Pattern.md` (新規)
+  - 完了日: 2026-03-11
+  - 参照: `doc/planning/Transaction-Pattern.md`
   - コミット例: `docs(design): add transaction handler pattern documentation`
 
 #### フェーズ 3: ハンドラー層実装 - TDD（予定: 3/17）
