@@ -462,10 +462,35 @@
 - [ ] **チケット 3**: CreateOrderHandler 実装 (P0, Effort: High)
   - タイプ: TDD サイクル（Red → Green → Refactor）
   - ステップ 1: テスト設計
-    - [ ] テストケースリスト作成（正常系、異常系、エッジケース）
-    - [ ] MockDB の準備確認
+    - [x] テストケースリスト作成（正常系、異常系、エッジケース）
+    - [x] ## チケット3: CreateOrderHandler テスト設計
+
+      ### 1. ユニットテスト（MockDB使用）
+
+      | # | テストケース | 前提条件 | Mock 設定 | 期待結果 (HTTP Status) | 検証ポイント |
+      |---|-------------|--------|----------|-------------------|-----------|
+      | U1 | 正常系：単一商品の注文作成 | userID=1, カート内: product_id=10, qty=2 | GetCartByUser→OK, ListCartItems→1件, GetProductForUpdate→stock=50, CreateOrder→OK, CreateOrderItem→OK, UpdateProductStock→OK, ClearCartByUser→OK | 201 Created | 注文ID返却、集計金額が正しい |
+      | U2 | 正常系：複数商品の注文作成 | userID=1, カート内: 商品A(qty=2), 商品B(qty=3) | 各商品のGetProductForUpdate→OK（在庫十分）, 複数CreateOrderItem, UpdateProductStock×2回 | 201 Created | 複数 order_items が作成、各商品在庫が減算 |
+      | U3 | 認証なし（未認証） | userID が context に無い | - | 401 Unauthorized | auth middleware に委ねる（handler入口で終了）|
+      | U4 | カートが空 | userID=1, カート内: 0件 | GetCartByUser→OK, ListCartItems→[]（空） | 400 Bad Request | エラーメッセージ: "カートが空です" |
+      | U5 | 商品が削除されている | カート内: product_id=999 | GetProductForUpdate(999) → sql.ErrNoRows | 404 Not Found | エラーメッセージ: "商品が見つかりません" |
+      | U6 | 在庫不足（部分） | product_id=10で在庫要求=5, 残存=3 | GetProductForUpdate(10) → stock=3 | 409 Conflict | エラーメッセージに足りない数表示（拡張可） |
+      | U7 | CreateOrder失敗（DB制約） | - | CreateOrder → sql.ErrClosed | 500 Internal Server Error | - |
+      | U8 | CreateOrderItem失敗（DB制約） | - | CreateOrder→OK, CreateOrderItem→DB error | 500 Internal Server Error | - |
+      | U9 | UpdateProductStock失敗 | - | UpdateProductStock → DB error | 500 Internal Server Error | - |
+
+      ### 2. 統合テスト（実DB使用）
+
+      | # | テストケース | 前提条件 | 期待結果 | 検証ポイント |
+      |---|-------------|--------|---------|-----------|
+      | I1 | トランザクション成功時のコミット | テスト用カート＋商品を投入 | orders, order_items 作成, product 在庫減, cart_items 削除 | DB 状態で 4 つの変更が全て反映 |
+      | I2 | トランザクション失敗時のロールバック | 在庫不足シナリオ | orders/order_items は未作成, 商品在庫は変わらず, cart_items は残存 | 途中状態が DB に残らない |
+      | I3 | 並列リクエスト（同じカート複数実行） | 2+ goroutine が同時に POST /api/orders | 最初の 1 つ成功, 2 個目はカート空で 400 | SELECT FOR UPDATE での排他制御確認 |
+
+
+    - [x] MockDB の準備確認
   - ステップ 2: テストコード作成（`handler/order_test.go`）
-    - [ ] テストケース実装（テーブル駆動）
+    - [x] テストケース実装（テーブル駆動）
       - 正常系: 複数商品の注文作成成功
       - 異常系: 認証なし、商品不在、在庫不足、DB エラー
       - 副作用: 在庫正確にデクリメント、合計金額計算
