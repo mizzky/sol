@@ -479,6 +479,9 @@
       | U8 | CreateOrderItem失敗（DB制約） | - | CreateOrder→OK, CreateOrderItem→DB error | 500 Internal Server Error | - |
       | U9 | UpdateProductStock失敗 | - | UpdateProductStock → DB error | 500 Internal Server Error | - |
 
+    - UTはビジネスロジック層のみのテストにするためにハンドラ内でcreateOrderLogicを実行する設計
+    - U3はUT対象外でITで実施
+
       ### 2. 統合テスト（実DB使用）
 
       | # | テストケース | 前提条件 | 期待結果 | 検証ポイント |
