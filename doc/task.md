@@ -417,7 +417,7 @@
   - コミット例: `feat(db): create orders, order_items, payments tables`
 
 #### フェーズ 2: sqlc クエリ層実装（予定: 3/12）
-- [ ] **チケット 2**: sqlc クエリ拡張 (P0, Effort: High)
+- [x] **チケット 2**: sqlc クエリ拡張 (P0, Effort: High)
   - 前提: マイグレーション実行済み
   - 内容:
     - `GetProductForUpdate(ctx, id)` — FOR UPDATE で在庫ロック
@@ -430,9 +430,9 @@
     - `UpdateOrderStatus(ctx, id, status)` — ステータス更新
     - `GetOrderCount(ctx, userID)` — ユーザーの注文件数（ページネーション用）
   - 受け入れ条件:
-    - [ ] `backend/query.sql` にクエリを追記
-    - [ ] `sqlc generate` 実行成功
-    - [ ] `backend/db/querier.go` に新メソッドが型安全に追加
+    - [x] `backend/query.sql` にクエリを追記
+    - [x] `sqlc generate` 実行成功
+    - [x] `backend/db/querier.go` に新メソッドが型安全に追加
   - ファイル影響: `backend/query.sql`, `backend/db/querier.go`
   - コミット例: `feat(db): add order-related sqlc queries with FOR UPDATE`
 
