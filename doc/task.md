@@ -389,8 +389,12 @@
 
 ### API 仕様（確定）
 - `GET /api/orders` — 認証済みユーザーの注文一覧取得
-- `POST /api/orders` — 注文作成（商品 ID + 数量リストを受け取り）
+- `POST /api/orders` — 注文作成（カート checkout。リクエストボディは空 `{}`）
 - `POST /api/orders/:id/cancel` — 注文キャンセル（ステータス pending → cancelled、在庫巻き戻し）
+
+仕様確定メモ（2026-03-11）:
+- `POST /api/orders` はカート checkout モデルを採用する
+- 注文対象は認証済みユーザーの現在カート（`cart_items`）から取得する
 
 ### 実装計画（優先度順）
 
