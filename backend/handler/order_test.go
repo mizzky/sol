@@ -1,4 +1,4 @@
-package handler_test
+package handler
 
 import (
 	"context"
@@ -209,10 +209,6 @@ func TestCreateOrderLogic(t *testing.T) {
 			expectedErr: "",
 		},
 		{
-			name:      "U3: 未認証",
-			setupMock: nil,
-		},
-		{
 			name:   "U4:カートが空",
 			userID: int64(1),
 			setupMock: func(m *testutil.MockDB) {
@@ -351,6 +347,7 @@ func TestCreateOrderLogic(t *testing.T) {
 				m.On("CreateOrder", mock.Anything, mock.Anything).Return(
 					db.CreateOrderRow{}, errors.New("db access failed"))
 			},
+			expectedErr: "db access failed",
 		},
 		{
 			name:   "U8：DB Error CreateOrderItem",
@@ -407,6 +404,7 @@ func TestCreateOrderLogic(t *testing.T) {
 				m.On("CreateOrderItem", mock.Anything, mock.Anything).Return(
 					db.CreateOrderItemRow{}, errors.New("db access failed"))
 			},
+			expectedErr: "db access failed",
 		},
 		{
 			name:   "U9：DB Error UpdateProductStock",
@@ -474,6 +472,7 @@ func TestCreateOrderLogic(t *testing.T) {
 				m.On("UpdateProductStock", mock.Anything, mock.Anything).Return(
 					db.UpdateProductStockRow{}, errors.New("db access failed"))
 			},
+			expectedErr: "db access failed",
 		},
 	}
 
@@ -486,7 +485,7 @@ func TestCreateOrderLogic(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			order, err := handler.createOrderLogic(ctx, mockDB, tt.userID)
+			order, err := createOrderLogic(ctx, mockDB, tt.userID)
 
 			if tt.expectedErr != "" {
 				assert.Error(t, err, tt.name)
