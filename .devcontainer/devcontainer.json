@@ -29,7 +29,10 @@
     "ghcr.io/devcontainers/features/common-utils:1": {
       "configureZshAsDefaultShell": true
     },
-    "ghcr.io/devcontainers/features/github-cli:1":{}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false
+    }
   },
   "forwardPorts": [3000, 8080, 5432],
   "remoteUser": "vscode",
