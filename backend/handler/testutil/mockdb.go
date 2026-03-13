@@ -138,3 +138,23 @@ func (m *MockDB) ClearCartByUser(ctx context.Context, userID int64) error {
 	args := m.Called(ctx, userID)
 	return args.Error(0)
 }
+
+func (m *MockDB) GetProductForUpdate(ctx context.Context, id int64) (db.Product, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(db.Product), args.Error(1)
+}
+
+func (m *MockDB) CreateOrder(ctx context.Context, arg db.CreateOrderParams) (db.CreateOrderRow, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.CreateOrderRow), args.Error(1)
+}
+
+func (m *MockDB) UpdateProductStock(ctx context.Context, arg db.UpdateProductStockParams) (db.UpdateProductStockRow, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.UpdateProductStockRow), args.Error(1)
+}
+
+func (m *MockDB) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.CreateOrderItemRow, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.CreateOrderItemRow), args.Error(1)
+}
