@@ -186,10 +186,10 @@ func TestCreateOrderHandler_HappyPath(t *testing.T) {
 
 	// 2) order_itemsが1件作成される
 	var orderItemCount int
-	testDB.QueryRow(`
+	err = testDB.QueryRow(`
 		SELECT COUNT(*)
 		FROM order_items oi
-		JOIN order o ON o.id = oi.order_id
+		JOIN orders o ON o.id = oi.order_id
 		WHERE o.user_id =$1
 	`, userID).Scan(&orderItemCount)
 	assert.NoError(t, err)
@@ -197,7 +197,7 @@ func TestCreateOrderHandler_HappyPath(t *testing.T) {
 
 	// 3) products.stock_quantityが10 -> 8に減る
 	var stock int32
-	testDB.QueryRow(`SELECT stock_quantity FROM products WHERE id =$1`, productID).Scan(&stock)
+	err = testDB.QueryRow(`SELECT stock_quantity FROM products WHERE id =$1`, productID).Scan(&stock)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(8), stock)
 
