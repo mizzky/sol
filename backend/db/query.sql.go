@@ -156,44 +156,37 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Creat
 
 const createOrderItem = `-- name: CreateOrderItem :one
 INSERT INTO order_items (
-    order_id, product_id, quantity, unit_price, created_at, updated_at
+    order_id, product_id, quantity, unit_price, product_name_snapshot,created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, NOW(), NOW()
+    $1, $2, $3, $4, $5, NOW(), NOW()
 )
-RETURNING id, order_id, product_id, quantity, unit_price, created_at, updated_at
+RETURNING id, order_id, product_id, quantity, unit_price, product_name_snapshot, created_at, updated_at
 `
 
 type CreateOrderItemParams struct {
-	OrderID   int64 `json:"order_id"`
-	ProductID int64 `json:"product_id"`
-	Quantity  int32 `json:"quantity"`
-	UnitPrice int64 `json:"unit_price"`
+	OrderID             int64  `json:"order_id"`
+	ProductID           int64  `json:"product_id"`
+	Quantity            int32  `json:"quantity"`
+	UnitPrice           int64  `json:"unit_price"`
+	ProductNameSnapshot string `json:"product_name_snapshot"`
 }
 
-type CreateOrderItemRow struct {
-	ID        int64     `json:"id"`
-	OrderID   int64     `json:"order_id"`
-	ProductID int64     `json:"product_id"`
-	Quantity  int32     `json:"quantity"`
-	UnitPrice int64     `json:"unit_price"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (CreateOrderItemRow, error) {
+func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error) {
 	row := q.db.QueryRowContext(ctx, createOrderItem,
 		arg.OrderID,
 		arg.ProductID,
 		arg.Quantity,
 		arg.UnitPrice,
+		arg.ProductNameSnapshot,
 	)
-	var i CreateOrderItemRow
+	var i OrderItem
 	err := row.Scan(
 		&i.ID,
 		&i.OrderID,
 		&i.ProductID,
 		&i.Quantity,
 		&i.UnitPrice,
+		&i.ProductNameSnapshot,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
