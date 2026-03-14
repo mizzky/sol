@@ -33,3 +33,36 @@
 1. `TestCreateOrderHandler_HappyPath`（正常系1ケース）を追加する
 2. まず Red を確認する
 3. `CreateOrderHandler` の最小実装で Green 化する
+
+---
+
+## 追加で進めた内容（午後）
+
+### 実施したこと
+- `TestCreateOrderHandler_HappyPath` の Red を仕様ベースへ肉付け
+  - ルーター経由で `POST /api/orders` を実行
+  - `201 Created` と DB状態（orders/order_items/stock/cart_items）を検証
+- `CreateOrderHandler` を実装し、トランザクション制御（BeginTx/Commit/Rollback）を追加
+- `CreateOrderItem` クエリを修正し `product_name_snapshot` を保存するように変更
+- `sqlc generate` を再実行して生成コードを更新
+
+### 失敗の原因分析と修正
+- 症状: 統合テストで HTTP 500 が返る
+- 主因:
+  - `order_items.product_name_snapshot` が `NOT NULL` なのに INSERT していなかった
+  - 在庫更新クエリ `stock_quantity = stock_quantity + $2` に対して、減算用の値を渡せていなかった
+- 修正内容:
+  - `CreateOrderItem` に `product_name_snapshot` を追加
+  - `UpdateProductStock` 呼び出しで `-item.Quantity` を渡すように変更
+  - 統合テスト側 SQL の typo (`JOIN order` -> `JOIN orders`) を修正
+  - `Scan` エラーを都度 `err` で受けるように修正
+
+### テスト結果
+- 実行コマンド: `go test -tags=integration ./tests -run TestCreateOrderHandler_HappyPath -v`
+- 結果: PASS（Green）
+- 実行コマンド: `go test -tags=integration ./tests -v`
+- 結果: PASS
+
+### 学び
+- Red は「未実装だから落ちる」ではなく「仕様アサートで落ちる」形にすると次の実装が明確になる
+- Testcontainers での統合テストは、DB制約起因の不整合を早期に検出できる
