@@ -73,14 +73,15 @@ func TestCreateOrderLogic(t *testing.T) {
 					}, nil)
 
 				m.On("CreateOrderItem", mock.Anything, mock.Anything).Return(
-					db.CreateOrderItemRow{
-						ID:        11,
-						OrderID:   1,
-						ProductID: 100,
-						Quantity:  2,
-						UnitPrice: 750,
-						CreatedAt: now,
-						UpdatedAt: now,
+					db.OrderItem{
+						ID:                  11,
+						OrderID:             1,
+						ProductID:           100,
+						Quantity:            2,
+						UnitPrice:           750,
+						ProductNameSnapshot: "Coffee",
+						CreatedAt:           now,
+						UpdatedAt:           now,
 					}, nil)
 
 				m.On("UpdateProductStock", mock.Anything, mock.Anything).Return(
@@ -171,25 +172,27 @@ func TestCreateOrderLogic(t *testing.T) {
 					}, nil)
 
 				m.On("CreateOrderItem", mock.Anything, mock.Anything).Return(
-					db.CreateOrderItemRow{
-						ID:        21,
-						OrderID:   1,
-						ProductID: 100,
-						Quantity:  2,
-						UnitPrice: 750,
-						CreatedAt: now,
-						UpdatedAt: now,
+					db.OrderItem{
+						ID:                  21,
+						OrderID:             1,
+						ProductID:           100,
+						Quantity:            2,
+						UnitPrice:           750,
+						ProductNameSnapshot: "Coffee A",
+						CreatedAt:           now,
+						UpdatedAt:           now,
 					}, nil).Once()
 
 				m.On("CreateOrderItem", mock.Anything, mock.Anything).Return(
-					db.CreateOrderItemRow{
-						ID:        22,
-						OrderID:   1,
-						ProductID: 101,
-						Quantity:  3,
-						UnitPrice: 950,
-						CreatedAt: now,
-						UpdatedAt: now,
+					db.OrderItem{
+						ID:                  22,
+						OrderID:             1,
+						ProductID:           101,
+						Quantity:            3,
+						UnitPrice:           950,
+						ProductNameSnapshot: "Coffee B",
+						CreatedAt:           now,
+						UpdatedAt:           now,
 					}, nil).Once()
 
 				m.On("UpdateProductStock", mock.Anything, mock.Anything).Return(
@@ -402,7 +405,7 @@ func TestCreateOrderLogic(t *testing.T) {
 					}, nil)
 
 				m.On("CreateOrderItem", mock.Anything, mock.Anything).Return(
-					db.CreateOrderItemRow{}, errors.New("db access failed"))
+					db.OrderItem{}, errors.New("db access failed"))
 			},
 			expectedErr: "db access failed",
 		},
@@ -459,14 +462,15 @@ func TestCreateOrderLogic(t *testing.T) {
 					}, nil)
 
 				m.On("CreateOrderItem", mock.Anything, mock.Anything).Return(
-					db.CreateOrderItemRow{
-						ID:        11,
-						OrderID:   1,
-						ProductID: 100,
-						Quantity:  2,
-						UnitPrice: 750,
-						CreatedAt: now,
-						UpdatedAt: now,
+					db.OrderItem{
+						ID:                  11,
+						OrderID:             1,
+						ProductID:           100,
+						Quantity:            2,
+						UnitPrice:           750,
+						ProductNameSnapshot: "Coffee",
+						CreatedAt:           now,
+						UpdatedAt:           now,
 					}, nil)
 
 				m.On("UpdateProductStock", mock.Anything, mock.Anything).Return(
