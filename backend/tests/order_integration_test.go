@@ -100,7 +100,7 @@ func TestIntegration_DBReady(t *testing.T) {
 		t.Fatalf("failed to query current_database(): %v", err)
 	}
 	if currentDB != "test_db" {
-		t.Fatalf("unexpected database name: got=%s wnat=test_db", currentDB)
+		t.Fatalf("unexpected database name: got=%s want=test_db", currentDB)
 	}
 }
 
