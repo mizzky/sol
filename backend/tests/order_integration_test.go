@@ -156,6 +156,11 @@ func seedHappyPath(t *testing.T) (userID int64, productID int64) {
 		t.Fatalf("cart_item insert failed:%v", err)
 	}
 
+	// テスト後に全データ掃除
+	t.Cleanup(func() {
+		testDB.Exec(`TRUNCATE TABLE order_items, orders, cart_items, carts, products, categories, users RESTARTIDENTITY CASCADE`)
+	})
+
 	return userID, productID
 
 }
