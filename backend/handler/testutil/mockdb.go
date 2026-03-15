@@ -154,7 +154,7 @@ func (m *MockDB) UpdateProductStock(ctx context.Context, arg db.UpdateProductSto
 	return args.Get(0).(db.UpdateProductStockRow), args.Error(1)
 }
 
-func (m *MockDB) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.CreateOrderItemRow, error) {
+func (m *MockDB) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.OrderItem, error) {
 	args := m.Called(ctx, arg)
-	return args.Get(0).(db.CreateOrderItemRow), args.Error(1)
+	return args.Get(0).(db.OrderItem), args.Error(1)
 }

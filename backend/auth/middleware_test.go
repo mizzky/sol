@@ -155,8 +155,8 @@ func (f *FakeQuerier) CreateOrder(ctx context.Context, arg db.CreateOrderParams)
 	return db.CreateOrderRow{}, nil
 }
 
-func (f *FakeQuerier) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.CreateOrderItemRow, error) {
-	return db.CreateOrderItemRow{}, nil
+func (f *FakeQuerier) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.OrderItem, error) {
+	return db.OrderItem{}, nil
 }
 
 func (f *FakeQuerier) GetOrderByID(ctx context.Context, id int64) (db.GetOrderByIDRow, error) {

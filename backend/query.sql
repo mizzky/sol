@@ -233,11 +233,11 @@ RETURNING id, user_id, total, status, created_at, updated_at;
 
 -- name: CreateOrderItem :one
 INSERT INTO order_items (
-    order_id, product_id, quantity, unit_price, created_at, updated_at
+    order_id, product_id, quantity, unit_price, product_name_snapshot,created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, NOW(), NOW()
+    $1, $2, $3, $4, $5, NOW(), NOW()
 )
-RETURNING id, order_id, product_id, quantity, unit_price, created_at, updated_at;
+RETURNING id, order_id, product_id, quantity, unit_price, product_name_snapshot, created_at, updated_at;
 
 -- name: ListOrdersByUser :many
 SELECT

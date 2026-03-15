@@ -4,7 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/respond"
+
+	"github.com/gin-gonic/gin"
 )
 
 func createOrderLogic(ctx context.Context, qtx db.Querier, userID int64) (*db.CreateOrderRow, error) {
@@ -60,10 +64,11 @@ func createOrderLogic(ctx context.Context, qtx db.Querier, userID int64) (*db.Cr
 	// 各商品ループで注文明細作成と在庫更新
 	for _, item := range items {
 		_, err := qtx.CreateOrderItem(ctx, db.CreateOrderItemParams{
-			OrderID:   order.ID,
-			ProductID: item.ProductID,
-			Quantity:  item.Quantity,
-			UnitPrice: int64(item.ProductPrice),
+			OrderID:             order.ID,
+			ProductID:           item.ProductID,
+			Quantity:            item.Quantity,
+			UnitPrice:           int64(item.ProductPrice),
+			ProductNameSnapshot: item.ProductName,
 		})
 		if err != nil {
 			return nil, err
@@ -71,7 +76,7 @@ func createOrderLogic(ctx context.Context, qtx db.Querier, userID int64) (*db.Cr
 
 		_, err = qtx.UpdateProductStock(ctx, db.UpdateProductStockParams{
 			ID:            item.ProductID,
-			StockQuantity: item.ProductStock - item.Quantity,
+			StockQuantity: -item.Quantity,
 		})
 		if err != nil {
 			return nil, err
@@ -84,4 +89,57 @@ func createOrderLogic(ctx context.Context, qtx db.Querier, userID int64) (*db.Cr
 	}
 
 	return &order, nil
+}
+
+func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		raw, exists := c.Get("userID")
+		if !exists {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		var userID int64
+		switch v := raw.(type) {
+		case int64:
+			userID = v
+		case int:
+			userID = int64(v)
+		case float64:
+			userID = int64(v)
+		default:
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		tx, err := conn.BeginTx(c.Request.Context(), nil)
+		if err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+
+		qtx := queries.WithTx(tx)
+		order, err := createOrderLogic(c.Request.Context(), qtx, userID)
+		if err != nil {
+			_ = tx.Rollback()
+
+			switch {
+			case err.Error() == "カートが空です":
+				respond.RespondError(c, http.StatusBadRequest, "カートが空です")
+			case err.Error() == "商品が見つかりません":
+				respond.RespondError(c, http.StatusNotFound, "商品が見つかりません")
+			case err.Error() == "在庫不足です":
+				respond.RespondError(c, http.StatusConflict, "在庫不足です")
+			default:
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			}
+			return
+		}
+
+		if err := tx.Commit(); err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"order": order})
+	}
 }
