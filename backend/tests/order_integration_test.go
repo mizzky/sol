@@ -159,7 +159,7 @@ func seedHappyPath(t *testing.T) (userID int64, productID int64) {
 
 	// テスト後に全データ掃除
 	t.Cleanup(func() {
-		testDB.Exec(`TRUNCATE TABLE order_items, orders, cart_items, carts, products, categories, users RESTART IDENTITY CASCADE`)
+		cleanupOrderRelatedTables(t)
 	})
 
 	return userID, productID
@@ -184,39 +184,11 @@ func TestCreateOrderHandler_HappyPath(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 
-	// 1) orderが1件作成される
-	var orderCount int
-	err := testDB.QueryRow(`SELECT COUNT(*) FROM orders WHERE user_id = $1`, userID).Scan(&orderCount)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, orderCount)
-
-	// 2) order_itemsが1件作成される
-	var orderItemCount int
-	err = testDB.QueryRow(`
-		SELECT COUNT(*)
-		FROM order_items oi
-		JOIN orders o ON o.id = oi.order_id
-		WHERE o.user_id =$1
-	`, userID).Scan(&orderItemCount)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, orderItemCount)
-
-	// 3) products.stock_quantityが10 -> 8に減る
-	var stock int32
-	err = testDB.QueryRow(`SELECT stock_quantity FROM products WHERE id =$1`, productID).Scan(&stock)
-	assert.NoError(t, err)
-	assert.Equal(t, int32(8), stock)
-
-	// 4) cart_itemsが0件
-	var cartItemCount int
-	err = testDB.QueryRow(`
-		SELECT COUNT(*)
-		FROM cart_items ci
-		JOIN carts c ON c.id = ci.cart_id
-		WHERE c.user_id = $1
-	`, userID).Scan(&cartItemCount)
-	assert.NoError(t, err)
-	assert.Equal(t, 0, cartItemCount)
+	// 注文が正しく処理され、在庫が減少(10-2=8),カートがクリアされることを検証
+	assertOrderCountByUser(t, userID, 1)
+	assertOrderItemCountByUser(t, userID, 1)
+	assertProductStockByID(t, productID, 8)
+	assertCartItemCountByUser(t, userID, 0)
 
 }
 
@@ -239,15 +211,13 @@ func seedEmptyCart(t *testing.T) int64 {
 	}
 
 	t.Cleanup(func() {
-		_, _ = testDB.Exec(`
-            TRUNCATE TABLE order_items, orders, cart_items, carts, products, categories, users
-            RESTART IDENTITY CASCADE
-        `)
+		cleanupOrderRelatedTables(t)
 	})
 
 	return userID
 }
 
+// 在庫1個の商品[SKU_00S-001]に対して、数量5の注文をリクエストする
 func seedOutOfStock(t *testing.T) int64 {
 	t.Helper()
 
@@ -298,10 +268,7 @@ func seedOutOfStock(t *testing.T) int64 {
 	}
 
 	t.Cleanup(func() {
-		_, _ = testDB.Exec(`
-            TRUNCATE TABLE order_items, orders, cart_items, carts, products, categories, users
-            RESTART IDENTITY CASCADE
-        `)
+		cleanupOrderRelatedTables(t)
 	})
 
 	return userID
@@ -341,13 +308,7 @@ func TestCreateOrderHandler(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectedErrMsg: "カートが空です",
 			assertDB: func(t *testing.T, userID int64) {
-				t.Helper()
-				var orderCount int
-				err := testDB.QueryRow(`
-					SELECT COUNT(*) FROM orders WHERE user_id = $1	
-				`, userID).Scan(&orderCount)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, orderCount)
+				assertOrderCountByUser(t, userID, 0)
 			},
 		},
 		{
@@ -357,32 +318,10 @@ func TestCreateOrderHandler(t *testing.T) {
 			expectedStatus: http.StatusConflict,
 			expectedErrMsg: "在庫不足です",
 			assertDB: func(t *testing.T, userID int64) {
-				t.Helper()
-				var orderCount int
-				err := testDB.QueryRow(`
-					SELECT COUNT(*) FROM orders WHERE user_id = $1
-				`, userID).Scan(&orderCount)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, orderCount)
-
-				var orderItemCount int
-				err = testDB.QueryRow(`SELECT COUNT(*) FROM order_items`).Scan(&orderItemCount)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, orderItemCount)
-
-				var stock int32
-				err = testDB.QueryRow(`
-					SELECT stock_quantity FROM products WHERE sku = 'SKU_00S-001'
-				`).Scan(&stock)
-				assert.NoError(t, err)
-				assert.Equal(t, int32(1), stock)
-
-				var cartItemCount int
-				err = testDB.QueryRow(`
-					SELECT COUNT(*) FROM cart_items ci JOIN carts c ON c.id = ci.cart_id WHERE c.user_id = $1
-				`, userID).Scan(&cartItemCount)
-				assert.NoError(t, err)
-				assert.Equal(t, 1, cartItemCount)
+				assertOrderCountByUser(t, userID, 0)
+				assertOrderItemCountByUser(t, userID, 0)
+				assertProductStockBySKU(t, "SKU_00S-001", 1)
+				assertCartItemCountByUser(t, userID, 1)
 			},
 		},
 		{
@@ -392,13 +331,7 @@ func TestCreateOrderHandler(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectedErrMsg: "カートが空です",
 			assertDB: func(t *testing.T, userID int64) {
-				t.Helper()
-				var orderCount int
-				err := testDB.QueryRow(`
-					SELECT COUNT(*) FROM orders WHERE user_id = $1
-				`, userID).Scan(&orderCount)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, orderCount)
+				assertOrderCountByUser(t, userID, 0)
 			},
 		},
 		{
@@ -408,16 +341,7 @@ func TestCreateOrderHandler(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectedErrMsg: "カートが空です",
 			assertDB: func(t *testing.T, userID int64) {
-				t.Helper()
-
-				var orderCount int
-				err := testDB.QueryRow(`
-                    SELECT COUNT(*)
-                    FROM orders
-                    WHERE user_id = $1
-                `, userID).Scan(&orderCount)
-				assert.NoError(t, err)
-				assert.Equal(t, 0, orderCount)
+				assertOrderCountByUser(t, userID, 0)
 			},
 		},
 	}
