@@ -331,7 +331,6 @@ func TestCreateOrderHandler(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectedErrMsg: "カートが空です",
 			assertDB: func(t *testing.T, userID int64) {
-				// orderが0件であること
 				assertOrderCountByUser(t, userID, 0)
 			},
 		},
@@ -342,7 +341,6 @@ func TestCreateOrderHandler(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectedErrMsg: "カートが空です",
 			assertDB: func(t *testing.T, userID int64) {
-				// orderが0件であること
 				assertOrderCountByUser(t, userID, 0)
 			},
 		},
