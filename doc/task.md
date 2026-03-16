@@ -499,19 +499,19 @@
       - 副作用: 在庫正確にデクリメント、合計金額計算
     - [x] テスト実行でサイクル確認（Red）
   - ステップ 3: プロダクトコード実装（`handler/order.go`）
-    - [ ] トランザクション開始
+    - [x] トランザクション開始
     - [x] 各商品を FOR UPDATE で取得＆ロック
-    - [ ] 在庫チェック → 不足時は 409 Conflict（ロールバック）
-    - [ ] デクリメント＆ orders, order_items 作成
-    - [ ] コミット後にレスポンス返却（201 Created）
-    - [ ] テスト全 PASS（Green）
+    - [x] 在庫チェック → 不足時は 409 Conflict（ロールバック）
+    - [x] デクリメント＆ orders, order_items 作成
+    - [x] コミット後にレスポンス返却（201 Created）
+    - [x] テスト全 PASS（Green）
   - ステップ 4: リファクタリング（Refactor）
-    - [ ] エラーハンドリング改善
-    - [ ] トランザクション処理の可読性向上
+    - [x] エラーハンドリング改善
+    - [x] トランザクション処理の可読性向上
   - 受け入れ条件:
-    - [ ] ユニットテスト全 PASS、カバレッジ > 80%
-    - [ ] 在庫がトランザクション内で正確にデクリメント
-    - [ ] 在庫不足時にロールバック・409 返却
+    - [x] ユニットテスト全 PASS、カバレッジ > 80%
+    - [x] 在庫がトランザクション内で正確にデクリメント
+    - [x] 在庫不足時にロールバック・409 返却
   - ファイル影響: `backend/handler/order.go` (新規), `backend/handler/order_test.go` (新規)
   - コミット例: `feat(handler): add CreateOrderHandler with TDD (tests + implementation)`
 
