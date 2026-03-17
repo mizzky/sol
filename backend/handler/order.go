@@ -143,3 +143,12 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		c.JSON(http.StatusCreated, gin.H{"order": order})
 	}
 }
+
+func cancelOrderLogic(ctx context.Context, qtx db.Querier, orderID int64, userID int64) (*db.UpdateOrderStatusRow, error) {
+	return nil, nil
+}
+
+func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
+	return func(c *gin.Context) {
+	}
+}

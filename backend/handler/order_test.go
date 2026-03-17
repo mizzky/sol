@@ -504,3 +504,146 @@ func TestCreateOrderLogic(t *testing.T) {
 		})
 	}
 }
+
+func TestCancelOrderLogic(t *testing.T) {
+	tests := []struct {
+		name        string
+		orderID     int64
+		userID      int64
+		setupMock   func(*testutil.MockDB)
+		expectedErr string
+	}{
+		{
+			name:    "U1:単一商品のキャンセル",
+			orderID: 1,
+			userID:  1,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetOrderByIDForUpdate", mock.Anything, int64(1)).Return(
+					db.GetOrderByIDForUpdateRow{
+						ID: 1, UserID: 1, Total: 1500, Status: "pending", CreatedAt: now, UpdatedAt: now,
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID: 1, OrderID: 1, ProductID: 100, Quantity: 2, UnitPrice: 750, CreatedAt: now, UpdatedAt: now,
+						},
+					}, nil)
+				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 100, StockQuantity: 2}).Return(
+					db.UpdateProductStockRow{ID: 100, StockQuantity: 52}, nil)
+				m.On("UpdateOrderStatus", mock.Anything, db.UpdateOrderStatusParams{ID: 1, Status: "cancelled"}).Return(
+					db.UpdateOrderStatusRow{ID: 1, UserID: 1, Total: 1500, Status: "cancelled", CreatedAt: now, UpdatedAt: now}, nil)
+			},
+			expectedErr: "",
+		},
+		{
+			name:    "U2:複数商品のキャンセル",
+			orderID: 2,
+			userID:  2,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetOrderByIDForUpdate", mock.Anything, int64(2)).Return(
+					db.GetOrderByIDForUpdateRow{ID: 2, UserID: 2, Total: 3000, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{ID: 1, OrderID: 2, ProductID: 101, Quantity: 1, UnitPrice: 1000, CreatedAt: now, UpdatedAt: now},
+						{ID: 2, OrderID: 2, ProductID: 102, Quantity: 2, UnitPrice: 1000, CreatedAt: now, UpdatedAt: now},
+					}, nil)
+				m.On("UpdateProductStock", mock.Anything, db.UpdateProductParams{ID: 101, StockQuantity: 1}).Return(
+					db.UpdateProductStockRow{ID: 101, StockQuantity: 11}, nil)
+				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 102, StockQuantity: 2}).Return(
+					db.UpdateProductStockRow{ID: 102, StockQuantity: 22}, nil)
+				m.On("UpdateOrderStatus", mock.Anything, db.UpdateOrderStatusParams{ID: 2, Status: "cancelled"}).Return(
+					db.UpdateOrderStatusRow{ID: 2, UserID: 2, Total: 3000, Status: "cancelled", CreatedAt: now, UpdatedAt: now}, nil)
+			},
+			expectedErr: "",
+		},
+		{
+			name:    "U3:注文なし",
+			orderID: 10,
+			userID:  1,
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetOrderByIDForUpdate", mock.Anything, int64(10)).Return(
+					db.GetOrderByIDForUpdateRow{}, sql.ErrNoRows)
+			},
+			expectedErr: "注文が見つかりません",
+		},
+		{
+			name:    "U4:他ユーザーの注文",
+			orderID: 11,
+			userID:  2,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetOrderByIDForUpdate", mock.Anything, int64(11)).Return(
+					db.GetOrderByIDForUpdateRow{ID: 11, UserID: 1, Total: 1000, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
+			},
+			expectedErr: "注文が見つかりません",
+		},
+		{
+			name:    "U5: キャンセル済み",
+			orderID: 12,
+			userID:  3,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetOrderByIDForUpdate", mock.Anything, int64(12)).Return(
+					db.GetOrderByIDForUpdateRow{ID: 12, UserID: 3, Total: 500, Status: "cancelled", CreatedAt: now, UpdatedAt: now}, nil)
+			},
+			expectedErr: "この注文はキャンセルできません",
+		},
+		{
+			name:    "U6: DBエラー UpdateProductStock",
+			orderID: 20,
+			userID:  5,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetOrderByIDForUpdate", mock.Anything, int64(20)).Return(
+					db.GetOrderByIDForUpdateRow{ID: 20, UserID: 5, Total: 800, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(20)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{ID: 1, OrderID: 20, ProductID: 200, Quantity: 1, UnitPrice: 800, CreatedAt: now, UpdatedAt: now},
+					}, nil)
+				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 200, StockQuantity: 1}).Return(
+					db.UpdateProductStockRow{}, errors.New("db error"))
+			},
+			expectedErr: "db error",
+		},
+		{
+			name:    "U7: DBエラー UpdateOrderStatus",
+			orderID: 21,
+			userID:  6,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("GetOrderByIDForUpdate", mock.Anything, int64(21)).Return(
+					db.GetOrderByIDForUpdateRow{ID: 21, UserID: 6, Total: 1200, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(21)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{ID: 1, OrderID: 21, ProductID: 201, Quantity: 1, UnitPrice: 1200, CreatedAt: now, UpdatedAt: now},
+					}, nil)
+				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 201, StockQuantity: 1}).Return(
+					db.UpdateProductStockRow{ID: 201, StockQuantity: 101}, nil)
+				m.On("UpdateOrderStatus", mock.Anything, db.UpdateOrderStatusParams{ID: 21, Status: "cancelled"}).Return(
+					db.UpdateOrderStatusRow{}, errors.New("update status error"), nil)
+			},
+			expectedErr: "update status error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB := new(testutil.MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+			result, err := cancelOrderLogic(context.Background(), mockDB, tt.orderID, tt.userID)
+			if tt.expectedErr == "" {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			}
+			mockDB.AssertExpectations(t)
+
+		})
+	}
+}
