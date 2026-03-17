@@ -549,7 +549,7 @@ func TestCancelOrderLogic(t *testing.T) {
 						{ID: 1, OrderID: 2, ProductID: 101, Quantity: 1, UnitPrice: 1000, CreatedAt: now, UpdatedAt: now},
 						{ID: 2, OrderID: 2, ProductID: 102, Quantity: 2, UnitPrice: 1000, CreatedAt: now, UpdatedAt: now},
 					}, nil)
-				m.On("UpdateProductStock", mock.Anything, db.UpdateProductParams{ID: 101, StockQuantity: 1}).Return(
+				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 101, StockQuantity: 1}).Return(
 					db.UpdateProductStockRow{ID: 101, StockQuantity: 11}, nil)
 				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 102, StockQuantity: 2}).Return(
 					db.UpdateProductStockRow{ID: 102, StockQuantity: 22}, nil)
