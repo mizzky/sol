@@ -393,3 +393,94 @@ func TestCreateOrderHandler(t *testing.T) {
 		})
 	}
 }
+
+// users, product, category, order(pending)の設定
+// 在庫8で作成(注文済み2個分が減った状態を再現)
+func seedCancelOrderHappyPath(t *testing.T) (userID int64, orderID int64, productID int64) {
+	t.Helper()
+
+	var categoryID int64
+
+	err := testDB.QueryRow(`
+		INSERT INTO users(name, email, password_hash)
+		VALUES ('キャンセル正常ユーザー', 'cance-happy@example.com', 'dummy_hash')
+		RETURNING id
+	`).Scan(&userID)
+	if err != nil {
+		t.Fatalf("user insert failed:%v", err)
+	}
+
+	err = testDB.QueryRow(`
+		INSERT INTO categories (name)
+		VALUES('テストカテゴリ')
+		RETURNING id
+	`).Scan(&categoryID)
+	if err != nil {
+		t.Fatalf("category insert failed:%v", err)
+	}
+
+	err = testDB.QueryRow(`
+		INSERT INTO products (name, price, category_id, sku, stock_quantity)
+		VALUES ('キャンセル正常商品', 750, $1, 'SKU_CANCEL_HAPPY_001', 8)
+		RETURNING id
+	`, categoryID).Scan(&productID)
+	if err != nil {
+		t.Fatalf("product insert failed:%v", err)
+	}
+
+	err = testDB.QueryRow(`
+		INSERT INTO orders (user_id, total, status) 
+		VALUES ($1, 1500, 'pending')
+		RETURNING id
+	`, userID).Scan(&orderID)
+	if err != nil {
+		t.Fatalf("order insert failed:%v", err)
+	}
+
+	cancelStock := 2
+	_, err = testDB.Exec(`
+		INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_name_snapshot)
+		VALUES ($1, $2, $3, 750, 'キャンセル正常商品')
+	`, orderID, productID, cancelStock)
+	if err != nil {
+		t.Fatalf("order_item insert failed:%v", err)
+	}
+
+	t.Cleanup(func() { cleanupOrderRelatedTables(t) })
+
+	return userID, orderID, productID
+}
+
+func TestCancelOrderHandler_HappyPath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	userID, orderID, productID := seedCancelOrderHappyPath(t)
+
+	router := gin.New()
+	queries := db.New(testDB)
+
+	router.POST("/api/orders/:id/cancel", func(c *gin.Context) {
+		c.Set("userID", userID)
+		handler.CancelOrderHandler(testDB, queries)(c)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/orders/%d/cancel", orderID), bytes.NewBufferString(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+
+	orderObj, ok := resp["order"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "cancelled", orderObj["status"])
+	assert.Equal(t, float64(orderID), orderObj["id"])
+
+	// 注文ステータスがcancelledとなり、2個が返品されたことを検証
+	assertOrderStatus(t, orderID, "cancelled")
+	assertProductStockByID(t, productID, 10)
+
+}
