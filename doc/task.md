@@ -459,7 +459,7 @@
 
 #### フェーズ 3: ハンドラー層実装 - TDD（予定: 3/17）
 
-- [ ] **チケット 3**: CreateOrderHandler 実装 (P0, Effort: High)
+- [x] **チケット 3**: CreateOrderHandler 実装 (P0, Effort: High)
   - タイプ: TDD サイクル（Red → Green → Refactor）
   - ステップ 1: テスト設計
     - [x] テストケースリスト作成（正常系、異常系、エッジケース）
@@ -515,28 +515,28 @@
   - ファイル影響: `backend/handler/order.go` (新規), `backend/handler/order_test.go` (新規)
   - コミット例: `feat(handler): add CreateOrderHandler with TDD (tests + implementation)`
 
-- [ ] **チケット 4**: CancelOrderHandler 実装 (P0, Effort: High)
+- [x] **チケット 4**: CancelOrderHandler 実装 (P0, Effort: High)
   - タイプ: TDD サイクル（Red → Green → Refactor）
   - ステップ 1: テスト設計
-    - [ ] テストケースリスト作成
+    - [x] テストケースリスト作成
   - ステップ 2: テストコード作成（`handler/order_test.go` に追加）
-    - [ ] テーブル駆動テスト
+    - [x] テーブル駆動テスト
       - 正常系: ステータス pending → cancelled、在庫巻き戻し
       - 異常系: 注文不在(404)、非所有(404)、既にキャンセル済み(400)
       - 副作用: 各商品の在庫が正確にインクリメント
-    - [ ] テスト実行でサイクル確認（Red）
+    - [x] テスト実行でサイクル確認（Red）
   - ステップ 3: プロダクトコード実装（`handler/order.go` に追加）
-    - [ ] authorization チェック（自分の注文のみ）
-    - [ ] トランザクション開始 & orders を FOR UPDATE 取得
-    - [ ] ステータスチェック（pending のみキャンセル可）
-    - [ ] order_items を全取得 → 各商品インクリメント
-    - [ ] orders.status = 'cancelled', cancelled_at = NOW()
-    - [ ] コミット＆レスポンス（200 OK）
-    - [ ] テスト全 PASS（Green）
+    - [x] authorization チェック（自分の注文のみ）
+    - [x] トランザクション開始 & orders を FOR UPDATE 取得
+    - [x] ステータスチェック（pending のみキャンセル可）
+    - [x] order_items を全取得 → 各商品インクリメント
+    - [x] orders.status = 'cancelled', cancelled_at = NOW()
+    - [x] コミット＆レスポンス（200 OK）
+    - [x] テスト全 PASS（Green）
   - ステップ 4: リファクタリング（Refactor）
   - 受け入れ条件:
-    - [ ] ユニットテスト全 PASS
-    - [ ] キャンセル後の在庫が統合テストで確認可能
+    - [x] ユニットテスト全 PASS
+    - [x] キャンセル後の在庫が統合テストで確認可能
   - コミット例: `feat(handler): add CancelOrderHandler with authorization and rollback`
 
 - [ ] **チケット 5**: GetOrdersHandler 実装 (P0, Effort: Med)
