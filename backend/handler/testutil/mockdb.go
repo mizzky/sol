@@ -158,3 +158,21 @@ func (m *MockDB) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemPara
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.OrderItem), args.Error(1)
 }
+
+func (m *MockDB) GetOrderByIDForUpdate(ctx context.Context, id int64) (db.GetOrderByIDForUpdateRow, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(db.GetOrderByIDForUpdateRow), args.Error(1)
+}
+
+func (m *MockDB) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]db.ListOrderItemsByOrderIDRow, error) {
+	args := m.Called(ctx, orderID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]db.ListOrderItemsByOrderIDRow), args.Error(1)
+}
+
+func (m *MockDB) UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.UpdateOrderStatusRow, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(db.UpdateOrderStatusRow), args.Error(1)
+}

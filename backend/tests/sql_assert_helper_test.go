@@ -67,6 +67,16 @@ func assertProductStockBySKU(t *testing.T, sku string, want int32) {
 	assert.Equal(t, want, got)
 }
 
+func assertOrderStatus(t *testing.T, orderID int64, want string) {
+	t.Helper()
+	var status string
+	err := testDB.QueryRow(`
+		SELECT status FROM orders WHERE id = $1
+	`, orderID).Scan(&status)
+	assert.NoError(t, err)
+	assert.Equal(t, want, status)
+}
+
 // DBクリーンアップ
 func cleanupOrderRelatedTables(t *testing.T) {
 	t.Helper()
