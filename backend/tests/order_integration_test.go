@@ -16,6 +16,7 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -105,7 +106,7 @@ func TestIntegration_DBReady(t *testing.T) {
 	}
 }
 
-func seedHappyPath(t *testing.T) (userID int64, productID int64) {
+func seedCreateOrderHappyPath(t *testing.T) (userID int64, productID int64) {
 	t.Helper()
 
 	// 1. user
@@ -168,7 +169,7 @@ func seedHappyPath(t *testing.T) (userID int64, productID int64) {
 
 func TestCreateOrderHandler_HappyPath(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	userID, productID := seedHappyPath(t)
+	userID, productID := seedCreateOrderHappyPath(t)
 
 	router := gin.New()
 	queries := db.New(testDB)
@@ -325,7 +326,7 @@ func TestCreateOrderHandler(t *testing.T) {
 			},
 		},
 		{
-			name:           "異常系：userIDがintでも通る",
+			name:           "正常系：userIDがintでも通る",
 			setupDB:        seedEmptyCart,
 			rawUserID:      int(0),
 			expectedStatus: http.StatusBadRequest,
@@ -335,7 +336,7 @@ func TestCreateOrderHandler(t *testing.T) {
 			},
 		},
 		{
-			name:           "異常系：userIDがfloatでも通る",
+			name:           "正常系：userIDがfloatでも通る",
 			setupDB:        seedEmptyCart,
 			rawUserID:      float64(0),
 			expectedStatus: http.StatusBadRequest,
@@ -483,4 +484,368 @@ func TestCancelOrderHandler_HappyPath(t *testing.T) {
 	assertOrderStatus(t, orderID, "cancelled")
 	assertProductStockByID(t, productID, 10)
 
+}
+
+func seedOthersOrderForCancel(t *testing.T) (requestUserID int64, orderID int64, productID int64) {
+	t.Helper()
+
+	var (
+		ownerUserID int64
+		categoryID  int64
+	)
+
+	uniq := time.Now().UnixNano()
+
+	err := testDB.QueryRow(`
+		INSERT INTO users (name, email, password_hash)
+		VALUES ($1, $2, $3)
+		RETURNING id
+	`, "注文所有者", fmt.Sprintf("cancel-owner-%d@example.com", uniq), "dummy_hash").Scan(&ownerUserID)
+	if err != nil {
+		t.Fatalf("owner user insert failed:%v", err)
+	}
+
+	err = testDB.QueryRow(`
+		INSERT INTO users (name, email, password_hash) 
+		VALUES ($1, $2, $3)
+		RETURNING id
+	`, "他ユーザー", fmt.Sprintf("cancel-requester-%d@example.com", uniq), "dummy_hash").Scan(&requestUserID)
+	if err != nil {
+		t.Fatalf("request user insert failed:%v", err)
+	}
+
+	err = testDB.QueryRow(`
+		INSERT INTO categories (name)
+		VALUES ($1)
+		RETURNING id
+	`, fmt.Sprintf("cancel-category-%d", uniq)).Scan(&categoryID)
+	if err != nil {
+		t.Fatalf("category insert failed:%v", err)
+	}
+
+	err = testDB.QueryRow(`
+		INSERT INTO products (name, price, category_id, sku, stock_quantity)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`, "他人注文テスト商品", 750, categoryID, fmt.Sprintf("SKU_CANCEL_OTHERS_%d", uniq), 8).Scan(&productID)
+	if err != nil {
+		t.Fatalf("product insert failed:%v", err)
+	}
+
+	err = testDB.QueryRow(`
+		INSERT INTO orders (user_id, total, status)
+		VALUES ($1, $2, $3)
+		RETURNING id
+	`, ownerUserID, 1500, "pending").Scan(&orderID)
+	if err != nil {
+		t.Fatalf("order insert failed:%v", err)
+	}
+
+	_, err = testDB.Exec(`
+		INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_name_snapshot)
+		VALUES ($1, $2, $3, $4, $5)
+	`, orderID, productID, 2, 750, "他人注文テスト商品")
+	if err != nil {
+		t.Fatalf("order_item insert failed:%v", err)
+	}
+
+	t.Cleanup(func() {
+		cleanupOrderRelatedTables(t)
+	})
+
+	return requestUserID, orderID, productID
+
+}
+
+// 既に cancelled ステータスの注文ケース用:
+// - 注文所有者本人でリクエスト
+func seedCancelledOrderForCancel(t *testing.T) (userID int64, orderID int64, productID int64) {
+	t.Helper()
+
+	var categoryID int64
+	uniq := time.Now().UnixNano()
+
+	err := testDB.QueryRow(`
+        INSERT INTO users (name, email, password_hash)
+        VALUES ($1, $2, $3)
+        RETURNING id
+    `,
+		"キャンセル済み注文ユーザー",
+		fmt.Sprintf("cancelled-user-%d@example.com", uniq),
+		"dummy_hash",
+	).Scan(&userID)
+	if err != nil {
+		t.Fatalf("user insert failed: %v", err)
+	}
+
+	err = testDB.QueryRow(`
+        INSERT INTO categories (name)
+        VALUES ($1)
+        RETURNING id
+    `, fmt.Sprintf("cancelled-category-%d", uniq)).Scan(&categoryID)
+	if err != nil {
+		t.Fatalf("category insert failed: %v", err)
+	}
+
+	// 既にキャンセル済み注文のため、在庫は戻っている前提で stock=8 を据え置き
+	err = testDB.QueryRow(`
+        INSERT INTO products (name, price, category_id, sku, stock_quantity)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+    `,
+		"キャンセル済みテスト商品",
+		750,
+		categoryID,
+		fmt.Sprintf("SKU_CANCEL_CANCELLED_%d", uniq),
+		8,
+	).Scan(&productID)
+	if err != nil {
+		t.Fatalf("product insert failed: %v", err)
+	}
+
+	err = testDB.QueryRow(`
+        INSERT INTO orders (user_id, total, status)
+        VALUES ($1, $2, $3)
+        RETURNING id
+    `, userID, 1500, "cancelled").Scan(&orderID)
+	if err != nil {
+		t.Fatalf("order insert failed: %v", err)
+	}
+
+	_, err = testDB.Exec(`
+        INSERT INTO order_items (order_id, product_id, quantity, unit_price, product_name_snapshot)
+        VALUES ($1, $2, $3, $4, $5)
+    `, orderID, productID, 2, 750, "キャンセル済みテスト商品")
+	if err != nil {
+		t.Fatalf("order_item insert failed: %v", err)
+	}
+
+	t.Cleanup(func() {
+		cleanupOrderRelatedTables(t)
+	})
+
+	return userID, orderID, productID
+}
+
+type cancelCaseSeed struct {
+	rawUserID interface{}
+	orderID   int64
+	productID int64
+}
+
+func TestCancelOrderHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name           string
+		setupDB        func(t *testing.T) cancelCaseSeed
+		pathBuilder    func(seed cancelCaseSeed) string
+		setAuth        bool
+		expectedStatus int
+		expectedErrMsg string
+		assertDB       func(t *testing.T, seed cancelCaseSeed)
+	}{
+		{
+			name: "異常系：他人の注文",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				requestUserID, orderID, productID := seedOthersOrderForCancel(t)
+				return cancelCaseSeed{
+					rawUserID: requestUserID,
+					orderID:   orderID,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%d/cancel", seed.orderID)
+			},
+			setAuth:        true,
+			expectedStatus: http.StatusNotFound,
+			expectedErrMsg: "注文が見つかりません",
+			assertDB: func(t *testing.T, seed cancelCaseSeed) {
+				assertOrderStatus(t, seed.orderID, "pending")
+				assertProductStockByID(t, seed.productID, 8)
+			},
+		},
+		{
+			name: "異常系：注文が存在しない",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				userID, _, productID := seedCancelledOrderForCancel(t)
+				// 明示的にorderID-1を指定
+				return cancelCaseSeed{
+					rawUserID: userID,
+					orderID:   -1,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%d/cancel", seed.orderID)
+			},
+			setAuth:        true,
+			expectedStatus: http.StatusNotFound,
+			expectedErrMsg: "注文が見つかりません",
+			assertDB:       nil,
+		},
+		{
+			name: "異常系：既にキャンセル済み",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				userID, orderID, productID := seedCancelledOrderForCancel(t)
+				return cancelCaseSeed{
+					rawUserID: userID,
+					orderID:   orderID,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%d/cancel", seed.orderID)
+			},
+			setAuth:        true,
+			expectedStatus: http.StatusBadRequest,
+			expectedErrMsg: "この注文はキャンセルできません",
+			assertDB: func(t *testing.T, seed cancelCaseSeed) {
+				assertOrderStatus(t, seed.orderID, "cancelled")
+				assertProductStockByID(t, seed.productID, 8)
+			},
+		},
+		{
+			name: "異常系：未認証",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				userID, orderID, productID := seedOthersOrderForCancel(t)
+				return cancelCaseSeed{
+					rawUserID: userID,
+					orderID:   orderID,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%d/cancel", seed.orderID)
+			},
+			setAuth:        false,
+			expectedStatus: http.StatusUnauthorized,
+			expectedErrMsg: "認証が必要です",
+			assertDB: func(t *testing.T, seed cancelCaseSeed) {
+				assertOrderStatus(t, seed.orderID, "pending")
+				assertProductStockByID(t, seed.productID, 8)
+			},
+		},
+		{
+			name: "異常系：無効な注文ID",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				userID, orderID, productID := seedOthersOrderForCancel(t)
+				return cancelCaseSeed{
+					rawUserID: userID,
+					orderID:   orderID,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%v/cancel", "invalid-order-id")
+			},
+			setAuth:        true,
+			expectedStatus: http.StatusBadRequest,
+			expectedErrMsg: "無効な注文IDです",
+			assertDB: func(t *testing.T, seed cancelCaseSeed) {
+				assertOrderStatus(t, seed.orderID, "pending")
+				assertProductStockByID(t, seed.productID, 8)
+			},
+		},
+		{
+			name: "正常系：userIDがintでも通る",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				userID, orderID, productID := seedOthersOrderForCancel(t)
+				return cancelCaseSeed{
+					rawUserID: int(userID),
+					orderID:   orderID,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%d/cancel", seed.orderID)
+			},
+			setAuth:        true,
+			expectedStatus: http.StatusNotFound,
+			expectedErrMsg: "注文が見つかりません",
+			assertDB: func(t *testing.T, seed cancelCaseSeed) {
+				assertOrderStatus(t, seed.orderID, "pending")
+				assertProductStockByID(t, seed.productID, 8)
+			},
+		},
+		{
+			name: "正常系：userIDがfloatでも通る",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				userID, orderID, productID := seedOthersOrderForCancel(t)
+				return cancelCaseSeed{
+					rawUserID: float64(userID),
+					orderID:   orderID,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%d/cancel", seed.orderID)
+			},
+			setAuth:        true,
+			expectedStatus: http.StatusNotFound,
+			expectedErrMsg: "注文が見つかりません",
+			assertDB: func(t *testing.T, seed cancelCaseSeed) {
+				assertOrderStatus(t, seed.orderID, "pending")
+				assertProductStockByID(t, seed.productID, 8)
+			},
+		},
+		{
+			name: "異常系：userIDの型が不正",
+			setupDB: func(t *testing.T) cancelCaseSeed {
+				_, orderID, productID := seedOthersOrderForCancel(t)
+				// 不正な型のuserIDを注入
+				return cancelCaseSeed{
+					rawUserID: "not-a-number",
+					orderID:   orderID,
+					productID: productID,
+				}
+			},
+			pathBuilder: func(seed cancelCaseSeed) string {
+				return fmt.Sprintf("/api/orders/%d/cancel", seed.orderID)
+			},
+			setAuth:        true,
+			expectedStatus: http.StatusUnauthorized,
+			expectedErrMsg: "認証が必要です",
+			assertDB: func(t *testing.T, seed cancelCaseSeed) {
+				assertOrderStatus(t, seed.orderID, "pending")
+				assertProductStockByID(t, seed.productID, 8)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			seed := cancelCaseSeed{}
+			if tt.setupDB != nil {
+				seed = tt.setupDB(t)
+			}
+
+			router := gin.New()
+			queries := db.New(testDB)
+
+			router.POST("/api/orders/:id/cancel", func(c *gin.Context) {
+				if tt.setAuth {
+					c.Set("userID", seed.rawUserID)
+				}
+				handler.CancelOrderHandler(testDB, queries)(c)
+			})
+
+			req := httptest.NewRequest(http.MethodPost, tt.pathBuilder(seed), bytes.NewBufferString(`{}`))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			var resp map[string]interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &resp)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedErrMsg, resp["error"])
+
+			if tt.assertDB != nil {
+				tt.assertDB(t, seed)
+			}
+		})
+	}
 }
