@@ -84,8 +84,49 @@ func getOrderLogic(ctx context.Context, ...)
 
 ---
 
-## 次のステップ
+## 次のステップ（GetOrdersHandler）
 - テストコードの検証部分（else ブロック）を `[]OrderWithItems` アクセスに修正
 - テストが Red になることを確認
 - `getOrderLogic` の実装（Green フェーズ）
 - `GetOrdersHandler` の実装とハンドラテスト
+
+---
+
+## Copilot カスタム設定の整理（2026-03-22）
+
+### 取り組んだタスク
+
+GitHub Copilot のカスタム設定を整理し、`studylog` skill と Hook による自動学習ログ基盤を構築した。
+
+### ユーザーが質問した内容
+
+- コンテキスト逼迫時に自動ログ記録できるか
+- skill / custom agent / instructions / hook の重複をどう整理するか
+- `skill` は agent から「呼ぶ」ものか
+- shell スクリプト側で要約する設計の問題点
+
+### 躓いたポイントと解決策
+
+| 躓き | 解決策 |
+|------|--------|
+| skill を agent から「呼ぶ」と思っていた | skill は LLM が description キーワードで自動発見・ロードする仕組み。agent が明示的に呼ぶものではない |
+| PreCompact Hook で高品質ログを出そうとしたが薄い内容になった | Hook は決定的コマンド実行のみ担当。LLM 要約は指示トリガ時に分離するのが設計上正しい |
+| `finalize-studylog.sh` の awk 要約が低品質だった | shell 側の要約処理をすべて除去し、LLM 自身が learning.md を書く設計に変更した |
+
+### 構築した成果物
+
+| ファイル | 役割 |
+|----------|------|
+| `.github/hooks/checkpoint.json` | PreCompact イベントで auto-checkpoint.sh を自動実行 |
+| `.github/skills/studylog/SKILL.md` | LLM向け手順書。shell担当とLLM担当を明示 |
+| `scripts/auto-checkpoint.sh` | 中間ジャーナル追記（shell の仕事） |
+| `scripts/finalize-studylog.sh` | FinalizeLog 追記 → journal パス出力（shell の仕事）。要約は LLM が担当 |
+
+**確立したフロー:**
+1. 開発中 → `PreCompact` → `auto-checkpoint.sh` が `DD_journal.tmp.md` に生情報を追記（自動）
+2. ログ記録指示 → `finalize-studylog.sh` 実行 → `journal.tmp` パスを取得 → LLM が読んで `DD_learning.md` を生成
+
+### 次回課題
+
+- 実際の開発セッションで studylog フローを通しで検証する
+- Journal の RawHookInputSnippet に有用な情報が入るか確認する（今は入力JSON のみ）

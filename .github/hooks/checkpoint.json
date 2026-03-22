@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "type": "command",
+        "command": ".github/skills/studylog/scripts/auto-checkpoint.sh",
+        "timeout": 30,
+        "cwd": "${workspaceFolder}"
+      }
+    ]
+  }
+}
