@@ -248,3 +248,12 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"order": updated})
 	}
 }
+
+type OrderWithItems struct {
+	Order db.ListOrdersByUserRow          `json:"order"`
+	Items []db.ListOrderItemsByOrderIDRow `json:"items"`
+}
+
+func getOrderLogic(ctx context.Context, qtx db.Querier, userID int64) ([]OrderWithItems, error) {
+	return nil, nil
+}

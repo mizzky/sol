@@ -647,3 +647,109 @@ func TestCancelOrderLogic(t *testing.T) {
 		})
 	}
 }
+
+func TestGetOrderLogic(t *testing.T) {
+	tests := []struct {
+		name        string
+		userID      int64
+		setupMock   func(*testutil.MockDB)
+		expectedErr string
+	}{
+		{
+			name:        "U1：注文一覧取得成功",
+			expectedErr: "",
+			userID:      1,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        1,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  50,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:        "U2: 注文無し",
+			expectedErr: "",
+			userID:      1,
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{}, nil)
+			},
+		},
+		{
+			name:        "U3: DBエラー 注文情報",
+			expectedErr: "db error",
+			userID:      1,
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{}, errors.New("db error"))
+			},
+		},
+		{
+			name:        "U4: DBエラー 明細取得",
+			expectedErr: "db error",
+			userID:      1,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{}, errors.New("db error"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB := new(testutil.MockDB)
+
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			ctx := context.Background()
+			owi, err := getOrderLogic(ctx, mockDB, tt.userID)
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err, tt.name)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.Len(t, owi, 1)
+				assert.Equal(t, int64(1), owi[0].Order.ID)
+				assert.Len(t, owi[0].Items, 1)
+				assert.Equal(t, int64(1), owi[0].Items[0].ID)
+			}
+
+			mockDB.AssertExpectations(t)
+		})
+	}
+}
