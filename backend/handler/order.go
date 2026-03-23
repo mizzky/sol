@@ -255,5 +255,20 @@ type OrderWithItems struct {
 }
 
 func getOrderLogic(ctx context.Context, qtx db.Querier, userID int64) ([]OrderWithItems, error) {
-	return nil, nil
+	orders, err := qtx.ListOrdersByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]OrderWithItems, 0, len(orders))
+	for _, order := range orders {
+		items, err := qtx.ListOrderItemsByOrderID(ctx, order.ID)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, OrderWithItems{
+			Order: order,
+			Items: items,
+		})
+	}
+	return res, nil
 }

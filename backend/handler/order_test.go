@@ -650,15 +650,19 @@ func TestCancelOrderLogic(t *testing.T) {
 
 func TestGetOrderLogic(t *testing.T) {
 	tests := []struct {
-		name        string
-		userID      int64
-		setupMock   func(*testutil.MockDB)
-		expectedErr string
+		name           string
+		userID         int64
+		setupMock      func(*testutil.MockDB)
+		expectedErr    string
+		expectedOrders int
+		expectedItems  int
 	}{
 		{
-			name:        "U1：注文一覧取得成功",
-			expectedErr: "",
-			userID:      1,
+			name:           "U1：注文一覧取得成功",
+			expectedErr:    "",
+			userID:         1,
+			expectedOrders: 1,
+			expectedItems:  1,
 			setupMock: func(m *testutil.MockDB) {
 				now := time.Now()
 				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
@@ -687,27 +691,33 @@ func TestGetOrderLogic(t *testing.T) {
 			},
 		},
 		{
-			name:        "U2: 注文無し",
-			expectedErr: "",
-			userID:      1,
+			name:           "U2: 注文無し",
+			expectedErr:    "",
+			userID:         1,
+			expectedOrders: 0,
+			expectedItems:  0,
 			setupMock: func(m *testutil.MockDB) {
 				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
 					[]db.ListOrdersByUserRow{}, nil)
 			},
 		},
 		{
-			name:        "U3: DBエラー 注文情報",
-			expectedErr: "db error",
-			userID:      1,
+			name:           "U3: DBエラー 注文情報",
+			expectedErr:    "db error",
+			userID:         1,
+			expectedOrders: 0,
+			expectedItems:  0,
 			setupMock: func(m *testutil.MockDB) {
 				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
 					[]db.ListOrdersByUserRow{}, errors.New("db error"))
 			},
 		},
 		{
-			name:        "U4: DBエラー 明細取得",
-			expectedErr: "db error",
-			userID:      1,
+			name:           "U4: DBエラー 明細取得",
+			expectedErr:    "db error",
+			userID:         1,
+			expectedOrders: 0,
+			expectedItems:  0,
 			setupMock: func(m *testutil.MockDB) {
 				now := time.Now()
 				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
@@ -743,10 +753,13 @@ func TestGetOrderLogic(t *testing.T) {
 				assert.Error(t, err, tt.name)
 				assert.Contains(t, err.Error(), tt.expectedErr)
 			} else {
-				assert.Len(t, owi, 1)
-				assert.Equal(t, int64(1), owi[0].Order.ID)
-				assert.Len(t, owi[0].Items, 1)
-				assert.Equal(t, int64(1), owi[0].Items[0].ID)
+				assert.NoError(t, err, tt.name)
+				assert.Len(t, owi, tt.expectedOrders)
+				if tt.expectedOrders > 0 {
+					assert.Equal(t, int64(1), owi[0].Order.ID)
+					assert.Len(t, owi[0].Items, tt.expectedItems)
+					assert.Equal(t, int64(1), owi[0].Items[0].ID)
+				}
 			}
 
 			mockDB.AssertExpectations(t)
