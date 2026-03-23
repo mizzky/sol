@@ -3,12 +3,16 @@ package handler
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler/testutil"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -641,6 +645,536 @@ func TestCancelOrderLogic(t *testing.T) {
 			} else {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErr)
+			}
+			mockDB.AssertExpectations(t)
+
+		})
+	}
+}
+
+func TestGetOrderLogic(t *testing.T) {
+	tests := []struct {
+		name           string
+		userID         int64
+		setupMock      func(*testutil.MockDB)
+		expectedErr    string
+		expectedOrders int
+		expectedItems  int
+	}{
+		{
+			name:           "U1：注文一覧取得成功",
+			expectedErr:    "",
+			userID:         1,
+			expectedOrders: 1,
+			expectedItems:  1,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        1,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  50,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:           "U2: 注文無し",
+			expectedErr:    "",
+			userID:         1,
+			expectedOrders: 0,
+			expectedItems:  0,
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{}, nil)
+			},
+		},
+		{
+			name:           "U3: DBエラー 注文情報",
+			expectedErr:    "db error",
+			userID:         1,
+			expectedOrders: 0,
+			expectedItems:  0,
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{}, errors.New("db error"))
+			},
+		},
+		{
+			name:           "U4: DBエラー 明細取得",
+			expectedErr:    "db error",
+			userID:         1,
+			expectedOrders: 0,
+			expectedItems:  0,
+			setupMock: func(m *testutil.MockDB) {
+				now := time.Now()
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{}, errors.New("db error"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB := new(testutil.MockDB)
+
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			ctx := context.Background()
+			owi, err := getOrderLogic(ctx, mockDB, tt.userID)
+
+			if tt.expectedErr != "" {
+				assert.Error(t, err, tt.name)
+				assert.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				assert.NoError(t, err, tt.name)
+				assert.Len(t, owi, tt.expectedOrders)
+				if tt.expectedOrders > 0 {
+					assert.Equal(t, int64(1), owi[0].Order.ID)
+					assert.Len(t, owi[0].Items, tt.expectedItems)
+					assert.Equal(t, int64(1), owi[0].Items[0].ID)
+				}
+			}
+
+			mockDB.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetOrdersHandler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	now := time.Now()
+
+	tests := []struct {
+		name           string
+		query          string
+		userID         any
+		setupMock      func(*testutil.MockDB)
+		expectedStatus int
+		expectedCount  int
+		expectedErrMsg string
+	}{
+		{
+			name:           "U1: 注文確認成功 フィルタなし",
+			expectedStatus: http.StatusOK,
+			expectedCount:  2,
+			query:          "",
+			userID:         int64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1500,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						{
+							ID:        2,
+							UserID:    1,
+							Total:     3000,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        11,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  2,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        21,
+							OrderID:   2,
+							ProductID: 200,
+							Quantity:  3,
+							UnitPrice: 1000,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:           "U2: 注文確認成功 フィルタ=pending",
+			expectedStatus: http.StatusOK,
+			expectedCount:  1,
+			query:          "?status=pending",
+			userID:         int64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1500,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						{
+							ID:        2,
+							UserID:    1,
+							Total:     3000,
+							Status:    "cancelled",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        11,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  2,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        21,
+							OrderID:   2,
+							ProductID: 200,
+							Quantity:  3,
+							UnitPrice: 1000,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:           "U3: 注文確認成功 フィルタ=cancelled",
+			expectedStatus: http.StatusOK,
+			expectedCount:  1,
+			query:          "?status=cancelled",
+			userID:         int64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1500,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						{
+							ID:        2,
+							UserID:    1,
+							Total:     3000,
+							Status:    "cancelled",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        11,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  2,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        21,
+							OrderID:   2,
+							ProductID: 200,
+							Quantity:  3,
+							UnitPrice: 1000,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:           "U4: 注文確認成功(フィルタで0件表示) フィルタ=cancelled",
+			expectedStatus: http.StatusOK,
+			expectedCount:  0,
+			query:          "?status=cancelled",
+			userID:         int64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1500,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						{
+							ID:        2,
+							UserID:    1,
+							Total:     3000,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        11,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  2,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        21,
+							OrderID:   2,
+							ProductID: 200,
+							Quantity:  3,
+							UnitPrice: 1000,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:           "U5: 注文失敗 フィルタ=invalid",
+			expectedStatus: http.StatusBadRequest,
+			expectedCount:  0,
+			expectedErrMsg: "無効なステータスです",
+			query:          "?status=invalid",
+			userID:         int64(1),
+			setupMock:      nil,
+		},
+		{
+			name:           "U6: userIDが存在しない",
+			expectedStatus: http.StatusUnauthorized,
+			expectedErrMsg: "認証が必要です",
+			query:          "",
+			userID:         nil,
+			setupMock:      nil,
+		},
+		{
+			name:           "U7: userIDの型がintでも通る",
+			expectedStatus: http.StatusOK,
+			expectedCount:  2,
+			query:          "",
+			userID:         int(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1500,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						{
+							ID:        2,
+							UserID:    1,
+							Total:     3000,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        11,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  2,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        21,
+							OrderID:   2,
+							ProductID: 200,
+							Quantity:  3,
+							UnitPrice: 1000,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:           "U8: userIDの型がfloatでも通る",
+			expectedStatus: http.StatusOK,
+			expectedCount:  2,
+			query:          "",
+			userID:         float64(1),
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1500,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+						{
+							ID:        2,
+							UserID:    1,
+							Total:     3000,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        11,
+							OrderID:   1,
+							ProductID: 100,
+							Quantity:  2,
+							UnitPrice: 750,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
+					[]db.ListOrderItemsByOrderIDRow{
+						{
+							ID:        21,
+							OrderID:   2,
+							ProductID: 200,
+							Quantity:  3,
+							UnitPrice: 1000,
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+			},
+		},
+		{
+			name:           "U9: userIDの型が不正",
+			expectedStatus: http.StatusUnauthorized,
+			query:          "",
+			userID:         "not-a-number",
+			expectedErrMsg: "認証が必要です",
+			setupMock:      nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB := new(testutil.MockDB)
+			if tt.setupMock != nil {
+				tt.setupMock(mockDB)
+			}
+
+			router := gin.New()
+			router.GET("/api/orders", func(c *gin.Context) {
+				if tt.userID != nil {
+					c.Set("userID", tt.userID)
+				}
+				GetOrdersHandler(mockDB)(c)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/api/orders"+tt.query, nil)
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedStatus == http.StatusOK {
+				var body struct {
+					Orders []OrderWithItems `json:"orders"`
+				}
+				err := json.Unmarshal(w.Body.Bytes(), &body)
+				assert.NoError(t, err)
+				assert.Len(t, body.Orders, tt.expectedCount)
+
+				if tt.query == "?status=pending" && len(body.Orders) > 0 {
+					for _, order := range body.Orders {
+						assert.Equal(t, "pending", order.Order.Status)
+					}
+				}
+				if tt.query == "?status=cancelled" && len(body.Orders) > 0 {
+					for _, order := range body.Orders {
+						assert.Equal(t, "cancelled", order.Order.Status)
+					}
+				}
+			} else {
+				var body struct {
+					Error string `json:"error"`
+				}
+				err := json.Unmarshal(w.Body.Bytes(), &body)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedErrMsg, body.Error)
 			}
 			mockDB.AssertExpectations(t)
 

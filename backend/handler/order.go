@@ -248,3 +248,88 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"order": updated})
 	}
 }
+
+type OrderWithItems struct {
+	Order db.ListOrdersByUserRow          `json:"order"`
+	Items []db.ListOrderItemsByOrderIDRow `json:"items"`
+}
+
+func getOrderLogic(ctx context.Context, qtx db.Querier, userID int64) ([]OrderWithItems, error) {
+	orders, err := qtx.ListOrdersByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]OrderWithItems, 0, len(orders))
+	for _, order := range orders {
+		items, err := qtx.ListOrderItemsByOrderID(ctx, order.ID)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, OrderWithItems{
+			Order: order,
+			Items: items,
+		})
+	}
+	return res, nil
+}
+
+var validOrderStatuses = map[string]struct{}{
+	"pending":   {},
+	"cancelled": {},
+}
+
+func isValidOrderStatus(status string) bool {
+	if status == "" {
+		return true
+	}
+	_, ok := validOrderStatuses[status]
+	return ok
+}
+
+func GetOrdersHandler(queries db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		raw, exists := c.Get("userID")
+		if !exists {
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		var userID int64
+		switch v := raw.(type) {
+		case int64:
+			userID = v
+		case int:
+			userID = int64(v)
+		case float64:
+			userID = int64(v)
+		default:
+			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			return
+		}
+
+		status := c.Query("status")
+		if !isValidOrderStatus(status) {
+			respond.RespondError(c, http.StatusBadRequest, "無効なステータスです")
+			return
+		}
+
+		orders, err := getOrderLogic(c.Request.Context(), queries, userID)
+		if err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			return
+		}
+
+		var filtered []OrderWithItems
+		if status == "" {
+			filtered = orders
+		} else {
+			for _, order := range orders {
+				if order.Order.Status == status {
+					filtered = append(filtered, order)
+				}
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"orders": filtered})
+	}
+}

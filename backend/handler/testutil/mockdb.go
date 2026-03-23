@@ -176,3 +176,11 @@ func (m *MockDB) UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatus
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.UpdateOrderStatusRow), args.Error(1)
 }
+
+func (m *MockDB) ListOrdersByUser(ctx context.Context, userID int64) ([]db.ListOrdersByUserRow, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]db.ListOrdersByUserRow), args.Error(1)
+}
