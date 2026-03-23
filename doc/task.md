@@ -539,12 +539,12 @@
     - [x] キャンセル後の在庫が統合テストで確認可能
   - コミット例: `feat(handler): add CancelOrderHandler with authorization and rollback`
 
-- [ ] **チケット 5**: GetOrdersHandler 実装 (P0, Effort: Med)
+- [x] **チケット 5**: GetOrdersHandler 実装 (P0, Effort: Med)
   - タイプ: 標準実装（既存パターン参考）
   - 内容:
-    - [ ] ユーザーの注文一覧を取得（自分の注文のみ）
-    - [ ] ステータスフィルター機能（?status=pending など）
-    - [ ] order_items と紐付けて返却
+    - [x] ユーザーの注文一覧を取得（自分の注文のみ）
+    - [x] ステータスフィルター機能（?status=pending など）
+    - [x] order_items と紐付けて返却
   - テストケース: 正常系、認証なし、空一覧、フィルター検証
   - ファイル影響: `backend/handler/order.go`
   - コミット例: `feat(handler): add GetOrdersHandler with status filtering`
