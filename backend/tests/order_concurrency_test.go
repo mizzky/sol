@@ -118,8 +118,8 @@ func TestCreateOrderHandler_Concurrency(t *testing.T) {
 					defer wg.Done()
 					<-ready
 
-					r := gin.New()
-					r.POST("/api/orders", func(c *gin.Context) {
+					router := gin.New()
+					router.POST("/api/orders", func(c *gin.Context) {
 						c.Set("userID", userID)
 						handler.CreateOrderHandler(testDB, queries)(c)
 					})
@@ -127,7 +127,7 @@ func TestCreateOrderHandler_Concurrency(t *testing.T) {
 					req := httptest.NewRequest(http.MethodPost, "/api/orders", bytes.NewBufferString(`{}`))
 					req.Header.Set("Content-Type", "application/json")
 					w := httptest.NewRecorder()
-					r.ServeHTTP(w, req)
+					router.ServeHTTP(w, req)
 
 					mu.Lock()
 					statusCodes = append(statusCodes, w.Code)
