@@ -35,7 +35,7 @@ func main() {
 	}))
 
 	//4. ルーティング設定
-	routes.SetupRoutes(r, queries)
+	routes.SetupRoutes(r, conn, queries)
 
 	//5. サーバー起動
 	log.Println("Server starting on :8080...")

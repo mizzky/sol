@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"database/sql"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
@@ -8,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, queries *db.Queries) {
+func SetupRoutes(r *gin.Engine, conn *sql.DB, queries *db.Queries) {
 	api := r.Group("/api")
 	tokenGenerator := auth.DefaultTokenGenerator{}
 	{
@@ -35,5 +36,9 @@ func SetupRoutes(r *gin.Engine, queries *db.Queries) {
 		api.DELETE("/cart", auth.RequireAuth(queries), handler.ClearCartHandler(queries))
 
 		api.GET("/me", handler.MeHandler(queries))
+
+		api.GET("/orders", auth.RequireAuth(queries), handler.GetOrdersHandler(queries))
+		api.POST("/orders", auth.RequireAuth(queries), handler.CreateOrderHandler(conn, queries))
+		api.POST("/orders/:id/cancel", auth.RequireAuth(queries), handler.CancelOrderHandler(conn, queries))
 	}
 }
