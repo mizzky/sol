@@ -564,28 +564,28 @@
     - [x] 結果ログで在庫が正確に管理されていることを確認
   - コミット例: `test(order): add concurrency tests for overbooking prevention`
 
-- [ ] **チケット 7**: エラーハンドリング・エッジケース (P1, Effort: Low)
+- [x] **チケット 7**: エラーハンドリング・エッジケース (P1, Effort: Low)
   - 内容:
-    - [ ] HTTP ステータス確認（400/401/404/409/500）
-    - [ ] エラーレスポンス形式確認（error, message, details）
-    - [ ] トランザクション失敗時の振る舞い
-    - [ ] テストケース: 不正リクエスト、DB エラーシミュレーション
+    - [x] HTTP ステータス確認（400/401/404/409/500）
+    - [x] エラーレスポンス形式確認（error, message, details）
+    - [x] トランザクション失敗時の振る舞い
+    - [x] テストケース: 不正リクエスト、DB エラーシミュレーション
   - ファイル影響: `backend/handler/order_test.go`, `backend/pkg/respond/`（必要に応じて）
   - コミット例: `test(handler): add error handling and edge case tests for orders`
 
 #### フェーズ 5: 統合・ルーティング（予定: 3/21）
 
-- [ ] **チケット 8**: ルーティング登録 + 最終確認 (P0)
+- [x] **チケット 8**: ルーティング登録 + 最終確認 (P0)
   - 前提: すべてのハンドラー実装 + テスト全 PASS
   - 内容:
-    - [ ] `backend/routes/routes.go` に 3 エンドポイント登録
+    - [x] `backend/routes/routes.go` に 3 エンドポイント登録
       - `GET /api/orders` — GetOrdersHandler
       - `POST /api/orders` — CreateOrderHandler
       - `POST /api/orders/:id/cancel` — CancelOrderHandler
-    - [ ] RequireAuth ミドルウェア装着（認証必須）
-    - [ ] `backend/test.http` に実行例追記
+    - [x] RequireAuth ミドルウェア装着（認証必須）
+    - [x] `backend/test.http` に実行例追記
       - ログイン → 注文作成 → 注文一覧 → キャンセル の一連フロー
-    - [ ] 手動テスト実行確認（API 全体連携確認）
+    - [x] 手動テスト実行確認（API 全体連携確認）
   - ファイル影響: `backend/routes/routes.go`, `backend/test.http`
   - コミット例: `feat(routes): register order endpoints with RequireAuth`
 
