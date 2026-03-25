@@ -1,3 +1,11 @@
+### ログアウト（ローカルのトークン破棄）
+GET {{baseUrl}}/api/products
+
+> {%
+client.global.set("userToken", "");
+client.global.set("orderId", "");
+%}
+
 #ユーザー登録テスト
 POST http://localhost:8080/api/register
 Content-Type: application/json
@@ -9,7 +17,7 @@ Content-Type: application/json
 }
 
 
-# 商品一覧取得テスト
+### 商品一覧取得テスト
 GET http://localhost:8080/api/products
 
 
@@ -52,10 +60,14 @@ Content-Type: application/json
 "password": "password000"
 }
 
+> {%
+const body = JSON.parse(response.body);
+%}
+
 ###カテゴリ作成（任意、存在しない場合）
 POST http://localhost:8080/api/categories
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzI3MDYyMTcsImlhdCI6MTc3MjYxOTgxNywidXNlci5pZCI6MTR9.fpq9V-rjk77ZppsZRbTouvVQFbWmA5B3FnWMBG0251U
+Authorization: Bearer {{login.response.body.$.token}}
 
 {
 "name": "E2E Category",
@@ -65,7 +77,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzI3MDYyM
 ###商品追加（POST /api/products）
 POST http://localhost:8080/api/products
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzI3MDYyMTcsImlhdCI6MTc3MjYxOTgxNywidXNlci5pZCI6MTR9.fpq9V-rjk77ZppsZRbTouvVQFbWmA5B3FnWMBG0251U
+Authorization: Bearer {{login.response.body.$.token}}
 
 {
 "name": "テスト商品 E2E",
@@ -81,3 +93,76 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzI3MDYyM
 ###商品削除（DELETE /api/products/:id）
 DELETE http://localhost:8080/api/products/<PRODUCT_ID>
 Authorization: Bearer <ADMIN_TOKEN>
+
+
+###ログイン->カート追加->注文作成->注文一覧->注文キャンセル->キャンセル後一覧確認
+@baseUrl = http://localhost:8080
+@email = kimura@example.com
+@password = password000
+@productId = 4
+
+#### 0. ユーザ登録
+POST {{baseUrl}}  /api/register
+Content-Type: application/json
+
+{
+    "name": "木村　次郎",
+    "email": "{{email}}",
+    "password": "{{password}}"
+}
+
+#### 1. ログインしてトークン保存
+# @name login
+POST {{baseUrl}}/api/login
+Content-Type: application/json
+
+{
+    "email": "{{email}}",
+    "password": "{{password}}"
+}
+
+> {%
+const body = JSON.parse(response.body);
+%}
+
+### 2. カートに商品追加
+POST {{baseUrl}}/api/cart/items
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.token}}
+
+{
+  "product_id": {{productId}},
+  "quantity": 2
+}
+
+#### 3. 注文作成
+# @name order
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.token}}
+
+{}
+
+> {%
+const body = JSON.parse(response.body);
+%}
+
+### 4. 注文一覧確認
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{login.response.body.$.token}}
+
+### 5. 作成した注文をキャンセル
+POST {{baseUrl}}/api/orders/{{order.response.body.$.order.id}}/cancel
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.$.token}}
+
+{}
+
+### 6. 全ての注文一覧確認
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{login.response.body.$.token}}
+
+### 7. キャンセル済みだけ確認
+GET {{baseUrl}}/api/orders?status=cancelled
+Authorization: Bearer {{login.response.body.$.token}}
+
