@@ -197,6 +197,75 @@ components:
           type: string
           format: date-time
 
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        total:
+          type: integer
+        status:
+          type: string 
+          enum: [pending, cancelled]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        order_id:
+          type: integer
+        product_id:
+          type: integer
+        quantity:
+          type: integer
+        unit_price:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      
+    OrderWithItem:
+      type: object
+      properties:
+        order:
+          $ref: '#/components/schemas/Order'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+    OrdersListResponse:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderWithItem'
+    
+    CreateOrderResponse:
+      type: object
+      properties:
+        order:
+          $ref: '#/components/schemas/Order'
+
+    CancelOrderResponse:
+      type: object
+      properties:
+        order:
+          $ref: '#/components/schemas/Order'
+
 tags:
   - name: Auth
     description: 認証用エンドポイント(register, login)
@@ -206,6 +275,8 @@ tags:
     description: 商品カテゴリー管理
   - name: Products
     description: Product管理
+  - name: Orders
+    description: 注文管理（認証必須）
 
 paths:
   /api/register:
@@ -462,6 +533,147 @@ paths:
                 $ref: '#/components/schemas/Product'
         '404':
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders:
+    get:
+      summary: List orders for authenticated user
+      description: 認証済みユーザーの注文一覧を取得する。statusクエリで絞り込み可能。
+      tags:
+        - Orders
+      operationId: getOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, cancelled]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersListResponse'
+        '400':
+          description: Bad request (invalid status)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create order from current cart
+      description: 認証済みユーザーのカートをcheckoutして注文を作成する。
+      tags:
+        - Orders
+      operationId: createOrder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateOrderResponse'
+        '400':
+          description: Bad request (cart empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found (product missing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (insufficient stock)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/{id}/cancel:
+    post:
+      summary: Cancel order
+      description: 自分のpending注文をキャンセルして在庫を巻き戻す。
+      tags:
+        - Orders
+      operationId: cancelOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelOrderResponse'
+        '400':
+          description: Bad request (invalid id / cannot cancel)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
           content:
             application/json:
               schema:

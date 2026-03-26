@@ -589,11 +589,11 @@
   - ファイル影響: `backend/routes/routes.go`, `backend/test.http`
   - コミット例: `feat(routes): register order endpoints with RequireAuth`
 
-- [ ] **チケット 9**: ドキュメント更新 (P1)
+- [x] **チケット 9**: ドキュメント更新 (P1)
   - 内容:
-    - [ ] `doc/api.md` に注文 API セクション追記（エンドポイント、リクエスト/レスポンス例）
-    - [ ] `backend/test.http` の実行例説明を追記
-    - [ ] `doc/task.md` に本タスク群の完了マーク
+    - [x] `doc/api.md` に注文 API セクション追記（エンドポイント、リクエスト/レスポンス例）
+    - [x] `backend/test.http` の実行例説明を追記
+    - [x] `doc/task.md` に本タスク群の完了マーク
   - ファイル影響: `doc/api.md`, `doc/task.md`
   - コミット例: `docs(api): add order endpoints documentation`
 
