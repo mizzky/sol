@@ -189,7 +189,7 @@ components:
         description:
           type: string
         price:
-          type: number
+          type: integer
           format: float
         category_id:
           type: integer
@@ -481,8 +481,12 @@ paths:
                 name:
                   type: string
       responses:
-        '204':
-          description: No Content
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
         '400':
           description: Bad request
           content:
@@ -545,7 +549,7 @@ paths:
       description: 商品登録
       tags:
         - Products
-      operationId: createproducts
+      operationId: createProduct
       security:
         - bearerAuth: []
       requestBody:
