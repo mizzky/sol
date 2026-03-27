@@ -1,18 +1,9 @@
-import { render } from "@testing-library/react";
-import Header from "../Header";
-import React from "react";
-
-describe("Header", () => {
-  it("renders without crashing", () => {
-    const { getByText } = render(<Header />);
-    expect(getByText(/Home/)).toBeTruthy();
-  });
-});
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { useRouter } from "next/navigation";
 import Header from "../Header";
 import useAuthStore from "../../../store/useAuthStore";
+import { useCartStore } from "../../../store/useCartStore";
 
 // next/navigation モックの設定
 jest.mock("next/navigation", () => ({
@@ -28,6 +19,7 @@ describe("Header Component", () => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     useAuthStore.setState({ token: null, user: null });
+    useCartStore.getState().resetCart();
     localStorage.clear();
   });
 
@@ -53,6 +45,7 @@ describe("Header Component", () => {
           role: "member",
         },
       });
+      useCartStore.setState({ totalQuantity: 3 });
     });
 
     it("ホーム、商品一覧、ユーザー名、ログアウトが表示される", () => {
@@ -63,6 +56,7 @@ describe("Header Component", () => {
       expect(screen.getByText("Test User")).toBeInTheDocument();
       expect(screen.getByText(/Logout/i)).toBeInTheDocument();
       expect(screen.queryByText(/Admin/i)).not.toBeInTheDocument();
+      expect(screen.getByText("3")).toBeInTheDocument();
     });
   });
 
