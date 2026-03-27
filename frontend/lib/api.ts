@@ -47,12 +47,17 @@ export interface CartItem {
   price: number;
   created_at?: string;
   updated_at?: string;
-  // サーバーが埋めてくれる場合があるためオプショナルでプロダクト情報を含める
-  product?: Product;
+  product_name?: string | null;
+  product_price?: number | null;
+  product_stock?: number | null;
 }
 
 export interface CartResponse {
   items: CartItem[];
+}
+
+interface CartItemMutationResponse {
+  item: CartItem;
 }
 
 
@@ -196,12 +201,12 @@ export async function addToCart(productId: number, quantity: number): Promise<Ca
     body: JSON.stringify({ product_id: productId, quantity }),
   });
 
-  const data = await parseJsonSafe<CartItem>(res);
+  const data = await parseJsonSafe<CartItemMutationResponse>(res);
   if (!res.ok) {
     const payload = data as Record<string, unknown>;
     throw { status: res.status, ...payload } as ApiError;
   }
-  return data as CartItem;
+  return (data as CartItemMutationResponse).item;
 }
 
 export async function updateCartItem(itemId: number, quantity: number): Promise<CartItem> {
@@ -210,12 +215,12 @@ export async function updateCartItem(itemId: number, quantity: number): Promise<
     body: JSON.stringify({ quantity }),
   });
 
-  const data = await parseJsonSafe<CartItem>(res);
+  const data = await parseJsonSafe<CartItemMutationResponse>(res);
   if (!res.ok) {
     const payload = data as Record<string, unknown>;
     throw { status: res.status, ...payload } as ApiError;
   }
-  return data as CartItem;
+  return (data as CartItemMutationResponse).item;
 }
 
 export async function removeFromCart(itemId: number): Promise<void> {

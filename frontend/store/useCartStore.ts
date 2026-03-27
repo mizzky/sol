@@ -17,6 +17,7 @@ interface CartState {
   loading: boolean;
   error: Nullable<string>;
   setCart: (items: CartItem[]) => void;
+  resetCart: () => void;
   syncCart: () => Promise<void>;
   addItem: (productId: number, quantity?: number) => Promise<void>;
   updateItem: (itemId: number, quantity: number) => Promise<void>;
@@ -40,6 +41,10 @@ export const useCartStore = create<CartState>((set, get) => ({
   setCart(items: CartItem[]) {
     const { totalQuantity, totalPrice } = computeTotals(items);
     set(() => ({ items, totalQuantity, totalPrice, error: null }));
+  },
+
+  resetCart() {
+    set(() => ({ items: [], totalQuantity: 0, totalPrice: 0, loading: false, error: null }));
   },
 
   async syncCart() {
@@ -110,7 +115,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       await apiClearCart();
-      set(() => ({ items: [], totalQuantity: 0, totalPrice: 0 }));
+      get().resetCart();
     } catch (err: any) {
       set({ error: err?.message || String(err) });
       throw err;

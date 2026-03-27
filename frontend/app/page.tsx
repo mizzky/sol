@@ -1,15 +1,12 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
 import { Product, getProducts } from "../lib/api";
-import useAuthStore from "../store/useAuthStore";
 import useCartStore from "../store/useCartStore";
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -25,9 +22,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    loadFromStorage();
     void fetchProducts();
-  }, [loadFromStorage, fetchProducts]);
+  }, [fetchProducts]);
 
   if (loading) return <div style={{ padding: "2rem" }}>読み込み中...</div>;
 
