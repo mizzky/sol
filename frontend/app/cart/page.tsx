@@ -1,8 +1,11 @@
 "use client";
 import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import useCartStore from "../../store/useCartStore";
+import { createOrder } from "../../lib/api";
 
 export default function CartPage() {
+  const router = useRouter();
   const {
     items,
     totalPrice,
@@ -14,10 +17,40 @@ export default function CartPage() {
     clearCart,
     syncCart,
   } = useCartStore();
+  const [checkoutLoading, setCheckoutLoading] = React.useState(false);
+  const [checkoutMessage, setCheckoutMessage] = React.useState<string | null>(
+    null,
+  );
+  const [checkoutError, setCheckoutError] = React.useState<string | null>(null);
 
   useEffect(() => {
     void syncCart();
   }, [syncCart]);
+
+  const handleCheckout = async () => {
+    setCheckoutError(null);
+    setCheckoutMessage(null);
+    setCheckoutLoading(true);
+    try {
+      await createOrder();
+      await syncCart();
+      setCheckoutMessage("注文を作成しました。注文履歴を確認してください。");
+      router.push("/orders");
+    } catch (err: unknown) {
+      const status = (err as { status?: number } | null)?.status;
+      if (status === 400) {
+        setCheckoutError("カートが空です");
+      } else if (status === 401) {
+        setCheckoutError("認証が必要です");
+      } else if (status === 409) {
+        setCheckoutError("在庫不足のため注文を作成できません");
+      } else {
+        setCheckoutError("注文作成に失敗しました");
+      }
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   if (loading) return <div style={{ padding: 20 }}>読み込み中...</div>;
 
@@ -38,6 +71,10 @@ export default function CartPage() {
     <main style={{ padding: 20, maxWidth: 800, margin: "0 auto" }}>
       <h1>カート</h1>
       {error && <div style={{ color: "crimson" }}>{error}</div>}
+      {checkoutError && <div style={{ color: "crimson" }}>{checkoutError}</div>}
+      {checkoutMessage && (
+        <div style={{ color: "green" }}>{checkoutMessage}</div>
+      )}
 
       {items.length === 0 ? (
         <div>カートに商品がありません</div>
@@ -120,7 +157,12 @@ export default function CartPage() {
               >
                 カートを空にする
               </button>
-              <button>チェックアウトへ進む</button>
+              <button
+                onClick={() => void handleCheckout()}
+                disabled={checkoutLoading}
+              >
+                {checkoutLoading ? "注文処理中..." : "チェックアウトへ進む"}
+              </button>
             </div>
           </div>
         </div>

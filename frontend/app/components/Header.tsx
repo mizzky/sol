@@ -27,6 +27,7 @@ export default function Header() {
           <>
             {/* ログイン時のメニュー */}
             <Link href="/">Products</Link>
+            <Link href="/orders">Orders</Link>
             {isAdmin && <Link href="/admin/products">Admin</Link>}
             <span>{user.name}</span>
             <button onClick={handleLogout}>Logout</button>
