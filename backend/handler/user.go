@@ -137,6 +137,7 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 				"id":    user.ID,
 				"name":  user.Name,
 				"email": user.Email,
+				"role":  user.Role,
 			},
 		})
 	}

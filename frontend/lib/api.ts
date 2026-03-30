@@ -39,6 +39,48 @@ export interface CreateProductRequest {
   stock_quantity: number;
 }
 
+export type UpdateProductRequest = CreateProductRequest;
+
+export interface Category {
+  id: number;
+  name: string;
+  description?: string | null;
+}
+
+export interface CreateCategoryRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateCategoryRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface OrderSummary {
+  id: number;
+  user_id?: number;
+  total: number;
+  status: string;
+  created_at?: string;
+  updated_at?: string;
+  cancelled_at?: string | null;
+}
+
+export interface OrderItemDetail {
+  id?: number;
+  order_id?: number;
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+  product_name_snapshot?: string;
+}
+
+export interface OrderWithItems {
+  order: OrderSummary;
+  items: OrderItemDetail[];
+}
+
 export interface CartItem {
   id: number;
   cart_id: number;
@@ -47,12 +89,25 @@ export interface CartItem {
   price: number;
   created_at?: string;
   updated_at?: string;
-  // サーバーが埋めてくれる場合があるためオプショナルでプロダクト情報を含める
-  product?: Product;
+  product_name?: string | null;
+  product_price?: number | null;
+  product_stock?: number | null;
 }
 
 export interface CartResponse {
   items: CartItem[];
+}
+
+interface CartItemMutationResponse {
+  item: CartItem;
+}
+
+interface CategoriesResponse {
+  categories?: Category[];
+}
+
+interface OrdersResponse {
+  orders?: unknown[];
 }
 
 
@@ -62,6 +117,58 @@ async function parseJsonSafe<T = Record<string, unknown>>(res: Response): Promis
   } catch {
     return {};
   }
+}
+
+function toNumber(value: unknown, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function toStringValue(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function normalizeOrderSummary(raw: Record<string, unknown>): OrderSummary {
+  return {
+    id: toNumber(raw.id ?? raw.ID),
+    user_id: toNumber(raw.user_id ?? raw.UserID),
+    total: toNumber(raw.total ?? raw.Total),
+    status: toStringValue(raw.status ?? raw.Status),
+    created_at: toStringValue(raw.created_at ?? raw.CreatedAt),
+    updated_at: toStringValue(raw.updated_at ?? raw.UpdatedAt),
+    cancelled_at: (raw.cancelled_at ?? raw.CancelledAt ?? null) as string | null,
+  };
+}
+
+function normalizeOrderItem(raw: Record<string, unknown>): OrderItemDetail {
+  return {
+    id: toNumber(raw.id ?? raw.ID),
+    order_id: toNumber(raw.order_id ?? raw.OrderID),
+    product_id: toNumber(raw.product_id ?? raw.ProductID),
+    quantity: toNumber(raw.quantity ?? raw.Quantity),
+    unit_price: toNumber(raw.unit_price ?? raw.UnitPrice),
+    product_name_snapshot: toStringValue(raw.product_name_snapshot ?? raw.ProductNameSnapshot),
+  };
+}
+
+function normalizeOrderWithItems(raw: unknown): OrderWithItems {
+  const source = (raw ?? {}) as Record<string, unknown>;
+  const orderRaw = (source.order ?? source.Order ?? {}) as Record<string, unknown>;
+  const itemsRaw = Array.isArray(source.items ?? source.Items)
+    ? ((source.items ?? source.Items) as unknown[])
+    : [];
+  return {
+    order: normalizeOrderSummary(orderRaw),
+    items: itemsRaw.map((item) => normalizeOrderItem((item ?? {}) as Record<string, unknown>)),
+  };
 }
 
 /**
@@ -101,7 +208,9 @@ export async function fetchWithAuth(
       const { useAuthStore } = await import("../store/useAuthStore");
       useAuthStore.getState().logout();
     }
-    throw new Error("認証が必要です");
+    const err = new Error("認証が必要です") as Error & { status?: number };
+    err.status = 401;
+    throw err;
   }
 
   return response;
@@ -172,6 +281,172 @@ export async function createProduct(product: CreateProductRequest): Promise<Prod
   return data as Product;
 }
 
+export async function getProductById(productId: number): Promise<Product> {
+  const response = await fetch(`${API_URL}/api/products/${productId}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  const data = await parseJsonSafe<Product>(response);
+  if (!response.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+  return data as Product;
+}
+
+export async function updateProduct(productId: number, product: UpdateProductRequest): Promise<Product> {
+  const response = await fetchWithAuth(`${API_URL}/api/products/${productId}`, {
+    method: "PUT",
+    body: JSON.stringify(product),
+  });
+
+  const data = await parseJsonSafe<Product>(response);
+  if (!response.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+  return data as Product;
+}
+
+export async function deleteProduct(productId: number): Promise<void> {
+  const response = await fetchWithAuth(`${API_URL}/api/products/${productId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const data = await parseJsonSafe<Record<string, unknown>>(response);
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+}
+
+export async function getCategories(): Promise<Category[]> {
+  const response = await fetch(`${API_URL}/api/categories`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  const data = await parseJsonSafe<CategoriesResponse>(response);
+  if (!response.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+
+  return Array.isArray((data as CategoriesResponse).categories)
+    ? ((data as CategoriesResponse).categories as Category[])
+    : [];
+}
+
+export async function createCategory(payload: CreateCategoryRequest): Promise<Category> {
+  const response = await fetchWithAuth(`${API_URL}/api/categories`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<Category>(response);
+  if (!response.ok) {
+    const errorPayload = data as Record<string, unknown>;
+    throw { status: response.status, ...errorPayload } as ApiError;
+  }
+
+  return data as Category;
+}
+
+export async function updateCategory(categoryId: number, payload: UpdateCategoryRequest): Promise<Category> {
+  const response = await fetchWithAuth(`${API_URL}/api/categories/${categoryId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  const data = await parseJsonSafe<Category>(response);
+  if (!response.ok) {
+    const errorPayload = data as Record<string, unknown>;
+    throw { status: response.status, ...errorPayload } as ApiError;
+  }
+
+  return data as Category;
+}
+
+export async function deleteCategory(categoryId: number): Promise<void> {
+  const response = await fetchWithAuth(`${API_URL}/api/categories/${categoryId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const data = await parseJsonSafe<Record<string, unknown>>(response);
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+}
+
+export async function setUserRole(userId: number, role: "admin" | "member"): Promise<Record<string, unknown>> {
+  const response = await fetchWithAuth(`${API_URL}/api/users/${userId}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+
+  const data = await parseJsonSafe<Record<string, unknown>>(response);
+  if (!response.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+
+  return data as Record<string, unknown>;
+}
+
+export async function getOrders(status?: "pending" | "cancelled"): Promise<OrderWithItems[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : "";
+  const response = await fetchWithAuth(`${API_URL}/api/orders${query}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  const data = await parseJsonSafe<OrdersResponse>(response);
+  if (!response.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+
+  const orders = Array.isArray((data as OrdersResponse).orders)
+    ? ((data as OrdersResponse).orders as unknown[])
+    : [];
+
+  return orders.map((order) => normalizeOrderWithItems(order));
+}
+
+export async function createOrder(): Promise<OrderSummary> {
+  const response = await fetchWithAuth(`${API_URL}/api/orders`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  const data = await parseJsonSafe<Record<string, unknown>>(response);
+  if (!response.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+
+  const orderRaw = ((data as Record<string, unknown>).order ?? {}) as Record<string, unknown>;
+  return normalizeOrderSummary(orderRaw);
+}
+
+export async function cancelOrder(orderId: number): Promise<OrderSummary> {
+  const response = await fetchWithAuth(`${API_URL}/api/orders/${orderId}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+
+  const data = await parseJsonSafe<Record<string, unknown>>(response);
+  if (!response.ok) {
+    const payload = data as Record<string, unknown>;
+    throw { status: response.status, ...payload } as ApiError;
+  }
+
+  const orderRaw = ((data as Record<string, unknown>).order ?? {}) as Record<string, unknown>;
+  return normalizeOrderSummary(orderRaw);
+}
+
 // ----------------------
 // Cart API functions
 // ----------------------
@@ -196,12 +471,12 @@ export async function addToCart(productId: number, quantity: number): Promise<Ca
     body: JSON.stringify({ product_id: productId, quantity }),
   });
 
-  const data = await parseJsonSafe<CartItem>(res);
+  const data = await parseJsonSafe<CartItemMutationResponse>(res);
   if (!res.ok) {
     const payload = data as Record<string, unknown>;
     throw { status: res.status, ...payload } as ApiError;
   }
-  return data as CartItem;
+  return (data as CartItemMutationResponse).item;
 }
 
 export async function updateCartItem(itemId: number, quantity: number): Promise<CartItem> {
@@ -210,12 +485,12 @@ export async function updateCartItem(itemId: number, quantity: number): Promise<
     body: JSON.stringify({ quantity }),
   });
 
-  const data = await parseJsonSafe<CartItem>(res);
+  const data = await parseJsonSafe<CartItemMutationResponse>(res);
   if (!res.ok) {
     const payload = data as Record<string, unknown>;
     throw { status: res.status, ...payload } as ApiError;
   }
-  return data as CartItem;
+  return (data as CartItemMutationResponse).item;
 }
 
 export async function removeFromCart(itemId: number): Promise<void> {

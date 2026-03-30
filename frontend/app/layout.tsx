@@ -1,4 +1,5 @@
 import "./globals.css";
+import AuthLoader from "./components/AuthLoader";
 import Header from "./components/Header";
 
 export const metadata = {
@@ -13,6 +14,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body>
+        <AuthLoader />
         <Header />
         {children}
       </body>

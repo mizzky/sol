@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {API_URL, login as apiLogin, register as apiRegister } from "../lib/api";
+import { useCartStore } from "./useCartStore";
 
 export interface User {
   id: number;
@@ -16,7 +17,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  loadFromStorage: () => void;
+  loadFromStorage: () => Promise<void>;
 }
 
 const STORAGE_KEY = "auth_token";
@@ -70,6 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem("auth_user");
     }
+    useCartStore.getState().resetCart();
     set({ token: null, user: null });
   },
   loadFromStorage: async () => {

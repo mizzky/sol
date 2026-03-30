@@ -1,15 +1,13 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Product, getProducts } from "../lib/api";
-import useAuthStore from "../store/useAuthStore";
 import useCartStore from "../store/useCartStore";
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -25,9 +23,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    loadFromStorage();
     void fetchProducts();
-  }, [loadFromStorage, fetchProducts]);
+  }, [fetchProducts]);
 
   if (loading) return <div style={{ padding: "2rem" }}>読み込み中...</div>;
 
@@ -101,6 +98,12 @@ function ProductCard({ product }: { product: Product }) {
       >
         {product.is_available ? "販売中" : "準備中"}
       </span>
+
+      <div style={{ marginTop: 10 }}>
+        <Link href={`/products/${product.id}`} style={{ color: "#0f766e" }}>
+          詳細を見る
+        </Link>
+      </div>
 
       <div
         style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}

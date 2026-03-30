@@ -624,4 +624,101 @@
 
 ---
 
+## バックエンドAPI未活用機能の棚卸しとフロント実装計画（新規追加: 2026-03-29）
+
+### 調査サマリ
+- バックエンド公開API: 21エンドポイント（`backend/routes/routes.go`）
+- フロント実利用API: 10エンドポイント
+- 未活用API: 11エンドポイント
+
+### 1. バックエンドが提供済みでフロント未使用の機能
+
+#### カテゴリ管理
+- [ ] `GET /api/categories`（カテゴリ一覧取得）
+- [ ] `POST /api/categories`（カテゴリ作成・管理者）
+- [ ] `PUT /api/categories/:id`（カテゴリ更新・管理者）
+- [ ] `DELETE /api/categories/:id`（カテゴリ削除・管理者）
+
+#### 商品管理
+- [ ] `GET /api/products/:id`（商品詳細取得）
+- [ ] `PUT /api/products/:id`（商品更新・管理者）
+- [ ] `DELETE /api/products/:id`（商品削除・管理者）
+
+#### ユーザー管理
+- [ ] `PATCH /api/users/:id/role`（ユーザーロール変更・管理者）
+
+#### 注文機能
+- [ ] `GET /api/orders`（注文一覧取得）
+- [ ] `POST /api/orders`（カートから注文作成）
+- [ ] `POST /api/orders/:id/cancel`（注文キャンセル）
+
+### 2. フロントで追加すべき機能（利用価値が高い順）
+
+- [ ] チェックアウト導線実装（カート画面から `POST /api/orders` を呼ぶ）
+- [ ] 注文履歴画面実装（`GET /api/orders`）
+- [ ] 注文キャンセル操作実装（`POST /api/orders/:id/cancel`）
+- [ ] 商品詳細ページ実装（`GET /api/products/:id`）
+- [ ] 管理者向け商品編集/削除UI（`PUT/DELETE /api/products/:id`）
+- [ ] カテゴリ選択UIの導入（`GET /api/categories` で商品登録フォームの category_id 手入力を廃止）
+- [ ] 管理者向けカテゴリCRUD画面（`POST/PUT/DELETE /api/categories/:id`）
+- [ ] 管理者向けユーザーロール変更画面（`PATCH /api/users/:id/role`）
+
+### 3. 段階的タスク分割（実装計画）
+
+#### フェーズ0: APIクライアント拡張（P0）
+- [x] **チケット29**: フロントAPI層に未使用エンドポイントのクライアント関数を追加
+  - 対象: categories CRUD, product detail/update/delete, orders list/create/cancel, setUserRole
+  - 受け入れ条件: API関数の成功/失敗ケースをユニットテストで検証
+  - 完了日: 2026-03-29
+
+#### フェーズ1: 注文フロー実装（P0）
+- [x] **チケット30**: カート画面にチェックアウト実行を実装
+  - `POST /api/orders` 呼び出し
+  - 成功時: 注文完了メッセージ + 必要に応じて注文詳細へ遷移
+  - 失敗時: 400/401/409/500 の表示分岐
+  - 完了日: 2026-03-29
+- [x] **チケット31**: 注文履歴ページ `/orders` を実装
+  - `GET /api/orders` で一覧表示
+  - status（pending/cancelled）表示
+  - 完了日: 2026-03-29
+- [x] **チケット32**: 注文キャンセル操作を実装
+  - 対象条件: pending のみ
+  - `POST /api/orders/:id/cancel` 呼び出し後に一覧再取得
+  - 完了日: 2026-03-29
+
+#### フェーズ2: 商品・カテゴリ管理強化（P1）
+- [x] **チケット33**: 商品詳細ページ `/products/[id]` を実装
+  - `GET /api/products/:id` で詳細表示
+  - 完了日: 2026-03-30
+- [x] **チケット34**: 管理者商品管理画面に編集/削除を追加
+  - `PUT /api/products/:id`, `DELETE /api/products/:id`
+  - 完了日: 2026-03-30
+- [x] **チケット35**: 商品登録フォームでカテゴリ一覧選択を導入
+  - `GET /api/categories` でプルダウン表示
+  - category_id 数値直入力を廃止
+  - 完了日: 2026-03-30
+- [x] **チケット36**: 管理者カテゴリ管理画面 `/admin/categories` を実装
+  - `GET/POST/PUT/DELETE /api/categories`
+  - 完了日: 2026-03-30
+
+#### フェーズ3: 管理者向けユーザー運用（P2）
+- [x] **チケット37**: 管理者向けユーザーロール変更画面 `/admin/users` を実装
+  - `PATCH /api/users/:id/role`
+  - 変更後の権限表示更新
+  - 注記: ユーザー一覧API未提供のため、対象ユーザーIDを入力する暫定UIで実装
+  - 完了日: 2026-03-30
+
+### 4. 実施順序の推奨
+1. フェーズ0（APIクライアント整備）
+2. フェーズ1（注文導線。ECの中核機能）
+3. フェーズ2（運用改善: 商品/カテゴリ管理）
+4. フェーズ3（権限運用）
+
+---
+追加日: 2026-03-29
+
+### 実装メモ（2026-03-30）
+- 設計メモ: `doc/planning/tickets33-37-plan-2026-03-30.md`
+- 手動確認手順: `doc/ticket33-37-manual-check-2026-03-30.md`
+
 

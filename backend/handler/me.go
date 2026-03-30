@@ -74,6 +74,7 @@ func MeHandler(q db.Querier) gin.HandlerFunc {
 				"id":    user.ID,
 				"name":  user.Name,
 				"email": user.Email,
+				"role":  user.Role,
 			},
 		})
 	}
