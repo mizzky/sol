@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Product, getProducts } from "../lib/api";
 import useCartStore from "../store/useCartStore";
 
@@ -97,6 +98,12 @@ function ProductCard({ product }: { product: Product }) {
       >
         {product.is_available ? "販売中" : "準備中"}
       </span>
+
+      <div style={{ marginTop: 10 }}>
+        <Link href={`/products/${product.id}`} style={{ color: "#0f766e" }}>
+          詳細を見る
+        </Link>
+      </div>
 
       <div
         style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}
