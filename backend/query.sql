@@ -263,7 +263,7 @@ FOR UPDATE;
 
 -- name: ListOrderItemsByOrderID :many
 SELECT
-    id, order_id, product_id, quantity, unit_price, created_at, updated_at
+    id, order_id, product_id, quantity, unit_price, product_name_snapshot, created_at, updated_at
 FROM order_items
 WHERE order_id = $1
 ORDER BY id;

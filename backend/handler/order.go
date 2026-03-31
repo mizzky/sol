@@ -250,8 +250,8 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 }
 
 type OrderWithItems struct {
-	Order db.ListOrdersByUserRow          `json:"order"`
-	Items []db.ListOrderItemsByOrderIDRow `json:"items"`
+	Order db.ListOrdersByUserRow `json:"order"`
+	Items []db.OrderItem         `json:"items"`
 }
 
 func getOrderLogic(ctx context.Context, qtx db.Querier, userID int64) ([]OrderWithItems, error) {

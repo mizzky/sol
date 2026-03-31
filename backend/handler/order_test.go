@@ -528,7 +528,7 @@ func TestCancelOrderLogic(t *testing.T) {
 						ID: 1, UserID: 1, Total: 1500, Status: "pending", CreatedAt: now, UpdatedAt: now,
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID: 1, OrderID: 1, ProductID: 100, Quantity: 2, UnitPrice: 750, CreatedAt: now, UpdatedAt: now,
 						},
@@ -549,7 +549,7 @@ func TestCancelOrderLogic(t *testing.T) {
 				m.On("GetOrderByIDForUpdate", mock.Anything, int64(2)).Return(
 					db.GetOrderByIDForUpdateRow{ID: 2, UserID: 2, Total: 3000, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{ID: 1, OrderID: 2, ProductID: 101, Quantity: 1, UnitPrice: 1000, CreatedAt: now, UpdatedAt: now},
 						{ID: 2, OrderID: 2, ProductID: 102, Quantity: 2, UnitPrice: 1000, CreatedAt: now, UpdatedAt: now},
 					}, nil)
@@ -603,7 +603,7 @@ func TestCancelOrderLogic(t *testing.T) {
 				m.On("GetOrderByIDForUpdate", mock.Anything, int64(20)).Return(
 					db.GetOrderByIDForUpdateRow{ID: 20, UserID: 5, Total: 800, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(20)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{ID: 1, OrderID: 20, ProductID: 200, Quantity: 1, UnitPrice: 800, CreatedAt: now, UpdatedAt: now},
 					}, nil)
 				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 200, StockQuantity: 1}).Return(
@@ -620,7 +620,7 @@ func TestCancelOrderLogic(t *testing.T) {
 				m.On("GetOrderByIDForUpdate", mock.Anything, int64(21)).Return(
 					db.GetOrderByIDForUpdateRow{ID: 21, UserID: 6, Total: 1200, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(21)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{ID: 1, OrderID: 21, ProductID: 201, Quantity: 1, UnitPrice: 1200, CreatedAt: now, UpdatedAt: now},
 					}, nil)
 				m.On("UpdateProductStock", mock.Anything, db.UpdateProductStockParams{ID: 201, StockQuantity: 1}).Return(
@@ -681,7 +681,7 @@ func TestGetOrderLogic(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        1,
 							OrderID:   1,
@@ -736,7 +736,7 @@ func TestGetOrderLogic(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{}, errors.New("db error"))
+					[]db.OrderItem{}, errors.New("db error"))
 			},
 		},
 	}
@@ -776,13 +776,14 @@ func TestGetOrdersHandler(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name           string
-		query          string
-		userID         any
-		setupMock      func(*testutil.MockDB)
-		expectedStatus int
-		expectedCount  int
-		expectedErrMsg string
+		name                        string
+		query                       string
+		userID                      any
+		setupMock                   func(*testutil.MockDB)
+		expectedStatus              int
+		expectedCount               int
+		expectedErrMsg              string
+		expectedProductNameSnapshot string
 	}{
 		{
 			name:           "U1: 注文確認成功 フィルタなし",
@@ -811,7 +812,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        11,
 							OrderID:   1,
@@ -823,7 +824,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -864,7 +865,7 @@ func TestGetOrdersHandler(t *testing.T) {
 					}, nil)
 
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        11,
 							OrderID:   1,
@@ -877,7 +878,7 @@ func TestGetOrdersHandler(t *testing.T) {
 					}, nil)
 
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -918,7 +919,7 @@ func TestGetOrdersHandler(t *testing.T) {
 					}, nil)
 
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        11,
 							OrderID:   1,
@@ -931,7 +932,7 @@ func TestGetOrdersHandler(t *testing.T) {
 					}, nil)
 
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -972,7 +973,7 @@ func TestGetOrdersHandler(t *testing.T) {
 					}, nil)
 
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        11,
 							OrderID:   1,
@@ -985,7 +986,7 @@ func TestGetOrdersHandler(t *testing.T) {
 					}, nil)
 
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1042,7 +1043,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        11,
 							OrderID:   1,
@@ -1054,7 +1055,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1094,7 +1095,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        11,
 							OrderID:   1,
@@ -1106,7 +1107,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.ListOrderItemsByOrderIDRow{
+					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1126,6 +1127,39 @@ func TestGetOrdersHandler(t *testing.T) {
 			userID:         "not-a-number",
 			expectedErrMsg: "認証が必要です",
 			setupMock:      nil,
+		},
+		{
+			name:                        "U10: 明細にproduct_name_snapshotが含まれる",
+			expectedStatus:              http.StatusOK,
+			expectedCount:               1,
+			userID:                      int64(1),
+			expectedProductNameSnapshot: "House Blend",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+					[]db.ListOrdersByUserRow{
+						{
+							ID:        1,
+							UserID:    1,
+							Total:     1500,
+							Status:    "pending",
+							CreatedAt: now,
+							UpdatedAt: now,
+						},
+					}, nil)
+				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+					[]db.OrderItem{
+						{
+							ID:                  11,
+							OrderID:             1,
+							ProductID:           100,
+							Quantity:            2,
+							UnitPrice:           750,
+							ProductNameSnapshot: "House Blend",
+							CreatedAt:           now,
+							UpdatedAt:           now,
+						},
+					}, nil)
+			},
 		},
 	}
 
@@ -1167,6 +1201,9 @@ func TestGetOrdersHandler(t *testing.T) {
 					for _, order := range body.Orders {
 						assert.Equal(t, "cancelled", order.Order.Status)
 					}
+				}
+				if tt.expectedProductNameSnapshot != "" && len(body.Orders) > 0 && len(body.Orders[0].Items) > 0 {
+					assert.Equal(t, tt.expectedProductNameSnapshot, body.Orders[0].Items[0].ProductNameSnapshot)
 				}
 			} else {
 				var body struct {

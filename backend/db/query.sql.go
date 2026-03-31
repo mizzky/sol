@@ -742,37 +742,28 @@ func (q *Queries) ListCategories(ctx context.Context) ([]Category, error) {
 
 const listOrderItemsByOrderID = `-- name: ListOrderItemsByOrderID :many
 SELECT
-    id, order_id, product_id, quantity, unit_price, created_at, updated_at
+    id, order_id, product_id, quantity, unit_price, product_name_snapshot, created_at, updated_at
 FROM order_items
 WHERE order_id = $1
 ORDER BY id
 `
 
-type ListOrderItemsByOrderIDRow struct {
-	ID        int64     `json:"id"`
-	OrderID   int64     `json:"order_id"`
-	ProductID int64     `json:"product_id"`
-	Quantity  int32     `json:"quantity"`
-	UnitPrice int64     `json:"unit_price"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func (q *Queries) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]ListOrderItemsByOrderIDRow, error) {
+func (q *Queries) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]OrderItem, error) {
 	rows, err := q.db.QueryContext(ctx, listOrderItemsByOrderID, orderID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListOrderItemsByOrderIDRow
+	var items []OrderItem
 	for rows.Next() {
-		var i ListOrderItemsByOrderIDRow
+		var i OrderItem
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrderID,
 			&i.ProductID,
 			&i.Quantity,
 			&i.UnitPrice,
+			&i.ProductNameSnapshot,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

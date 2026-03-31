@@ -179,8 +179,8 @@ func (f *FakeQuerier) GetProductForUpdate(ctx context.Context, id int64) (db.Pro
 	return db.Product{}, nil
 }
 
-func (f *FakeQuerier) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]db.ListOrderItemsByOrderIDRow, error) {
-	return []db.ListOrderItemsByOrderIDRow{}, nil
+func (f *FakeQuerier) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]db.OrderItem, error) {
+	return []db.OrderItem{}, nil
 }
 
 func (f *FakeQuerier) ListOrdersByUser(ctx context.Context, userID int64) ([]db.ListOrdersByUserRow, error) {
