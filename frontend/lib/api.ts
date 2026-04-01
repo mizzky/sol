@@ -1,5 +1,6 @@
-// Fallback to localhost:8080 if env is not available in dev client bundles
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+// By default, use same-origin requests and let Next.js proxy /api to the backend.
+// NEXT_PUBLIC_API_URL is only needed when intentionally bypassing the proxy.
+export const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 
 export type ApiError = { status: number } & Record<string, unknown>;
 

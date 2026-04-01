@@ -14,6 +14,17 @@ import {
   getProducts,
   updateProduct,
 } from "../../../lib/api";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import {
+  CheckboxField,
+  FieldMessage,
+  FieldWrapper,
+  Input,
+  Select,
+  Textarea,
+} from "../../components/ui/Field";
 
 type ProductFormState = {
   name: string;
@@ -204,219 +215,220 @@ export default function AdminProductsPage() {
 
   return (
     <AdminRoute>
-      <main style={{ padding: "2rem", maxWidth: "1100px", margin: "0 auto" }}>
-        <h1>商品管理</h1>
-        <p style={{ color: "#57534e", marginBottom: "1rem" }}>
+      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+          商品管理
+        </h1>
+        <p className="mt-3 mb-6 max-w-3xl text-sm leading-7 text-zinc-600 sm:text-base">
           商品の登録、編集、削除をこの画面で管理します。
         </p>
         <AdminNav />
 
-        {error && (
-          <div style={{ color: "crimson", marginBottom: "1rem" }}>{error}</div>
-        )}
-        {success && (
-          <div style={{ color: "green", marginBottom: "1rem" }}>{success}</div>
-        )}
+        <div className="grid gap-4">
+          {error && <FieldMessage tone="error">{error}</FieldMessage>}
+          {success && <FieldMessage tone="success">{success}</FieldMessage>}
+        </div>
 
         {loading ? (
-          <div style={{ padding: "1rem 0" }}>読み込み中...</div>
+          <div className="py-4">読み込み中...</div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gap: "1.5rem",
-              gridTemplateColumns: "minmax(320px, 380px) minmax(0, 1fr)",
-            }}
-          >
-            <section
-              style={{
-                border: "1px solid #d6d3d1",
-                borderRadius: 12,
-                padding: "1.25rem",
-                background: "#fffdf8",
-              }}
-            >
-              <h2 style={{ marginTop: 0 }}>
+          <div className="grid gap-6 xl:grid-cols-[minmax(340px,420px)_minmax(0,1fr)]">
+            <Card className="rounded-4xl p-6 sm:p-7">
+              <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
                 {isEditMode ? "商品編集" : "新規商品登録"}
               </h2>
 
               {categories.length === 0 ? (
-                <div style={{ color: "#b45309" }}>
+                <FieldMessage tone="warning">
                   利用可能なカテゴリがありません。先に
                   <Link
                     href="/admin/categories"
-                    style={{ color: "#0f766e", marginLeft: 4 }}
+                    className="ml-1 font-medium text-indigo-600 hover:text-indigo-500"
                   >
                     カテゴリ管理
                   </Link>
                   でカテゴリを作成してください。
-                </div>
+                </FieldMessage>
               ) : (
-                <form
-                  onSubmit={handleSubmit}
-                  style={{ display: "grid", gap: "0.75rem" }}
-                >
-                  <input
-                    type="text"
-                    placeholder="商品名"
-                    value={form.name}
-                    onChange={(e) => updateField("name", e.target.value)}
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="価格"
-                    value={form.price}
-                    onChange={(e) => updateField("price", e.target.value)}
-                    min={1}
-                    required
-                  />
-                  <select
-                    aria-label="カテゴリ"
-                    value={form.categoryId}
-                    onChange={(e) => updateField("categoryId", e.target.value)}
-                    required
-                  >
-                    {categoryOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="SKU"
-                    value={form.sku}
-                    onChange={(e) => updateField("sku", e.target.value)}
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="在庫数"
-                    value={form.stockQuantity}
-                    onChange={(e) =>
-                      updateField("stockQuantity", e.target.value)
-                    }
-                    min={0}
-                  />
-                  <textarea
-                    placeholder="説明"
-                    value={form.description}
-                    onChange={(e) => updateField("description", e.target.value)}
-                    rows={4}
-                  />
-                  <input
-                    type="url"
-                    placeholder="画像URL（任意）"
-                    value={form.imageUrl}
-                    onChange={(e) => updateField("imageUrl", e.target.value)}
-                  />
-                  <label
-                    style={{
-                      display: "flex",
-                      gap: "0.5rem",
-                      alignItems: "center",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.isAvailable}
-                      onChange={(e) =>
-                        updateField("isAvailable", e.target.checked)
-                      }
+                <form onSubmit={handleSubmit} className="mt-6 grid gap-5">
+                  <FieldWrapper htmlFor="product-name" label="商品名">
+                    <Input
+                      id="product-name"
+                      type="text"
+                      placeholder="商品名"
+                      value={form.name}
+                      onChange={(e) => updateField("name", e.target.value)}
+                      required
                     />
-                    販売中にする
-                  </label>
-                  <div style={{ display: "flex", gap: "0.75rem" }}>
-                    <button type="submit" disabled={submitting}>
+                  </FieldWrapper>
+                  <FieldWrapper htmlFor="product-price" label="価格">
+                    <Input
+                      id="product-price"
+                      type="number"
+                      placeholder="980"
+                      value={form.price}
+                      onChange={(e) => updateField("price", e.target.value)}
+                      min={1}
+                      required
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper htmlFor="product-category" label="カテゴリ">
+                    <Select
+                      id="product-category"
+                      aria-label="カテゴリ"
+                      value={form.categoryId}
+                      onChange={(e) =>
+                        updateField("categoryId", e.target.value)
+                      }
+                      required
+                    >
+                      {categoryOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </FieldWrapper>
+                  <FieldWrapper htmlFor="product-sku" label="SKU">
+                    <Input
+                      id="product-sku"
+                      type="text"
+                      placeholder="CF-2026-SPRING"
+                      value={form.sku}
+                      onChange={(e) => updateField("sku", e.target.value)}
+                      required
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper htmlFor="product-stock" label="在庫数">
+                    <Input
+                      id="product-stock"
+                      type="number"
+                      placeholder="0"
+                      value={form.stockQuantity}
+                      onChange={(e) =>
+                        updateField("stockQuantity", e.target.value)
+                      }
+                      min={0}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper htmlFor="product-description" label="説明">
+                    <Textarea
+                      id="product-description"
+                      placeholder="味の特徴や焙煎メモを入力"
+                      value={form.description}
+                      onChange={(e) =>
+                        updateField("description", e.target.value)
+                      }
+                      rows={4}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper
+                    htmlFor="product-image-url"
+                    label="画像URL（任意）"
+                  >
+                    <Input
+                      id="product-image-url"
+                      type="url"
+                      placeholder="https://example.com/image.jpg"
+                      value={form.imageUrl}
+                      onChange={(e) => updateField("imageUrl", e.target.value)}
+                    />
+                  </FieldWrapper>
+                  <CheckboxField
+                    checked={form.isAvailable}
+                    label="販売中にする"
+                    onChange={(e) =>
+                      updateField("isAvailable", e.target.checked)
+                    }
+                  />
+                  <div className="flex flex-wrap gap-3">
+                    <Button type="submit" disabled={submitting}>
                       {submitting
                         ? "保存中..."
                         : isEditMode
                           ? "更新する"
                           : "追加する"}
-                    </button>
+                    </Button>
                     {isEditMode && (
-                      <button type="button" onClick={resetForm}>
+                      <Button
+                        type="button"
+                        onClick={resetForm}
+                        variant="secondary"
+                      >
                         編集をキャンセル
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </form>
               )}
-            </section>
+            </Card>
 
             <section>
-              <h2 style={{ marginTop: 0 }}>登録済み商品</h2>
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
+                  登録済み商品
+                </h2>
+                <span className="text-sm text-zinc-500">
+                  {products.length} items
+                </span>
+              </div>
               {products.length === 0 ? (
-                <div>商品がありません</div>
+                <Card className="text-zinc-600">商品がありません</Card>
               ) : (
-                <div style={{ display: "grid", gap: "0.75rem" }}>
+                <div className="grid gap-4">
                   {products.map((product) => (
-                    <article
-                      key={product.id}
-                      style={{
-                        border: "1px solid #e7e5e4",
-                        borderRadius: 12,
-                        padding: "1rem",
-                        background: "#ffffff",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          gap: "1rem",
-                        }}
-                      >
-                        <div>
-                          <h3 style={{ margin: "0 0 0.4rem" }}>
-                            {product.name}
-                          </h3>
-                          <div>価格: ¥{product.price}</div>
-                          <div>カテゴリID: {product.category_id}</div>
-                          <div>SKU: {product.sku}</div>
-                          <div>在庫: {product.stock_quantity}</div>
-                          <div>
-                            状態: {product.is_available ? "販売中" : "停止中"}
+                    <Card key={product.id} className="rounded-3xl p-5">
+                      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h3 className="text-xl font-semibold text-zinc-900">
+                              {product.name}
+                            </h3>
+                            <Badge
+                              tone={product.is_available ? "success" : "danger"}
+                            >
+                              {product.is_available ? "販売中" : "停止中"}
+                            </Badge>
                           </div>
+                          <div className="mt-3 grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
+                            <div>価格: ¥{product.price}</div>
+                            <div>カテゴリID: {product.category_id}</div>
+                            <div>SKU: {product.sku}</div>
+                            <div>在庫: {product.stock_quantity}</div>
+                          </div>
+                          {product.description && (
+                            <p className="mt-4 text-sm leading-7 text-zinc-600">
+                              {product.description}
+                            </p>
+                          )}
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "0.5rem",
-                            alignItems: "flex-end",
-                          }}
-                        >
+                        <div className="flex flex-wrap items-center gap-3 lg:flex-col lg:items-end">
                           <Link
                             href={`/products/${product.id}`}
-                            style={{ color: "#0f766e" }}
+                            className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
                           >
                             公開ページを確認
                           </Link>
-                          <button
+                          <Button
                             type="button"
                             onClick={() => startEdit(product)}
+                            variant="secondary"
                           >
                             編集
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
                             onClick={() => void handleDelete(product.id)}
                             disabled={deletingProductId === product.id}
+                            variant="danger"
                           >
                             {deletingProductId === product.id
                               ? "削除中..."
                               : "削除"}
-                          </button>
+                          </Button>
                         </div>
                       </div>
-                      {product.description && (
-                        <p style={{ marginBottom: 0, color: "#57534e" }}>
-                          {product.description}
-                        </p>
-                      )}
-                    </article>
+                    </Card>
                   ))}
                 </div>
               )}
