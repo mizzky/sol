@@ -13,10 +13,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>
+      <body className="min-h-screen bg-zinc-50 text-zinc-900 antialiased">
         <AuthLoader />
         <Header />
-        {children}
+        <div className="pb-12">{children}</div>
       </body>
     </html>
   );

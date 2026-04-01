@@ -10,6 +10,11 @@ import {
   type Product,
 } from "../../../lib/api";
 import useCartStore from "../../../store/useCartStore";
+import Badge from "../../components/ui/Badge";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import { FieldMessage } from "../../components/ui/Field";
+import QuantityStepper from "../../components/ui/QuantityStepper";
 
 function getErrorMessage(error: unknown): string {
   const status = (error as { status?: number } | null)?.status;
@@ -83,14 +88,21 @@ export default function ProductDetailPage() {
   };
 
   if (loading) {
-    return <main style={{ padding: "2rem" }}>読み込み中...</main>;
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        読み込み中...
+      </main>
+    );
   }
 
   if (error) {
     return (
-      <main style={{ padding: "2rem", maxWidth: "760px", margin: "0 auto" }}>
-        <div style={{ color: "crimson", marginBottom: "1rem" }}>{error}</div>
-        <Link href="/" style={{ color: "#0f766e" }}>
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        <FieldMessage tone="error">{error}</FieldMessage>
+        <Link
+          href="/"
+          className="mt-4 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-500"
+        >
           商品一覧へ戻る
         </Link>
       </main>
@@ -102,94 +114,80 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <main style={{ padding: "2rem", maxWidth: "760px", margin: "0 auto" }}>
-      <Link href="/" style={{ color: "#0f766e" }}>
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+      <Link
+        href="/"
+        className="inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-500"
+      >
         商品一覧へ戻る
       </Link>
-      <article
-        style={{
-          marginTop: "1rem",
-          border: "1px solid #d6d3d1",
-          borderRadius: 16,
-          padding: "1.5rem",
-          background: "#fffdf8",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "1rem",
-            flexWrap: "wrap",
-          }}
-        >
+      <Card className="mt-4 rounded-4xl p-6 sm:p-8">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <h1 style={{ margin: "0 0 0.5rem" }}>{product.name}</h1>
-            <div style={{ fontSize: "1.2rem", fontWeight: 700 }}>
-              ¥{product.price}
+            <div className="aspect-4/3 rounded-3xl bg-linear-to-br from-zinc-100 via-white to-indigo-50" />
+            <div className="mt-6 flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+                  {product.name}
+                </h1>
+                <div className="mt-3 text-3xl font-semibold text-indigo-600">
+                  ¥{product.price}
+                </div>
+              </div>
+              <Badge tone={product.is_available ? "success" : "danger"}>
+                {product.is_available ? "販売中" : "販売停止中"}
+              </Badge>
             </div>
           </div>
-          <span
-            style={{
-              padding: "0.35rem 0.75rem",
-              borderRadius: 999,
-              background: product.is_available ? "#dcfce7" : "#fee2e2",
-              color: product.is_available ? "#166534" : "#991b1b",
-              height: "fit-content",
-            }}
-          >
-            {product.is_available ? "販売中" : "販売停止中"}
-          </span>
-        </div>
 
-        <dl
-          style={{
-            display: "grid",
-            gridTemplateColumns: "140px 1fr",
-            gap: "0.75rem",
-            marginTop: "1.5rem",
-          }}
-        >
-          <dt>カテゴリ</dt>
-          <dd style={{ margin: 0 }}>{categoryName}</dd>
-          <dt>SKU</dt>
-          <dd style={{ margin: 0 }}>{product.sku}</dd>
-          <dt>在庫数</dt>
-          <dd style={{ margin: 0 }}>{product.stock_quantity}</dd>
-          <dt>説明</dt>
-          <dd style={{ margin: 0 }}>
-            {product.description || "説明はありません"}
-          </dd>
-        </dl>
+          <div className="flex flex-col gap-6">
+            <div className="grid gap-4 rounded-3xl bg-zinc-50 p-6 ring-1 ring-zinc-200 sm:grid-cols-[140px_1fr]">
+              <div className="text-sm font-medium text-zinc-500">カテゴリ</div>
+              <div className="text-sm text-zinc-900">{categoryName}</div>
+              <div className="text-sm font-medium text-zinc-500">SKU</div>
+              <div className="text-sm text-zinc-900">{product.sku}</div>
+              <div className="text-sm font-medium text-zinc-500">在庫数</div>
+              <div className="text-sm text-zinc-900">
+                {product.stock_quantity}
+              </div>
+              <div className="text-sm font-medium text-zinc-500">説明</div>
+              <div className="text-sm leading-7 text-zinc-700">
+                {product.description || "説明はありません"}
+              </div>
+            </div>
 
-        <div
-          style={{
-            marginTop: "1.5rem",
-            display: "flex",
-            gap: "0.75rem",
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <input
-            type="number"
-            min={1}
-            value={quantity}
-            onChange={(e) =>
-              setQuantity(Math.max(1, Number(e.target.value) || 1))
-            }
-            style={{ width: 80 }}
-          />
-          <button
-            type="button"
-            onClick={() => void handleAddToCart()}
-            disabled={!product.is_available}
-          >
-            カートに追加
-          </button>
-          {message && <span>{message}</span>}
+            <div className="flex flex-wrap items-center gap-4">
+              <input
+                type="number"
+                value={quantity}
+                onChange={(e) =>
+                  setQuantity(Math.max(1, Number(e.target.value) || 1))
+                }
+                min={1}
+                className="sr-only"
+                aria-hidden="true"
+                tabIndex={-1}
+              />
+              <QuantityStepper value={quantity} onChange={setQuantity} />
+              <Button
+                type="button"
+                onClick={() => void handleAddToCart()}
+                disabled={!product.is_available}
+              >
+                カートに追加
+              </Button>
+            </div>
+
+            {message && (
+              <FieldMessage
+                tone={message.includes("失敗") ? "error" : "success"}
+              >
+                {message}
+              </FieldMessage>
+            )}
+          </div>
         </div>
-      </article>
+      </Card>
     </main>
   );
 }

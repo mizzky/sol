@@ -3,6 +3,10 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import useCartStore from "../../store/useCartStore";
 import { createOrder } from "../../lib/api";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import { FieldMessage } from "../components/ui/Field";
+import QuantityStepper from "../components/ui/QuantityStepper";
 
 export default function CartPage() {
   const router = useRouter();
@@ -52,7 +56,13 @@ export default function CartPage() {
     }
   };
 
-  if (loading) return <div style={{ padding: 20 }}>読み込み中...</div>;
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        読み込み中...
+      </main>
+    );
+  }
 
   const resolveUnitPrice = (item: (typeof items)[number]) => {
     if (typeof item.price === "number" && Number.isFinite(item.price)) {
@@ -68,103 +78,121 @@ export default function CartPage() {
   };
 
   return (
-    <main style={{ padding: 20, maxWidth: 800, margin: "0 auto" }}>
-      <h1>カート</h1>
-      {error && <div style={{ color: "crimson" }}>{error}</div>}
-      {checkoutError && <div style={{ color: "crimson" }}>{checkoutError}</div>}
-      {checkoutMessage && (
-        <div style={{ color: "green" }}>{checkoutMessage}</div>
-      )}
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mb-8 flex flex-col gap-3">
+        <p className="text-sm uppercase tracking-[0.28em] text-indigo-600">
+          Cart
+        </p>
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+          数量操作を縦ステッパーへ統一したカート画面。
+        </h1>
+        <p className="max-w-3xl text-sm leading-7 text-zinc-600 sm:text-base">
+          商品ごとの編集、削除、チェックアウトの導線を整理し、入力欄の代わりに同じ操作感のステッパーへ揃えています。
+        </p>
+      </div>
+
+      <div className="grid gap-4">
+        {error && <FieldMessage tone="error">{error}</FieldMessage>}
+        {checkoutError && (
+          <FieldMessage tone="error">{checkoutError}</FieldMessage>
+        )}
+        {checkoutMessage && (
+          <FieldMessage tone="success">{checkoutMessage}</FieldMessage>
+        )}
+      </div>
 
       {items.length === 0 ? (
-        <div>カートに商品がありません</div>
+        <Card className="mt-6 text-zinc-600">カートに商品がありません</Card>
       ) : (
-        <div>
-          <ul style={{ listStyle: "none", padding: 0 }}>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="grid gap-4">
             {items.map((it) => {
               const unitPrice = resolveUnitPrice(it);
               const lineTotal = unitPrice * it.quantity;
               return (
-                <li
+                <Card
                   key={it.id}
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "center",
-                    padding: 8,
-                    borderBottom: "1px solid #eee",
-                  }}
+                  className="grid gap-5 rounded-3xl p-5 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center"
                 >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>
+                  <div>
+                    <div className="text-lg font-semibold text-zinc-900">
                       {it.product_name ?? `Product #${it.product_id}`}
                     </div>
-                    <div style={{ color: "#666" }}>単価: ¥{unitPrice}</div>
+                    <div className="mt-2 text-sm text-zinc-600">
+                      単価: ¥{unitPrice}
+                    </div>
                     {typeof it.product_stock === "number" && (
-                      <div style={{ color: "#666" }}>
+                      <div className="mt-1 text-sm text-zinc-500">
                         在庫: {it.product_stock}
                       </div>
                     )}
                   </div>
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    <button
-                      onClick={() =>
-                        void updateItem(it.id, Math.max(1, it.quantity - 1))
-                      }
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
+                  <div className="flex justify-start md:justify-center">
+                    <QuantityStepper
                       value={it.quantity}
-                      min={1}
-                      onChange={(e) =>
-                        void updateItem(
-                          it.id,
-                          Math.max(1, Number(e.target.value) || 1),
-                        )
-                      }
-                      style={{ width: 60 }}
+                      onChange={(next) => void updateItem(it.id, next)}
                     />
-                    <button
-                      onClick={() => void updateItem(it.id, it.quantity + 1)}
+                  </div>
+                  <div className="flex items-center justify-between gap-4 md:flex-col md:items-end">
+                    <div className="text-right">
+                      <div className="text-xs uppercase tracking-[0.24em] text-zinc-500">
+                        Line Total
+                      </div>
+                      <div className="mt-1 text-xl font-semibold text-indigo-600">
+                        ¥{lineTotal}
+                      </div>
+                      <div className="mt-1 text-sm text-zinc-500">
+                        小計: ¥{lineTotal}
+                      </div>
+                    </div>
+                    <Button
+                      variant="danger"
+                      onClick={() => void removeItem(it.id)}
                     >
-                      +
-                    </button>
+                      削除
+                    </Button>
                   </div>
-                  <div style={{ width: 120, textAlign: "right" }}>
-                    小計: ¥{lineTotal}
-                  </div>
-                  <div>
-                    <button onClick={() => void removeItem(it.id)}>削除</button>
-                  </div>
-                </li>
+                </Card>
               );
             })}
-          </ul>
+          </div>
 
-          <div style={{ marginTop: 16, textAlign: "right" }}>
-            <div>合計数量: {totalQuantity}</div>
-            <div style={{ fontSize: "1.25rem", fontWeight: 700 }}>
-              合計金額: ¥{totalPrice}
+          <Card className="h-fit rounded-3xl p-6">
+            <div className="text-sm uppercase tracking-[0.28em] text-zinc-500">
+              Summary
             </div>
-            <div style={{ marginTop: 12 }}>
-              <button
-                onClick={() => void clearCart()}
-                style={{ marginRight: 8 }}
-              >
+            <div className="mt-6 grid gap-4 rounded-2xl bg-zinc-50 p-5 ring-1 ring-zinc-200">
+              <div className="flex items-center justify-between text-sm text-zinc-600">
+                <span>合計数量</span>
+                <span className="font-semibold text-zinc-900">
+                  {totalQuantity}
+                </span>
+              </div>
+              <div className="text-sm text-zinc-500">
+                合計数量: {totalQuantity}
+              </div>
+              <div className="flex items-center justify-between text-sm text-zinc-600">
+                <span>合計金額</span>
+                <span className="text-2xl font-semibold text-indigo-600">
+                  ¥{totalPrice}
+                </span>
+              </div>
+              <div className="text-sm text-zinc-500">
+                合計金額: ¥{totalPrice}
+              </div>
+            </div>
+            <div className="mt-5 grid gap-3">
+              <Button variant="secondary" onClick={() => void clearCart()}>
                 カートを空にする
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => void handleCheckout()}
                 disabled={checkoutLoading}
               >
                 {checkoutLoading ? "注文処理中..." : "チェックアウトへ進む"}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </main>

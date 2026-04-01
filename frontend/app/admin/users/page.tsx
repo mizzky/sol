@@ -4,6 +4,14 @@ import React, { useState } from "react";
 import AdminRoute from "../../components/AdminRoute";
 import AdminNav from "../../components/AdminNav";
 import { setUserRole } from "../../../lib/api";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import {
+  FieldMessage,
+  FieldWrapper,
+  Input,
+  Select,
+} from "../../components/ui/Field";
 
 type RoleValue = "admin" | "member";
 
@@ -53,68 +61,62 @@ export default function AdminUsersPage() {
 
   return (
     <AdminRoute>
-      <main style={{ padding: "2rem", maxWidth: "760px", margin: "0 auto" }}>
-        <h1>ユーザー権限管理</h1>
-        <p style={{ color: "#57534e", marginBottom: "0.75rem" }}>
+      <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+          ユーザー権限管理
+        </h1>
+        <p className="mt-3 mb-6 max-w-3xl text-sm leading-7 text-zinc-600 sm:text-base">
           現在はユーザー一覧APIが未提供のため、対象ユーザーIDを指定して権限を更新する暫定UIです。
         </p>
         <AdminNav />
 
-        {error && (
-          <div style={{ color: "crimson", marginBottom: "1rem" }}>{error}</div>
-        )}
-        {success && (
-          <div style={{ color: "green", marginBottom: "1rem" }}>{success}</div>
-        )}
+        <div className="grid gap-4">
+          {error && <FieldMessage tone="error">{error}</FieldMessage>}
+          {success && <FieldMessage tone="success">{success}</FieldMessage>}
+        </div>
 
-        <section
-          style={{
-            border: "1px solid #d6d3d1",
-            borderRadius: 12,
-            padding: "1.25rem",
-            background: "#fffdf8",
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>権限を更新する</h2>
-          <form
-            onSubmit={handleSubmit}
-            noValidate
-            style={{ display: "grid", gap: "0.75rem" }}
-          >
-            <input
-              type="number"
-              placeholder="対象ユーザーID"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              min={1}
-              required
-            />
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as RoleValue)}
-            >
-              <option value="member">member</option>
-              <option value="admin">admin</option>
-            </select>
-            <button type="submit" disabled={submitting}>
+        <Card className="mt-6 rounded-4xl p-6 sm:p-7">
+          <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            権限を更新する
+          </h2>
+          <form onSubmit={handleSubmit} noValidate className="mt-6 grid gap-5">
+            <FieldWrapper htmlFor="target-user-id" label="対象ユーザーID">
+              <Input
+                id="target-user-id"
+                type="number"
+                placeholder="対象ユーザーID"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                min={1}
+                required
+              />
+            </FieldWrapper>
+            <FieldWrapper htmlFor="role-select" label="適用ロール">
+              <Select
+                id="role-select"
+                value={role}
+                onChange={(e) => setRole(e.target.value as RoleValue)}
+              >
+                <option value="member">member</option>
+                <option value="admin">admin</option>
+              </Select>
+            </FieldWrapper>
+            <Button type="submit" disabled={submitting} className="w-fit">
               {submitting ? "更新中..." : "権限を更新する"}
-            </button>
+            </Button>
           </form>
-        </section>
+        </Card>
 
         {lastUpdated && (
-          <section
-            style={{
-              marginTop: "1rem",
-              border: "1px solid #e7e5e4",
-              borderRadius: 12,
-              padding: "1rem",
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>直近の更新内容</h2>
-            <div>ユーザーID: {lastUpdated.userId}</div>
-            <div>適用ロール: {lastUpdated.role}</div>
-          </section>
+          <Card className="mt-4 rounded-3xl p-5">
+            <h2 className="text-xl font-semibold text-zinc-900">
+              直近の更新内容
+            </h2>
+            <div className="mt-3 grid gap-2 text-sm text-zinc-600">
+              <div>ユーザーID: {lastUpdated.userId}</div>
+              <div>適用ロール: {lastUpdated.role}</div>
+            </div>
+          </Card>
         )}
       </main>
     </AdminRoute>

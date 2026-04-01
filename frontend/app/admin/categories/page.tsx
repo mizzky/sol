@@ -10,6 +10,14 @@ import {
   getCategories,
   updateCategory,
 } from "../../../lib/api";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import {
+  FieldMessage,
+  FieldWrapper,
+  Input,
+  Textarea,
+} from "../../components/ui/Field";
 
 type CategoryFormState = {
   name: string;
@@ -137,137 +145,114 @@ export default function AdminCategoriesPage() {
 
   return (
     <AdminRoute>
-      <main style={{ padding: "2rem", maxWidth: "960px", margin: "0 auto" }}>
-        <h1>カテゴリ管理</h1>
-        <p style={{ color: "#57534e", marginBottom: "1rem" }}>
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+          カテゴリ管理
+        </h1>
+        <p className="mt-3 mb-6 max-w-3xl text-sm leading-7 text-zinc-600 sm:text-base">
           商品登録で利用するカテゴリを管理します。
         </p>
         <AdminNav />
 
-        {error && (
-          <div style={{ color: "crimson", marginBottom: "1rem" }}>{error}</div>
-        )}
-        {success && (
-          <div style={{ color: "green", marginBottom: "1rem" }}>{success}</div>
-        )}
+        <div className="grid gap-4">
+          {error && <FieldMessage tone="error">{error}</FieldMessage>}
+          {success && <FieldMessage tone="success">{success}</FieldMessage>}
+        </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(280px, 340px) minmax(0, 1fr)",
-            gap: "1.5rem",
-          }}
-        >
-          <section
-            style={{
-              border: "1px solid #d6d3d1",
-              borderRadius: 12,
-              padding: "1.25rem",
-              background: "#fffdf8",
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>
+        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
+          <Card className="rounded-4xl p-6 sm:p-7">
+            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">
               {editingCategoryId === null ? "新規カテゴリ" : "カテゴリ編集"}
             </h2>
-            <form
-              onSubmit={handleSubmit}
-              style={{ display: "grid", gap: "0.75rem" }}
-            >
-              <input
-                type="text"
-                placeholder="カテゴリ名"
-                value={form.name}
-                onChange={(e) =>
-                  setForm((current) => ({ ...current, name: e.target.value }))
-                }
-                required
-              />
-              <textarea
-                placeholder="説明"
-                rows={4}
-                value={form.description}
-                onChange={(e) =>
-                  setForm((current) => ({
-                    ...current,
-                    description: e.target.value,
-                  }))
-                }
-              />
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                <button type="submit" disabled={submitting}>
+            <form onSubmit={handleSubmit} className="mt-6 grid gap-5">
+              <FieldWrapper htmlFor="category-name" label="カテゴリ名">
+                <Input
+                  id="category-name"
+                  type="text"
+                  placeholder="カテゴリ名"
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((current) => ({ ...current, name: e.target.value }))
+                  }
+                  required
+                />
+              </FieldWrapper>
+              <FieldWrapper htmlFor="category-description" label="説明">
+                <Textarea
+                  id="category-description"
+                  placeholder="説明"
+                  rows={4}
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      description: e.target.value,
+                    }))
+                  }
+                />
+              </FieldWrapper>
+              <div className="flex flex-wrap gap-3">
+                <Button type="submit" disabled={submitting}>
                   {submitting
                     ? "保存中..."
                     : editingCategoryId === null
                       ? "作成する"
                       : "更新する"}
-                </button>
+                </Button>
                 {editingCategoryId !== null && (
-                  <button type="button" onClick={resetForm}>
+                  <Button type="button" onClick={resetForm} variant="secondary">
                     編集をキャンセル
-                  </button>
+                  </Button>
                 )}
               </div>
             </form>
-          </section>
+          </Card>
 
           <section>
-            <h2 style={{ marginTop: 0 }}>カテゴリ一覧</h2>
+            <h2 className="mb-4 text-2xl font-semibold tracking-tight text-zinc-900">
+              カテゴリ一覧
+            </h2>
             {loading ? (
               <div>読み込み中...</div>
             ) : categories.length === 0 ? (
-              <div>カテゴリがありません</div>
+              <Card className="text-zinc-600">カテゴリがありません</Card>
             ) : (
-              <div style={{ display: "grid", gap: "0.75rem" }}>
+              <div className="grid gap-4">
                 {categories.map((category) => (
-                  <article
-                    key={category.id}
-                    style={{
-                      border: "1px solid #e7e5e4",
-                      borderRadius: 12,
-                      padding: "1rem",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: "1rem",
-                      }}
-                    >
+                  <Card key={category.id} className="rounded-3xl p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <h3 style={{ margin: "0 0 0.4rem" }}>
+                        <h3 className="text-xl font-semibold text-zinc-900">
                           {category.name}
                         </h3>
-                        <div>ID: {category.id}</div>
-                        <p style={{ marginBottom: 0, color: "#57534e" }}>
+                        <div className="mt-2 text-sm text-zinc-500">
+                          ID: {category.id}
+                        </div>
+                        <p className="mt-3 text-sm leading-7 text-zinc-600">
                           {category.description || "説明なし"}
                         </p>
                       </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "0.5rem",
-                        }}
-                      >
-                        <button
+                      <div className="flex flex-wrap gap-3 sm:flex-col">
+                        <Button
                           type="button"
                           onClick={() => startEdit(category)}
+                          variant="secondary"
                         >
                           編集
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => void handleDelete(category.id)}
                           disabled={deletingCategoryId === category.id}
+                          variant="danger"
                         >
                           {deletingCategoryId === category.id
                             ? "削除中..."
                             : "削除"}
-                        </button>
+                        </Button>
                       </div>
                     </div>
-                  </article>
+                  </Card>
                 ))}
               </div>
             )}

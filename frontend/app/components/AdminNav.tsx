@@ -2,32 +2,25 @@
 
 import Link from "next/link";
 
-const linkStyle = {
-  padding: "0.5rem 0.85rem",
-  border: "1px solid #d6d3d1",
-  borderRadius: "999px",
-  color: "#44403c",
-  textDecoration: "none",
-  fontSize: "0.95rem",
-} as const;
-
 export default function AdminNav() {
   return (
-    <nav
-      style={{
-        display: "flex",
-        gap: "0.75rem",
-        flexWrap: "wrap",
-        marginBottom: "1.5rem",
-      }}
-    >
-      <Link href="/admin/products" style={linkStyle}>
+    <nav className="mb-6 flex flex-wrap gap-3">
+      <Link
+        href="/admin/products"
+        className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 transition hover:text-indigo-600 hover:shadow-md"
+      >
         商品管理
       </Link>
-      <Link href="/admin/categories" style={linkStyle}>
+      <Link
+        href="/admin/categories"
+        className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 transition hover:text-indigo-600 hover:shadow-md"
+      >
         カテゴリ管理
       </Link>
-      <Link href="/admin/users" style={linkStyle}>
+      <Link
+        href="/admin/users"
+        className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 transition hover:text-indigo-600 hover:shadow-md"
+      >
         ユーザー権限
       </Link>
     </nav>
