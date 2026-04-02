@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"os"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/routes"
 
@@ -14,7 +15,10 @@ import (
 
 func main() {
 	//1. DB接続
-	connStr := "host=db user=user password=password dbname=coffeesys_db sslmode=disable"
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		log.Fatal("DATABASE_URL is not set")
+	}
 	conn, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
