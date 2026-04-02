@@ -31,4 +31,4 @@ learning/
 
 .github/agents/tech-mentor.md
 
-doc/**/*.tmp.md
+doc/**/*.tmp.mdbackend/test.http

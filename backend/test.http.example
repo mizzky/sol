@@ -11,9 +11,9 @@ POST http://localhost:8080/api/register
 Content-Type: application/json
 
 { 
-    "name": "木村　次郎",
-    "email": "kimura@example.com",
-    "password": "password000"
+    "name": "<NAME>",
+    "email": "<EMAIL>",
+    "password": "<PASSWORD>"
 }
 
 
@@ -26,8 +26,8 @@ POST http://localhost:8080/api/login
 Content-Type: application/json
 
 {
-    "email": "yamada@example.com",
-    "password": "password000"
+    "email": "<EMAIL>",
+    "password": "<PASSWORD>"
 }
 
 ### ログイン失敗テスト
@@ -35,8 +35,8 @@ POST http://localhost:8080/api/login
 Content-Type: application/json
 
 {
-    "email": "yamada@example.com",
-    "password": "wrongpassword"
+    "email": "<EMAIL>",
+    "password": "<INVALID_PASSWORD>"
 }
 
 ###ユーザー登録テスト
@@ -44,9 +44,9 @@ POST http://localhost:8080/api/register
 Content-Type: application/json
 
 { 
-    "name": "admin",
-    "email": "admin@example.com",
-    "password": "password000"
+    "name": "<NAME>",
+    "email": "<EMAIL>",
+    "password": "<PASSWORD>"
 }
 
 
@@ -56,8 +56,8 @@ POST http://localhost:8080/api/login
 Content-Type: application/json
 
 {
-"email": "admin@example.com",
-"password": "password000"
+"email": "<EMAIL>",
+"password": "<PASSWORD>"
 }
 
 > {%
@@ -97,16 +97,16 @@ Authorization: Bearer <ADMIN_TOKEN>
 
 ###ログイン->カート追加->注文作成->注文一覧->注文キャンセル->キャンセル後一覧確認
 @baseUrl = http://localhost:8080
-@email = kimura@example.com
-@password = password000
-@productId = 4
+@email = <EMAIL>
+@password = <PASSWORD>
+@productId = <PRODUCT_ID>
 
 #### 0. ユーザ登録
 POST {{baseUrl}}  /api/register
 Content-Type: application/json
 
 {
-    "name": "木村　次郎",
+    "name": "<NAME>",
     "email": "{{email}}",
     "password": "{{password}}"
 }
