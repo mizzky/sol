@@ -165,4 +165,3 @@ Authorization: Bearer {{login.response.body.$.token}}
 ### 7. キャンセル済みだけ確認
 GET {{baseUrl}}/api/orders?status=cancelled
 Authorization: Bearer {{login.response.body.$.token}}
-
