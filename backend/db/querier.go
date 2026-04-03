@@ -18,6 +18,7 @@ type Querier interface {
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCategory(ctx context.Context, id int64) error
 	DeleteProduct(ctx context.Context, id int64) error
@@ -31,6 +32,7 @@ type Querier interface {
 	GetOrderCountByUser(ctx context.Context, userID int64) (int64, error)
 	GetProduct(ctx context.Context, id int64) (Product, error)
 	GetProductForUpdate(ctx context.Context, id int64) (Product, error)
+	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserForUpdate(ctx context.Context, id int64) (User, error)
@@ -42,6 +44,8 @@ type Querier interface {
 	ListProducts(ctx context.Context) ([]Product, error)
 	RemoveCartItem(ctx context.Context, id int64) error
 	RemoveCartItemByUser(ctx context.Context, arg RemoveCartItemByUserParams) error
+	RevokeAllRefreshTokensByUser(ctx context.Context, userID int64) error
+	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) error
 	SetResetToken(ctx context.Context, arg SetResetTokenParams) (User, error)
 	UpdateCartItemQty(ctx context.Context, arg UpdateCartItemQtyParams) (CartItem, error)
 	UpdateCartItemQtyByUser(ctx context.Context, arg UpdateCartItemQtyByUserParams) (CartItem, error)

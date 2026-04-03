@@ -80,6 +80,16 @@ type Product struct {
 	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
+type RefreshToken struct {
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id"`
+	TokenHash string       `json:"token_hash"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	RevokedAt sql.NullTime `json:"revoked_at"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+}
+
 type User struct {
 	ID           int64          `json:"id"`
 	Name         string         `json:"name"`
