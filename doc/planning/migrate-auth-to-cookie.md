@@ -11,7 +11,7 @@
 ## 設計決定（提案）
 - Cookie 名: `access_token`
 - Cookie 属性: `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`（アクセストークン24時間を想定）
-- リフレッシュ戦略: 将来的に `refresh_token` を HttpOnly Cookie にて運用し、`/api/refresh` を設ける（この移行ではオプション）。
+- リフレッシュ戦略: 今回の移行で `refresh_token` を必須導入し、`access_token` + `refresh_token` の2トークン方式にする。HttpOnly Cookie と DB 永続化により、トークンローテーション・失効・多端末管理を実現。
 - CSRF 対策: `SameSite=Lax` に加え、重要な変更系エンドポイントでは CSRF トークン（Double Submit Cookie または同期トークン）を導入することを推奨。
 
 ## バックエンドでの変更点
@@ -77,6 +77,68 @@
 - 開発ローカル (HTTP) では `Secure` が効かないため、local dev 用の設定やローカル証明書の導入を検討する。
 - CORS 設定で `Allow-Credentials` を有効にする場合、`Allow-Origin` は特定オリジンに限定すること。
 
+## 2026-04-03 現状確認結果
+- 現在のログインは body に token を返す方式（Cookie未発行）
+- 認証は `Authorization: Bearer` 前提（AdminOnly/RequireAuth/MeHandler）
+- logout/refresh エンドポイントは未実装
+- フロントは `auth_token` を `localStorage` に保存し、`Authorization` ヘッダを付与
+- CORS は `AllowCredentials` 未設定
+
+## 今回の変更要件（バックエンド優先・確定案ドラフト）
+
+### 1. トークン設計
+- `access_token`: 有効期限 15分、HttpOnly Cookie
+- `refresh_token`: 有効期限 14日、HttpOnly Cookie
+- 署名鍵は既存 `JWT_SECRET` を利用（将来は access/refresh で鍵分離を検討）
+
+> **段階導入方針**: 今回は実装速度と学習コストを優先し、refresh token は有効期限内再利用方式（同一トークンを期限まで使い回す）を採用する。ローテーション（refresh 実行ごとの新 token 発行）と再利用検知は次フェーズで導入予定。
+
+### 2. Cookie設計
+- `access_token` Cookie: `HttpOnly, Secure(本番), SameSite=Lax, Path=/, Max-Age=900`
+- `refresh_token` Cookie: `HttpOnly, Secure(本番), SameSite=Strict, Path=/api/refresh, Max-Age=1209600`
+
+### 3. エンドポイント
+- `POST /api/login`: access/refresh 両 Cookie を発行し、body は user 中心（token は返さない方針）
+- `POST /api/refresh`: `refresh_token` 検証で `access_token` を再発行（必要なら refresh ローテーション）
+- `POST /api/logout`: access/refresh Cookie を失効
+
+### 4. 認証ミドルウェア
+- 優先順: `Authorization Bearer` > `access_token` Cookie（移行期間の互換）
+- 有効期限切れ時は 401。refresh は自動では行わず明示的に `/api/refresh` を呼ぶ
+
+### 5. 永続化
+- refresh token は DB 永続化（ハッシュ化して保存）を必須
+- 失効/ローテーション/多端末管理を可能にするため `token_id`(jti) と失効時刻を管理
+
+## 影響範囲（バックエンド優先）
+- `backend/auth/jwt.go`（access/refresh 生成・検証 API 拡張）
+- `backend/auth/middleware.go`（Bearer + Cookie 読み取り）
+- `backend/handler/user.go`（login レスポンス変更、logout 追加）
+- `backend/handler/me.go`（Cookie 経由認証の受け入れ）
+- `backend/routes/routes.go`（`/api/refresh`, `/api/logout` 追加）
+- `backend/main.go`（CORS `AllowCredentials` 追加と `AllowOrigin` 見直し）
+- `backend/db/migrations/*`（refresh token 保存テーブル追加）
+- `backend/query.sql`, `backend/db/query.sql.go`, `backend/db/querier.go`（refresh token CRUD）
+- `backend/handler/*_test.go`, `backend/auth/middleware_test.go`, `backend/routes/routes_test.go`（Cookie/refresh/logout ケース追加）
+- `backend/test.http`, `backend/test.http.example`（Cookie ベース手順へ更新）
+
+## TDD 実装順（バックエンド先行）
+1. Red: Login で Cookie が発行されるテストを追加
+2. Green: Login に `Set-Cookie` 実装（まず `access_token` のみ）
+3. Red: RequireAuth/AdminOnly/MeHandler が Cookie 認証できるテストを追加
+4. Green: 認証抽出ロジックを共通化し Cookie 対応
+5. Red: `/api/logout` の Cookie 失効テスト
+6. Green: logout ハンドラとルート追加
+7. Red: `/api/refresh` の正常・異常テスト
+8. Green: refresh 実装（必要最小）
+9. Refactor: 認証関連ユーティリティ整理、テーブル駆動テストへ統一
+
+## 将来課題（セキュリティ強化フェーズ）
+- refresh token ローテーション導入（refresh 実行ごとに新 token 発行、旧 token 失効）
+- 再利用検知（失効済み refresh の再提示を検知し、該当 token family を強制失効）
+- 監査ログ強化（refresh 失敗理由、IP、UA、時刻）
+- 必要に応じて端末管理UI（ログインセッション一覧と個別失効）
+
 ---
 ### 付録: 実装例スニペット
 
@@ -125,3 +187,5 @@ async function loadUser() {
 
 ---
 作成日: 2026-02-16
+更新日: 2026-04-03
+備考: 2026-04-03 時点では、段階導入方針として再利用方式を採用。
