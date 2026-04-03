@@ -195,6 +195,22 @@ func (f *FakeQuerier) UpdateProductStock(ctx context.Context, arg db.UpdateProdu
 	return db.UpdateProductStockRow{}, nil
 }
 
+func (f *FakeQuerier) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (db.RefreshToken, error) {
+	return db.RefreshToken{}, nil
+}
+
+func (f *FakeQuerier) CreateRefreshToken(ctx context.Context, arg db.CreateRefreshTokenParams) (db.RefreshToken, error) {
+	return db.RefreshToken{}, nil
+}
+
+func (f *FakeQuerier) RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) error {
+	return nil
+}
+
+func (f *FakeQuerier) RevokeAllRefreshTokensByUser(ctx context.Context, userID int64) error {
+	return nil
+}
+
 // DB接続エラー用のQuerier
 type BadQuerier struct{ *FakeQuerier }
 
