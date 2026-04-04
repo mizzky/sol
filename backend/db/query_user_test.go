@@ -227,3 +227,139 @@ func TestSetResetToken(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateRefreshToken(t *testing.T) {
+	q, mock, cleanup := setupMock(t)
+	defer cleanup()
+
+	now := time.Now()
+	expiresAt := now.Add(14 * 24 * time.Hour)
+
+	cols := []string{"id", "user_id", "token_hash", "expires_at", "revoked_at", "created_at", "updated_at"}
+	rows := sqlmock.NewRows(cols).AddRow(
+		int64(2),
+		int64(10),
+		"hash_abc",
+		expiresAt,
+		sql.NullTime{Valid: false},
+		now,
+		now,
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO refresh_tokens (user_id, token_hash, expires_at, revoked_at, created_at, updated_at)
+VALUES ($1, $2, $3, NULL, NOW(), NOW())
+RETURNING id, user_id, token_hash, expires_at, revoked_at, created_at, updated_at`)).
+		WithArgs(int64(10), "hash_abc", expiresAt).
+		WillReturnRows(rows)
+
+	got, err := q.CreateRefreshToken(context.Background(), db.CreateRefreshTokenParams{
+		UserID:    10,
+		TokenHash: "hash_abc",
+		ExpiresAt: expiresAt,
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, int64(10), got.UserID)
+	assert.Equal(t, "hash_abc", got.TokenHash)
+	assert.False(t, got.RevokedAt.Valid)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetRefreshTokenByHash(t *testing.T) {
+	tests := []struct {
+		name        string
+		hash        string
+		mockSetUp   func(sqlmock.Sqlmock)
+		expectedErr bool
+	}{
+		{
+			name: "正常系：hashで１件取得できる",
+			hash: "hash_ok",
+			mockSetUp: func(m sqlmock.Sqlmock) {
+				now := time.Now()
+				cols := []string{"id", "user_id", "token_hash", "expires_at", "revoked_at", "created_at", "updated_at"}
+				rows := sqlmock.NewRows(cols).AddRow(
+					int64(2),
+					int64(20),
+					"hash_ok",
+					now.Add(24*time.Hour),
+					sql.NullTime{Valid: false},
+					now,
+					now,
+				)
+				m.ExpectQuery(regexp.QuoteMeta(`SELECT id, user_id, token_hash, expires_at, revoked_at, created_at, updated_at
+FROM refresh_tokens
+WHERE token_hash = $1
+LIMIT 1`)).
+					WithArgs("hash_ok").
+					WillReturnRows(rows)
+			},
+			expectedErr: false,
+		},
+		{
+			name: "異常系：対象なし",
+			hash: "not_found",
+			mockSetUp: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery(regexp.QuoteMeta(`SELECT id, user_id, token_hash, expires_at, revoked_at, created_at, updated_at
+FROM refresh_tokens
+WHERE token_hash = $1
+LIMIT 1`)).
+					WithArgs("not_found").
+					WillReturnError(sql.ErrNoRows)
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q, mock, cleanup := setupMock(t)
+			defer cleanup()
+
+			tt.mockSetUp(mock)
+
+			_, err := q.GetRefreshTokenByHash(context.Background(), tt.hash)
+			if tt.expectedErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestRevokeRefreshTokenByHash(t *testing.T) {
+	q, mock, cleanup := setupMock(t)
+	defer cleanup()
+
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE refresh_tokens
+SET 
+    revoked_at = NOW(),
+    updated_at = NOW()
+WHERE token_hash = $1
+AND revoked_at IS NULL`)).
+		WithArgs("hash_revoke_me").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	err := q.RevokeRefreshTokenByHash(context.Background(), "hash_revoke_me")
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestRevokeAllRefreshTokensByUser(t *testing.T) {
+	q, mock, cleanup := setupMock(t)
+	defer cleanup()
+
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE refresh_tokens
+SET
+	revoked_at = NOW(),
+	updated_at = NOW()
+WHERE user_id = $1
+AND revoked_at IS NULL`)).
+		WithArgs(int64(30)).
+		WillReturnResult(sqlmock.NewResult(0, 2))
+	err := q.RevokeAllRefreshTokensByUser(context.Background(), int64(30))
+	assert.NoError(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+
+}
