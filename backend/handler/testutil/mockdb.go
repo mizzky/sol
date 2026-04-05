@@ -184,3 +184,11 @@ func (m *MockDB) ListOrdersByUser(ctx context.Context, userID int64) ([]db.ListO
 	}
 	return args.Get(0).([]db.ListOrdersByUserRow), args.Error(1)
 }
+
+func (m *MockDB) CreateRefreshToken(ctx context.Context, arg db.CreateRefreshTokenParams) (db.RefreshToken, error) {
+	args := m.Called(ctx, arg)
+	if args.Get(0) == nil {
+		return db.RefreshToken{}, args.Error(1)
+	}
+	return args.Get(0).(db.RefreshToken), args.Error(1)
+}

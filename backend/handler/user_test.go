@@ -2,7 +2,9 @@ package handler_test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	testutil "sol_coffeesys/backend/handler/testutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -59,6 +62,12 @@ func TestLoginUserHandler(t *testing.T) {
 						ID:           1,
 						Email:        "test@example.com",
 						PasswordHash: passwordHash,
+					}, nil)
+
+				m.On("CreateRefreshToken", mock.Anything, mock.Anything).
+					Return(db.RefreshToken{
+						ID:     1,
+						UserID: 1,
 					}, nil)
 			},
 			checkResponse: func(t *testing.T, w *httptest.ResponseRecorder) {
@@ -691,4 +700,87 @@ func TestHashPassword(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "パスワードのハッシュ化に失敗しました")
 	})
+}
+
+func TestLoginUserHandler_SetsCookies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	mockDB := new(testutil.MockDB)
+	mockTokenGenerator := new(MockTokenGenerator)
+
+	passwordHash, err := handler.HashPassword("password123")
+	if err != nil {
+		t.Fatalf("パスワードのハッシュ化に失敗しました:%v", err)
+	}
+
+	var captured db.CreateRefreshTokenParams
+
+	mockDB.On("GetUserByEmail", mock.Anything, "test@example.com").Return(
+		db.User{
+			ID:           1,
+			Email:        "test@example.com",
+			PasswordHash: passwordHash,
+		}, nil)
+
+	mockDB.On("CreateRefreshToken", mock.Anything, mock.Anything).Run(
+		func(args mock.Arguments) {
+			if args.Get(1) != nil {
+				captured = args.Get(1).(db.CreateRefreshTokenParams)
+			}
+		}).Return(
+		db.RefreshToken{
+			ID:     1,
+			UserID: 1,
+		}, nil)
+
+	mockTokenGenerator.On("GenerateToken", mock.Anything).Return("default_token", nil)
+
+	router.POST("/api/login", handler.LoginUserHandler(mockDB, mockTokenGenerator))
+
+	body, _ := json.Marshal(map[string]string{
+		"email":    "test@example.com",
+		"password": "password123",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/login", bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	resp := w.Result()
+	cookies := resp.Cookies()
+
+	var accessCookie, refreshCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "access_token" {
+			accessCookie = c
+		}
+		if c.Name == "refresh_token" {
+			refreshCookie = c
+		}
+	}
+
+	assert.NotNil(t, accessCookie, "access_token Cookieを期待")
+	assert.NotNil(t, refreshCookie, "refresh_token Cookieを期待")
+
+	assert.True(t, accessCookie.HttpOnly)
+	assert.Equal(t, "/", accessCookie.Path)
+	assert.Equal(t, 15*60, accessCookie.MaxAge)
+	assert.Equal(t, http.SameSiteLaxMode, accessCookie.SameSite)
+
+	assert.True(t, refreshCookie.HttpOnly)
+	assert.Equal(t, "/api/refresh", refreshCookie.Path)
+	assert.Equal(t, 14*24*60*60, refreshCookie.MaxAge)
+	assert.Equal(t, http.SameSiteStrictMode, refreshCookie.SameSite)
+	assert.Equal(t, 64, len(refreshCookie.Value))
+
+	sum := sha256.Sum256([]byte(refreshCookie.Value))
+	gotHash := hex.EncodeToString(sum[:])
+	assert.Equal(t, gotHash, captured.TokenHash)
+
+	assert.WithinDuration(t, time.Now().Add(14*24*time.Hour), captured.ExpiresAt, 5*time.Second)
+
+	mockDB.AssertExpectations(t)
+	mockTokenGenerator.AssertExpectations(t)
 }
