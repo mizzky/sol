@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +13,7 @@ import (
 	"sol_coffeesys/backend/pkg/respond"
 	"sol_coffeesys/backend/pkg/validation"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
@@ -129,6 +133,55 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 			respond.RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
 			return
 		}
+
+		refreshRaw := make([]byte, 32)
+		if _, err := rand.Read(refreshRaw); err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
+			return
+		}
+
+		refreshToken := hex.EncodeToString(refreshRaw)
+		hash := sha256.Sum256([]byte(refreshToken))
+		tokenHash := hex.EncodeToString(hash[:])
+		expiresAt := time.Now().Add(14 * 24 * time.Hour)
+
+		if _, err := q.CreateRefreshToken(c.Request.Context(), db.CreateRefreshTokenParams{
+			UserID:    user.ID,
+			TokenHash: tokenHash,
+			ExpiresAt: expiresAt,
+		}); err != nil {
+			respond.RespondError(c, http.StatusInternalServerError, "リフレッシュトークンの保存に失敗しました")
+			return
+		}
+
+		//  Cookieをセット
+		accessCookie := &http.Cookie{
+			Name:     "access_token",
+			Value:    token,
+			HttpOnly: true,
+			Path:     "/",
+			Expires:  time.Now().Add(15 * time.Minute),
+			MaxAge:   15 * 60,
+			SameSite: http.SameSiteLaxMode,
+		}
+
+		refreshCookie := &http.Cookie{
+			Name:     "refresh_token",
+			Value:    refreshToken,
+			HttpOnly: true,
+			Path:     "/api/refresh",
+			Expires:  expiresAt,
+			MaxAge:   60 * 60 * 24 * 14,
+			SameSite: http.SameSiteStrictMode,
+		}
+
+		if gin.Mode() == gin.ReleaseMode {
+			accessCookie.Secure = true
+			refreshCookie.Secure = true
+		}
+
+		http.SetCookie(c.Writer, accessCookie)
+		http.SetCookie(c.Writer, refreshCookie)
 
 		c.JSON(http.StatusOK, gin.H{
 			"message": "ログイン成功",
