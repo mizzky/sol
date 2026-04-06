@@ -19,16 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockTokenGenerator struct {
-	mock.Mock
-}
-
-func (m *MockTokenGenerator) GenerateToken(userID int64) (string, error) {
-	args := m.Called(userID)
-	return args.String(0), args.Error(1)
-}
-
-func TestRefresTokenHandler_Success(t *testing.T) {
+func TestRefreshTokenHandler_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	router := gin.Default()
@@ -58,10 +49,11 @@ func TestRefresTokenHandler_Success(t *testing.T) {
 	mockTG.On("GenerateToken", int64(1)).Return("new_access_token", nil)
 
 	var captured db.CreateRefreshTokenParams
-	mockDB.On("CreateRefreshToken", mock.Anything, mock.Anything).Return(
-		func(arg mock.Arguments) {
-			captured = arg.Get(1).(db.CreateRefreshTokenParams)
-		}).Return(db.RefreshToken{ID: 2, UserID: 1}, nil)
+	mockDB.On("CreateRefreshToken", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			captured = args.Get(1).(db.CreateRefreshTokenParams)
+		}).
+		Return(db.RefreshToken{ID: 2, UserID: 1}, nil)
 
 	mockDB.On("RevokeRefreshTokenByHash", mock.Anything, oldHash).Return(nil)
 
@@ -86,7 +78,7 @@ func TestRefresTokenHandler_Success(t *testing.T) {
 		if c.Name == "access_token" {
 			accessCookie = c
 		}
-		if c.Name == "refersh_token" {
+		if c.Name == "refresh_token" {
 			refreshCookie = c
 		}
 	}
@@ -188,11 +180,37 @@ func TestRefreshTokenHandler_Errros(t *testing.T) {
 			cookie: strings.Repeat("a", 64),
 		},
 		{
-			name:           "DBエラー Create",
+			name: "DBエラー Create",
+			setupMock: func(m *testutil.MockDB) {
+				oldRefersh := strings.Repeat("a", 64)
+				sum := sha256.Sum256([]byte(oldRefersh))
+				oldHash := hex.EncodeToString(sum[:])
+				m.On("GetRefreshTokenByHash", mock.Anything, oldHash).Return(
+					db.RefreshToken{ID: 1, UserID: 1, TokenHash: oldHash, ExpiresAt: time.Now().Add(1 * time.Hour)}, nil)
+				m.On("GetUserByID", mock.Anything, int64(1)).Return(
+					db.User{ID: 1, Email: "test@eample.com", Name: "test", Role: "member"}, nil)
+				m.On("CreateRefreshToken", mock.Anything, mock.Anything).Return(
+					db.RefreshToken{}, errors.New("db create error"))
+			},
+			cookie:         strings.Repeat("a", 64),
 			expectedStatus: http.StatusInternalServerError,
 		},
 		{
-			name:           "DBエラー Revoke",
+			name: "DBエラー Revoke",
+			setupMock: func(m *testutil.MockDB) {
+				oldRefersh := strings.Repeat("a", 64)
+				sum := sha256.Sum256([]byte(oldRefersh))
+				oldHash := hex.EncodeToString(sum[:])
+				m.On("GetRefreshTokenByHash", mock.Anything, oldHash).Return(
+					db.RefreshToken{ID: 1, UserID: 1, TokenHash: oldHash, ExpiresAt: time.Now().Add(1 * time.Hour)}, nil)
+				m.On("GetUserByID", mock.Anything, int64(1)).Return(
+					db.User{ID: 1, Email: "test@eample.com", Name: "test", Role: "member"}, nil)
+				m.On("CreateRefreshToken", mock.Anything, mock.Anything).Return(
+					db.RefreshToken{ID: 2, UserID: 1}, nil)
+				m.On("RevokeRefreshTokenByHash", mock.Anything, oldHash).Return(
+					errors.New("db revoke error"))
+			},
+			cookie:         strings.Repeat("a", 64),
 			expectedStatus: http.StatusInternalServerError,
 		},
 		{
@@ -210,7 +228,11 @@ func TestRefreshTokenHandler_Errros(t *testing.T) {
 						ExpiresAt: time.Now().Add(1 * time.Hour),
 					}, nil)
 				m.On("GetUserByID", mock.Anything, int64(1)).Return(db.User{ID: 1, Email: "x", Name: "x", Role: "member"}, nil)
+				m.On("CreateRefreshToken", mock.Anything, mock.Anything).Return(
+					db.RefreshToken{ID: 2, UserID: 1}, nil)
+				m.On("RevokeRefreshTokenByHash", mock.Anything, oldHash).Return(nil)
 			},
+
 			setupTG: func(tg *MockTokenGenerator) {
 				tg.On("GenerateToken", int64(1)).Return("", errors.New("token gen failed"))
 			},
@@ -229,8 +251,6 @@ func TestRefreshTokenHandler_Errros(t *testing.T) {
 			}
 			if tt.setupTG != nil {
 				tt.setupTG(mockTG)
-			} else {
-				mockTG.On("GenerateToken", mock.Anything).Return("ignored", nil)
 			}
 
 			router.POST("/api/refresh", handler.RefreshTokenHandler(mockDB, mockTG))
