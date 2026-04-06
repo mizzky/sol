@@ -192,3 +192,16 @@ func (m *MockDB) CreateRefreshToken(ctx context.Context, arg db.CreateRefreshTok
 	}
 	return args.Get(0).(db.RefreshToken), args.Error(1)
 }
+
+func (m *MockDB) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (db.RefreshToken, error) {
+	args := m.Called(ctx, tokenHash)
+	if args.Get(0) == nil {
+		return db.RefreshToken{}, args.Error(1)
+	}
+	return args.Get(0).(db.RefreshToken), args.Error(1)
+}
+
+func (m *MockDB) RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) error {
+	args := m.Called(ctx, tokenHash)
+	return args.Error(0)
+}
