@@ -40,5 +40,8 @@ func SetupRoutes(r *gin.Engine, conn *sql.DB, queries *db.Queries) {
 		api.GET("/orders", auth.RequireAuth(queries), handler.GetOrdersHandler(queries))
 		api.POST("/orders", auth.RequireAuth(queries), handler.CreateOrderHandler(conn, queries))
 		api.POST("/orders/:id/cancel", auth.RequireAuth(queries), handler.CancelOrderHandler(conn, queries))
+
+		api.POST("/refresh", handler.RefreshTokenHandler(queries, tokenGenerator))
+		api.POST("/logout", handler.LogoutHandler(queries))
 	}
 }
