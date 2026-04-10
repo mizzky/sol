@@ -7,6 +7,14 @@
         "timeout": 30,
         "cwd": "${workspaceFolder}"
       }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": ".github/skills/studylog/scripts/auto-checkpoint.sh",
+        "timeout": 30,
+        "cwd": "${workspaceFolder}"
+      }
     ]
   }
 }

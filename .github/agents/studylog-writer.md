@@ -18,10 +18,11 @@ user-invocable: false
 ## 実行手順
 1. 最初に `/workspaces/sol_coffeesys/.github/skills/studylog/SKILL.md` を読み、手順と出力フォーマットを確認する。
 2. `/workspaces/sol_coffeesys/.github/skills/studylog/scripts/finalize-studylog.sh` を実行してジャーナルパスを取得する。
-3. 当日分の `doc/memo/YYYY/MM/DD_learning.md` が存在するか確認する。
+3. ジャーナルを全文読み、`TranscriptSnapshot` に記録された snapshot ファイル（`(none)` 以外）をユニーク化して全件読み込む。
+4. 当日分の `doc/memo/YYYY/MM/DD_learning.md` が存在するか確認する。
    - **存在しない場合**: SKILL.md の「新規作成」フォーマットで作成する。
    - **存在する場合**: 既存内容を読み込み、上書きせず末尾に「追記」フォーマットで新セッションを追加する。
-4. 出力後、作成/更新したファイルパスと要点を親エージェントへ返す。
+5. 出力後、作成/更新したファイルパスと要点を親エージェントへ返す。
 
 ## 出力形式
 - 生成結果サマリー（2-4行）

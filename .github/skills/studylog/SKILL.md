@@ -7,15 +7,16 @@ description: "セッション中の学習記録内容を自動記録。疑問、
 
 ## 出力先
 - 中間ジャーナル（自動）: `doc/memo/YYYY/MM/DD_journal.tmp.md`
+- transcriptスナップショット（自動）: `doc/memo/YYYY/MM/transcripts/*.json`
 - 学習ログ（最終）: `doc/memo/YYYY/MM/DD_learning.md`
 
 ## 処理構造
 
 | フェーズ | トリガー | 担当 | 処理内容 |
 |---------|---------|------|--------|
-| チェックポイント追記 | PreCompact（自動）| Shell | ジャーナルに生情報を追記 |
+| チェックポイント追記 | PreCompact / Stop（自動）| Shell | ジャーナルへチェックポイント追記 + `transcript_path` の実体を snapshot として永続化 |
 | 最終化チェックポイント追記 | ログ記録指示 | Shell | FinalizeLog をジャーナルに追記 |
-| 学習ログ生成 | ログ記録指示 | **LLM** | ジャーナルを読んで要約・整形し learning.md に書き込む |
+| 学習ログ生成 | ログ記録指示 | **LLM** | ジャーナル + 永続化済みsnapshotを読んで要約・整形し learning.md に書き込む |
 
 ## ログ記録指示を受けたときのLLM手順（必ず順番どおり実行すること）
 
@@ -33,9 +34,15 @@ chmod +x .github/skills/studylog/scripts/auto-checkpoint.sh .github/skills/study
 
 ステップ1で得たパスのファイルを全文読み込む。
 
+### ステップ2.1: ジャーナルに記録された transcript snapshot をすべて読み込む
+
+- ジャーナル中の `- TranscriptSnapshot:` 行を抽出する。
+- 値が `(none)` 以外のパスをユニーク化して、**すべて**読み込む。
+- snapshot が多い場合でも省略せず、少なくとも全ファイルの見出し情報と末尾の更新部分を確認する。
+
 ### ステップ3: 学習ログを生成して learning.md に書き込む
 
-ジャーナル内容をもとに、**LLMが以下のルールで** `doc/memo/YYYY/MM/DD_learning.md` を書き込む。
+ジャーナル + snapshot内容をもとに、**LLMが以下のルールで** `doc/memo/YYYY/MM/DD_learning.md` を書き込む。
 シェルスクリプトには頼らず、LLM自身がファイル書き込みを行うこと。
 
 #### ファイルが存在しない場合 → 新規作成
@@ -87,12 +94,20 @@ chmod +x .github/skills/studylog/scripts/auto-checkpoint.sh .github/skills/study
 ```markdown
 ## JournalCheckpoint [時刻]
 - CheckpointId: cp-...
-- Event: PreCompact | FinalizeLog
+- Event: PreCompact | Stop | FinalizeLog
+- HookTimestamp: ...
+- SessionId: ...
+- Trigger: ...
 - Topic: ...
 - Question: ...
 - Blocker: ...
 - Resolution: ...
 - Next: ...
+- TranscriptPath: ...
+- TranscriptSnapshot: doc/memo/YYYY/MM/transcripts/....json
+- TranscriptHash: ...
+- TranscriptBytes: ...
+- TranscriptStatus: ...
 
 ### RawHookInputSnippet
 ...
