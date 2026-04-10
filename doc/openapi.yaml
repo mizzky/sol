@@ -11,10 +11,13 @@ servers:
 
 components:
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: >-
+        HttpOnly refresh cookie used for rotation.
+        Cookie attributes expected: HttpOnly; Secure; Path=/api/refresh; SameSite=Strict
 
   schemas:
     User:
@@ -82,8 +85,6 @@ components:
       type: object
       properties:
         message:
-          type: string
-        token:
           type: string
         user:
           $ref: '#/components/schemas/UserPublic'
@@ -384,7 +385,10 @@ paths:
   /api/login:
     post:
       summary: Login and get JWT
-      description: ログインエンドポイント　JWTのトークンを取得し、localstorageに保存する
+      description: |
+        ログインエンドポイント。成功時にアクセストークンとリフレッシュトークンを
+        HttpOnly Cookie として返します。
+        フロントエンドは `fetch` / `axios` を `credentials: 'include'` で呼び出してください。
       tags:
         - Auth
       operationId: loginUser
@@ -403,6 +407,83 @@ paths:
                 $ref: '#/components/schemas/LoginResponse'
         '401':
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/refresh:
+    post:
+      summary: Refresh access token using refresh cookie
+      description: |
+        `refresh_token`（HttpOnly Cookie）に含まれるリフレッシュトークンを検証し、
+        新しいアクセストークン（および必要に応じて更新されたリフレッシュCookie）を返します。
+        リクエストは `credentials: 'include'` が必要です。
+      tags:
+        - Auth
+      operationId: refreshToken
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: OK
+          headers:
+            Set-Cookie:
+              description: >
+                Set-Cookie ヘッダでアクセストークン(access_token)とリフレッシュトークン(refresh_token)を HttpOnly Cookie として返す場合があります。例: `access_token=...; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=900` と `refresh_token=...; HttpOnly; Secure; SameSite=Strict; Path=/api/refresh; Max-Age=1209600`
+              schema:
+                type: string
+              example: "refresh_token=eyJ...; HttpOnly; Secure; SameSite=Strict; Path=/api/refresh; Max-Age=1209600"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/refresh/revoke:
+    post:
+      summary: Revoke refresh token (リフレッシュトークンの破棄)
+      description: >-
+        HttpOnly の refresh_token Cookie を破棄します。ブラウザは Cookie を自動送信します。
+        リクエストボディは不要です。CSRF対策（SameSite/トークンなど）を検討してください。
+      tags:
+        - Auth
+      operationId: revokeRefreshToken
+      security:
+        - cookieAuth: []
+      responses:
+        '204':
+          description: No Content — cookies cleared
+          headers:
+            Set-Cookie:
+              description: Cookie をクリアする例（クライアント側で Cookie 削除を促すヘッダ）
+              schema:
+                type: string
+              examples:
+                clear:
+                  summary: Clear access and refresh cookies
+                  value: |
+                    access_token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax
+                    refresh_token=; Max-Age=0; Path=/api/refresh; HttpOnly; Secure; SameSite=Strict
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal error
           content:
             application/json:
               schema:

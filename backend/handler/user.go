@@ -1,10 +1,7 @@
 package handler
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -134,22 +131,8 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 			return
 		}
 
-		refreshRaw := make([]byte, 32)
-		if _, err := rand.Read(refreshRaw); err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
-			return
-		}
-
-		refreshToken := hex.EncodeToString(refreshRaw)
-		hash := sha256.Sum256([]byte(refreshToken))
-		tokenHash := hex.EncodeToString(hash[:])
-		expiresAt := time.Now().Add(14 * 24 * time.Hour)
-
-		if _, err := q.CreateRefreshToken(c.Request.Context(), db.CreateRefreshTokenParams{
-			UserID:    user.ID,
-			TokenHash: tokenHash,
-			ExpiresAt: expiresAt,
-		}); err != nil {
+		refreshToken, _, expiresAt, err := GenerateRefreshToken(c.Request.Context(), q, user.ID)
+		if err != nil {
 			respond.RespondError(c, http.StatusInternalServerError, "リフレッシュトークンの保存に失敗しました")
 			return
 		}
@@ -185,7 +168,6 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 
 		c.JSON(http.StatusOK, gin.H{
 			"message": "ログイン成功",
-			"token":   token,
 			"user": gin.H{
 				"id":    user.ID,
 				"name":  user.Name,

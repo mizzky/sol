@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -53,32 +52,21 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 			return
 		}
 
-		newRaw := make([]byte, 32)
-		if _, err := rand.Read(newRaw); err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
-			c.Abort()
-			return
-		}
-		newRefresh := hex.EncodeToString(newRaw)
-		newSum := sha256.Sum256([]byte(newRefresh))
-		newHash := hex.EncodeToString(newSum[:])
-
-		expiresAt := time.Now().Add(14 * 24 * time.Hour)
-
-		if _, err := q.CreateRefreshToken(c.Request.Context(), db.CreateRefreshTokenParams{
-			UserID:    user.ID,
-			TokenHash: newHash,
-			ExpiresAt: expiresAt,
-		}); err != nil {
+		newRefresh, _, expiresAt, err := GenerateRefreshToken(c.Request.Context(), q, user.ID)
+		if err != nil {
 			respond.RespondError(c, http.StatusInternalServerError, "リフレッシュトークンの保存に失敗しました")
 			c.Abort()
 			return
 		}
 
-		if err := q.RevokeRefreshTokenByHash(c.Request.Context(), hash); err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
-			c.Abort()
-			return
+		if err := RevokeRefreshByRaw(c.Request.Context(), q, cookie.Value); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// 存在しないトークンは無視
+			} else {
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				c.Abort()
+				return
+			}
 		}
 
 		accessToken, err := tokenGenerator.GenerateToken(user.ID)
@@ -125,5 +113,73 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 			},
 		})
 
+	}
+}
+
+func RevokeRefreshHandler(q db.Querier) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cookie, err := c.Request.Cookie("refresh_token")
+		if err != nil {
+			clearAccess := &http.Cookie{
+				Name:     "access_token",
+				Value:    "",
+				HttpOnly: true,
+				Path:     "/",
+				MaxAge:   -1,
+				SameSite: http.SameSiteLaxMode,
+			}
+			clearRefresh := &http.Cookie{
+				Name:     "refresh_token",
+				Value:    "",
+				HttpOnly: true,
+				Path:     "/api/refresh",
+				MaxAge:   -1,
+				SameSite: http.SameSiteStrictMode,
+			}
+			if gin.Mode() == gin.ReleaseMode {
+				clearAccess.Secure = true
+				clearRefresh.Secure = true
+			}
+			http.SetCookie(c.Writer, clearAccess)
+			http.SetCookie(c.Writer, clearRefresh)
+			c.JSON(http.StatusOK, gin.H{"message": "リフレッシュトークンを破棄しました"})
+			return
+		}
+
+		// DB撤回
+		if err := RevokeRefreshByRaw(c.Request.Context(), q, cookie.Value); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+
+			} else {
+				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				c.Abort()
+				return
+			}
+		}
+
+		// Cookie削除
+		clearAccess := &http.Cookie{
+			Name:     "access_token",
+			Value:    "",
+			HttpOnly: true,
+			Path:     "/",
+			MaxAge:   -1,
+			SameSite: http.SameSiteLaxMode,
+		}
+		clearRefresh := &http.Cookie{
+			Name:     "refresh_token",
+			Value:    "",
+			HttpOnly: true,
+			Path:     "/api/refresh",
+			MaxAge:   -1,
+			SameSite: http.SameSiteStrictMode,
+		}
+		if gin.Mode() == gin.ReleaseMode {
+			clearAccess.Secure = true
+			clearRefresh.Secure = true
+		}
+		http.SetCookie(c.Writer, clearAccess)
+		http.SetCookie(c.Writer, clearRefresh)
+		c.JSON(http.StatusOK, gin.H{"message": "リフレッシュトークンを破棄しました"})
 	}
 }

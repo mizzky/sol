@@ -272,3 +272,77 @@ func TestRefreshTokenHandler_Errros(t *testing.T) {
 		})
 	}
 }
+
+func TestRevokeRefreshHandler_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	mockDB := new(testutil.MockDB)
+
+	oldRefresh := strings.Repeat("a", 64)
+	sum := sha256.Sum256([]byte(oldRefresh))
+	oldHash := hex.EncodeToString(sum[:])
+
+	mockDB.On("RevokeRefreshTokenByHash", mock.Anything, oldHash).Return(nil)
+
+	router.POST("/api/refresh/revoke", handler.RevokeRefreshHandler(mockDB))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/refresh/revoke", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  "refresh_token",
+		Value: oldRefresh,
+		Path:  "/api/refresh",
+	})
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	resp := w.Result()
+	cookies := resp.Cookies()
+	var accessCookie, refreshCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "access_token" {
+			accessCookie = c
+		}
+		if c.Name == "refresh_token" {
+			refreshCookie = c
+		}
+	}
+
+	assert.NotNil(t, accessCookie)
+	assert.NotNil(t, refreshCookie)
+	assert.Equal(t, "", accessCookie.Value)
+	assert.Equal(t, "", refreshCookie.Value)
+	assert.Equal(t, -1, accessCookie.MaxAge)
+	assert.Equal(t, -1, refreshCookie.MaxAge)
+	assert.Equal(t, "/", accessCookie.Path)
+	assert.Equal(t, "/api/refresh", refreshCookie.Path)
+
+	mockDB.AssertExpectations(t)
+}
+
+func TestRevokeRefreshHandler_DBError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	mockDB := new(testutil.MockDB)
+
+	oldRefresh := strings.Repeat("a", 64)
+	sum := sha256.Sum256([]byte(oldRefresh))
+	oldHash := hex.EncodeToString(sum[:])
+
+	mockDB.On("RevokeRefreshTokenByHash", mock.Anything, oldHash).Return(errors.New("db error"))
+
+	router.POST("/api/refresh/revoke", handler.RevokeRefreshHandler(mockDB))
+
+	req := httptest.NewRequest(http.MethodPost, "/api/refresh/revoke", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  "refresh_token",
+		Value: oldRefresh,
+		Path:  "/api/refresh",
+	})
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	mockDB.AssertExpectations(t)
+}

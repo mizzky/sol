@@ -76,7 +76,26 @@ func TestLoginUserHandler(t *testing.T) {
 				assert.NoError(t, err)
 				user := response["user"].(map[string]interface{})
 				assert.Equal(t, "test@example.com", user["email"])
-				assert.NotNil(t, response["token"])
+
+				resp := w.Result()
+				cookies := resp.Cookies()
+				var accessFound, refreshFound bool
+				for _, c := range cookies {
+					if c.Name == "access_token" {
+						accessFound = true
+						assert.NotEmpty(t, c.Value)
+						assert.True(t, c.HttpOnly)
+						assert.Equal(t, "/", c.Path)
+					}
+					if c.Name == "refresh_token" {
+						refreshFound = true
+						assert.NotEmpty(t, c.Value)
+						assert.True(t, c.HttpOnly)
+						assert.Equal(t, "/api/refresh", c.Path)
+					}
+				}
+				assert.True(t, accessFound, "access_token cookie not set")
+				assert.True(t, refreshFound, "refresh_token cookie not set")
 			},
 		},
 		{

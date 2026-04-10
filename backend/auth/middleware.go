@@ -16,20 +16,12 @@ import (
 
 func AdminOnly(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		tokenStr, err := tokenFromRequest(c)
+		if err != nil {
 			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
 			c.Abort()
 			return
 		}
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
-			c.Abort()
-			return
-		}
-		tokenStr := parts[1]
-
 		token, err := Validate(tokenStr)
 		if err != nil || token == nil || !token.Valid {
 			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
@@ -91,20 +83,12 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 
 func RequireAuth(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		tokenStr, err := tokenFromRequest(c)
+		if err != nil {
 			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
 			c.Abort()
 			return
 		}
-
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
-			c.Abort()
-			return
-		}
-		tokenStr := parts[1]
 
 		token, err := Validate(tokenStr)
 		if err != nil || token == nil || !token.Valid {
@@ -165,4 +149,18 @@ func RequireAuth(queries db.Querier) gin.HandlerFunc {
 		c.Set("userID", user.ID)
 		c.Next()
 	}
+}
+
+func tokenFromRequest(c *gin.Context) (string, error) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+			return parts[1], nil
+		}
+	}
+	if cookie, err := c.Request.Cookie("access_token"); err == nil {
+		return cookie.Value, nil
+	}
+	return "", errors.New("no token")
 }

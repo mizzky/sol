@@ -281,6 +281,7 @@ func TestAdminOnly(t *testing.T) {
 		authHeader     string
 		validateFunc   func(string) (*jwt.Token, error)
 		expectedStatus int
+		cookieValue    string
 	}{
 		{
 			name:           "トークン無し->401",
@@ -388,6 +389,18 @@ func TestAdminOnly(t *testing.T) {
 			validateFunc:   nil,
 			expectedStatus: http.StatusUnauthorized,
 		},
+		{
+			name:        "cookie admin -> 204",
+			authHeader:  "",
+			cookieValue: "cookie-valid-admin",
+			validateFunc: func(ts string) (*jwt.Token, error) {
+				if ts == "cookie-valid-admin" {
+					return &jwt.Token{Valid: true, Claims: jwt.MapClaims{"user.id": float64(1)}}, nil
+				}
+				return nil, fmt.Errorf("invalid")
+			},
+			expectedStatus: http.StatusNoContent,
+		},
 	}
 
 	for _, tt := range tests {
@@ -414,6 +427,9 @@ func TestAdminOnly(t *testing.T) {
 			if tt.authHeader != "" {
 				req.Header.Set("Authorization", tt.authHeader)
 			}
+			if tt.cookieValue != "" {
+				req.AddCookie(&http.Cookie{Name: "access_token", Value: tt.cookieValue})
+			}
 			w := httptest.NewRecorder()
 			localRouter.ServeHTTP(w, req)
 			assert.Equal(t, tt.expectedStatus, w.Code)
@@ -439,6 +455,7 @@ func TestRequireAuth(t *testing.T) {
 		setupMock      func(m *testutil.MockDB)
 		validateStub   func(string) (*jwt.Token, error)
 		authHeader     string
+		cookieValue    string
 		expectedStatus int
 		expectedUserID interface{}
 	}{
@@ -512,6 +529,17 @@ func TestRequireAuth(t *testing.T) {
 			authHeader:     "Bearer t3",
 			expectedStatus: http.StatusInternalServerError,
 		},
+		{
+			name: "cookie authroized",
+			setupMock: func(m *testutil.MockDB) {
+				m.On("GetUserForUpdate", mock.Anything, int64(42)).Return(db.User{ID: 42, Name: "u"}, nil)
+			},
+			validateStub:   func(s string) (*jwt.Token, error) { return makeTokenWithClaim(int64(42)), nil },
+			authHeader:     "",
+			cookieValue:    "cookie-valid",
+			expectedStatus: http.StatusOK,
+			expectedUserID: float64(42),
+		},
 	}
 
 	for _, tt := range tests {
@@ -536,6 +564,9 @@ func TestRequireAuth(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 			if tt.authHeader != "" {
 				req.Header.Set("Authorization", tt.authHeader)
+			}
+			if tt.cookieValue != "" {
+				req.AddCookie(&http.Cookie{Name: "access_token", Value: tt.cookieValue})
 			}
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)

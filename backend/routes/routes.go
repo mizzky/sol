@@ -43,5 +43,6 @@ func SetupRoutes(r *gin.Engine, conn *sql.DB, queries *db.Queries) {
 
 		api.POST("/refresh", handler.RefreshTokenHandler(queries, tokenGenerator))
 		api.POST("/logout", handler.LogoutHandler(queries))
+		api.POST("/refresh/revoke", handler.RevokeRefreshHandler(queries))
 	}
 }
