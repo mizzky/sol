@@ -9,8 +9,8 @@ import Button from "./ui/Button";
 
 export default function Header() {
   const router = useRouter();
-  const { token, user, logout } = useAuthStore();
-  const isLoggedIn = !!token && !!user;
+  const { isAuthenticated, user, logout } = useAuthStore();
+  const isLoggedIn = isAuthenticated && !!user;
   const isAdmin = user?.role === "admin";
   const totalQuantity = useCartStore((s) => s.totalQuantity);
 

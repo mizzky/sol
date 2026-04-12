@@ -21,7 +21,7 @@ export default function AuthLoader() {
         }
 
         const cartState = useCartStore.getState();
-        if (useAuthStore.getState().token) {
+        if (useAuthStore.getState().isAuthenticated) {
           await cartState.syncCart();
           return;
         }

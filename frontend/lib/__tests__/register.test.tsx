@@ -13,22 +13,20 @@ jest.mock("next/navigation", () => ({
 jest.mock("../../store/useAuthStore", () => {
   const mock = (selector: (s: any) => any) =>
     selector({
-      token: null,
+      isAuthenticated: false,
       user: null,
       register: mockRegister,
       login: jest.fn(),
-      setToken: jest.fn(),
       setUser: jest.fn(),
       logout: jest.fn(),
       loadFromStorage: jest.fn(),
     });
   
   mock.getState = () => ({
-    token: null,
+    isAuthenticated: false,
     user: null,
     register: mockRegister,
     login: jest.fn(),
-    setToken: jest.fn(),
     setUser: jest.fn(),
     logout: jest.fn(),
     loadFromStorage: jest.fn(),

@@ -18,7 +18,7 @@ describe("Header Component", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    useAuthStore.setState({ token: null, user: null });
+    useAuthStore.setState({ isAuthenticated: false, user: null });
     useCartStore.getState().resetCart();
     localStorage.clear();
   });
@@ -37,7 +37,7 @@ describe("Header Component", () => {
   describe("ログイン時（member）", () => {
     beforeEach(() => {
       useAuthStore.setState({
-        token: "test-token",
+        isAuthenticated: true,
         user: {
           id: 1,
           name: "Test User",
@@ -63,7 +63,7 @@ describe("Header Component", () => {
   describe("ログイン時（admin）", () => {
     beforeEach(() => {
       useAuthStore.setState({
-        token: "test-token",
+        isAuthenticated: true,
         user: {
           id: 2,
           name: "Admin User",
@@ -87,7 +87,7 @@ describe("Header Component", () => {
   describe("ログアウト機能", () => {
     beforeEach(() => {
       useAuthStore.setState({
-        token: "test-token",
+        isAuthenticated: true,
         user: {
           id: 1,
           name: "Test User",
@@ -97,15 +97,14 @@ describe("Header Component", () => {
       });
     });
 
-    it("ログアウトボタンクリックで認証情報がクリアされる", () => {
+    it("ログアウトボタンクリックで認証状態がクリアされる", () => {
       render(<Header />);
 
       const logoutButton = screen.getByText(/Logout/i);
       fireEvent.click(logoutButton);
 
-      expect(useAuthStore.getState().token).toBeNull();
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
       expect(useAuthStore.getState().user).toBeNull();
-      expect(localStorage.getItem("auth_token")).toBeNull();
     });
 
     it("ログアウト後にホームページにリダイレクトされる", () => {

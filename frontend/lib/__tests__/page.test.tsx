@@ -2,11 +2,8 @@ import React from "react";
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LoginPage from "../../app/login/page";
-import * as api from "../../lib/api";
 
 const mockPush = jest.fn();
-const mockSetToken = jest.fn();
-const mockSetUser = jest.fn();
 const mockLogin = jest.fn();
 const mockRegister = jest.fn();
 const mockLogout = jest.fn();
@@ -20,10 +17,9 @@ jest.mock("../../store/useAuthStore", () => {
   // Return a function that accepts a selector and invokes it with a full AuthState-like object
   const mock = (selector: (s: any) => any) =>
     selector({
-      token: null,
+      isAuthenticated: false,
       user: null,
-      setToken: mockSetToken,
-      setUser: mockSetUser,
+      setUser: jest.fn(),
       login: mockLogin,
       register: mockRegister,
       logout: mockLogout,
@@ -32,10 +28,9 @@ jest.mock("../../store/useAuthStore", () => {
 
   // getState() を呼び出すための実装
   mock.getState = () => ({
-    token: null,
+    isAuthenticated: false,
     user: null,
-    setToken: mockSetToken,
-    setUser: mockSetUser,
+    setUser: jest.fn(),
     login: mockLogin,
     register: mockRegister,
     logout: mockLogout,
