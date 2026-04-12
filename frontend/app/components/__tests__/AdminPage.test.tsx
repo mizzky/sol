@@ -16,7 +16,7 @@ describe("Admin Page (protected)", () => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     useAuthStore.setState({
-      token: null,
+      isAuthenticated: false,
       user: null,
       loadFromStorage: jest.fn(async () => {}),
       logout: jest.fn(),
@@ -41,7 +41,7 @@ describe("Admin Page (protected)", () => {
 
   it("ログイン（member）の場合は / にリダイレクトされる", async () => {
     useAuthStore.setState({
-      token: "t",
+      isAuthenticated: true,
       user: { id: 1, name: "Member", email: "m@e", role: "member" },
       loadFromStorage: jest.fn(async () => {}),
       logout: jest.fn(),
@@ -63,7 +63,7 @@ describe("Admin Page (protected)", () => {
 
   it("ログイン（admin）の場合はコンテンツが表示される", async () => {
     useAuthStore.setState({
-      token: "t",
+      isAuthenticated: true,
       user: { id: 2, name: "Admin", email: "a@e", role: "admin" },
       loadFromStorage: jest.fn(async () => {}),
       logout: jest.fn(),

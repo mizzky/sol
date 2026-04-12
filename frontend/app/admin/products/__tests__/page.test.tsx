@@ -30,7 +30,7 @@ describe("AdminProductsPage", () => {
     jest.clearAllMocks();
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     useAuthStore.setState({
-      token: "admin-token",
+      isAuthenticated: true,
       user: { id: 1, name: "Admin", email: "admin@example.com", role: "admin" },
       loadFromStorage: jest.fn(async () => {}),
       logout: jest.fn(),

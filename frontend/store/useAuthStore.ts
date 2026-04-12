@@ -1,5 +1,11 @@
 import { create } from "zustand";
-import {API_URL, login as apiLogin, register as apiRegister } from "../lib/api";
+import {
+  API_URL,
+  fetchWithAuth,
+  login as apiLogin,
+  register as apiRegister,
+  revokeRefreshToken,
+} from "../lib/api";
 import { useCartStore } from "./useCartStore";
 
 export interface User {
@@ -10,9 +16,8 @@ export interface User {
 }
 
 interface AuthState {
-  token: string | null;
+  isAuthenticated: boolean;
   user: User | null;
-  setToken: (token: string | null) => void;
   setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
@@ -20,39 +25,18 @@ interface AuthState {
   loadFromStorage: () => Promise<void>;
 }
 
-const STORAGE_KEY = "auth_token";
-
 export const useAuthStore = create<AuthState>((set) => ({
-  token: null,
+  isAuthenticated: false,
   user: null,
-  setToken: (token) => {
-    if (typeof window !== "undefined") {
-      if (token) localStorage.setItem(STORAGE_KEY, token);
-      else localStorage.removeItem(STORAGE_KEY);
-    }
-    set({ token: token ?? null });
-  },
   setUser: (user) => {
-    if (typeof window !== "undefined") {
-      try {
-        if (user) localStorage.setItem("auth_user", JSON.stringify(user));
-        else localStorage.removeItem("auth_user");
-      } catch {}
-    }
-    set({ user: user ?? null });
+    set({ user: user ?? null, isAuthenticated: Boolean(user) });
   },
   login: async (email: string, password: string) => {
     try {
       const response = await apiLogin(email, password);
-      const token = response.token;
       const user = response.user;
-      
-      set({ token, user });
-      
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEY, token);
-        localStorage.setItem("auth_user", JSON.stringify(user));
-      }
+
+      set({ isAuthenticated: true, user });
     } catch (error) {
       // エラーをそのまま再throw（呼び出し側でハンドリング）
       throw error;
@@ -67,44 +51,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
   logout: () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem("auth_user");
-    }
     useCartStore.getState().resetCart();
-    set({ token: null, user: null });
+    set({ isAuthenticated: false, user: null });
+    void revokeRefreshToken().catch(() => {
+      // クライアント状態クリアを優先する
+    });
   },
   loadFromStorage: async () => {
-    if (typeof window === "undefined") return;
-    const token = localStorage.getItem(STORAGE_KEY);
-    if (!token) return;
-    set({ token });
-    // Try server-side restore via /api/me
     try {
-      const res = await fetch(`${API_URL}/api/me`, {
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      const res = await fetchWithAuth(`${API_URL}/api/me`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
       });
-      if (res.ok) {
-        const payload = await res.json();
-        const user = payload.user ?? payload;
-        set({ user });
-        try {
-          localStorage.setItem("auth_user", JSON.stringify(user));
-        } catch {}
-        return;
-      }
+
+      const payload = await res.json();
+      const user = payload.user ?? payload;
+      set({ isAuthenticated: true, user });
     } catch {
-      // ignore network errors and fallback to localStorage
-    }
-    // Fallback: restore user from localStorage if available
-    try {
-      const raw = localStorage.getItem("auth_user");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        set({ user: parsed });
-      }
-    } catch {
-      // ignore
+      set({ isAuthenticated: false, user: null });
     }
   },
 }));

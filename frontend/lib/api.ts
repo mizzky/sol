@@ -5,14 +5,14 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? ""
 export type ApiError = { status: number } & Record<string, unknown>;
 
 export interface LoginResponse {
-    message?: string;
-    token: string;
-    user: {
-        id: number;
-        name: string;
-        email: string;
-        role: "admin" | "member";
-    };
+  message?: string;
+  token?: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: "admin" | "member";
+  };
 }
 
 export interface Product {
@@ -173,16 +173,26 @@ function normalizeOrderWithItems(raw: unknown): OrderWithItems {
 }
 
 /**
- * 認証付きfetch共通関数
- * localStorageからトークンを自動的に取得してAuthorizationヘッダーに付与
- * 401エラー時は自動的にログアウトを実行
+ * Cookie認証用の共通fetch。
+ * 401時はrefreshを1回だけ試行して、成功したら元のリクエストを再実行する。
  */
-export async function fetchWithAuth(
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+async function refreshSession(): Promise<boolean> {
+  const res = await fetch(`${API_URL}/api/refresh`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+    },
+    credentials: "include",
+  });
 
+  return res.ok;
+}
+
+async function fetchWithAuthInternal(
+  url: string,
+  options: RequestInit = {},
+  retryOnUnauthorized = true,
+): Promise<Response> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -193,17 +203,25 @@ export async function fetchWithAuth(
     Object.assign(headers, existingHeaders);
   }
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: "include",
   });
 
-  // 401エラー時は自動ログアウト
+  // 401時はrefreshを一度だけ試行
   if (response.status === 401) {
+    if (retryOnUnauthorized) {
+      try {
+        const refreshed = await refreshSession();
+        if (refreshed) {
+          return fetchWithAuthInternal(url, options, false);
+        }
+      } catch {
+        // refresh失敗時は通常の未認証フローへ
+      }
+    }
+
     // 動的インポートで循環参照を回避
     if (typeof window !== "undefined") {
       const { useAuthStore } = await import("../store/useAuthStore");
@@ -217,10 +235,18 @@ export async function fetchWithAuth(
   return response;
 }
 
+export async function fetchWithAuth(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  return fetchWithAuthInternal(url, options, true);
+}
+
 export async function getProducts(): Promise<Product[]> {
   const res = await fetch(`${API_URL}/api/products`, {
     method: "GET",
     headers: { Accept: "application/json" },
+    credentials: "include",
   });
   const data = await parseJsonSafe<{ products?: Product[] }>(res);
   if (!res.ok) {
@@ -238,6 +264,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
       Accept: "application/json",
     },
     body: JSON.stringify({ email, password }),
+    credentials: "include",
   });
   const data = await parseJsonSafe<LoginResponse>(res);
   if (!res.ok) {
@@ -259,6 +286,7 @@ export async function register(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password }),
+    credentials: "include",
   });
 
   if (!res.ok) {
@@ -286,6 +314,7 @@ export async function getProductById(productId: number): Promise<Product> {
   const response = await fetch(`${API_URL}/api/products/${productId}`, {
     method: "GET",
     headers: { Accept: "application/json" },
+    credentials: "include",
   });
 
   const data = await parseJsonSafe<Product>(response);
@@ -326,6 +355,7 @@ export async function getCategories(): Promise<Category[]> {
   const response = await fetch(`${API_URL}/api/categories`, {
     method: "GET",
     headers: { Accept: "application/json" },
+    credentials: "include",
   });
 
   const data = await parseJsonSafe<CategoriesResponse>(response);
@@ -509,6 +539,22 @@ export async function clearCart(): Promise<void> {
   const res = await fetchWithAuth(`${API_URL}/api/cart`, {
     method: "DELETE",
   });
+  if (!res.ok) {
+    const data = await parseJsonSafe<Record<string, unknown>>(res);
+    const payload = data as Record<string, unknown>;
+    throw { status: res.status, ...payload } as ApiError;
+  }
+}
+
+export async function revokeRefreshToken(): Promise<void> {
+  const res = await fetch(`${API_URL}/api/refresh/revoke`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+    },
+    credentials: "include",
+  });
+
   if (!res.ok) {
     const data = await parseJsonSafe<Record<string, unknown>>(res);
     const payload = data as Record<string, unknown>;

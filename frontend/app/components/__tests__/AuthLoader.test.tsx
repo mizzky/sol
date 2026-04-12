@@ -5,12 +5,12 @@ import AuthLoader from "../AuthLoader";
 const mockLoad = jest.fn();
 const mockSyncCart = jest.fn();
 const mockResetCart = jest.fn();
-const authState = { token: null as string | null };
+const authState = { isAuthenticated: false };
 
 jest.mock("../../../store/useAuthStore", () => ({
   __esModule: true,
   default: {
-    getState: () => ({ loadFromStorage: mockLoad, token: authState.token }),
+    getState: () => ({ loadFromStorage: mockLoad, isAuthenticated: authState.isAuthenticated }),
   },
 }));
 
@@ -24,7 +24,7 @@ jest.mock("../../../store/useCartStore", () => ({
 describe("AuthLoader", () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    authState.token = null;
+    authState.isAuthenticated = false;
   });
 
   it("calls loadFromStorage on mount", () => {
@@ -32,9 +32,9 @@ describe("AuthLoader", () => {
     expect(mockLoad).toHaveBeenCalled();
   });
 
-  it("syncs cart when token is restored", async () => {
+  it("syncs cart when auth is restored", async () => {
     mockLoad.mockImplementation(async () => {
-      authState.token = "restored-token";
+      authState.isAuthenticated = true;
     });
 
     render(<AuthLoader />);
@@ -44,7 +44,7 @@ describe("AuthLoader", () => {
     expect(mockResetCart).not.toHaveBeenCalled();
   });
 
-  it("resets cart when no token is available", async () => {
+  it("resets cart when auth is not available", async () => {
     mockLoad.mockResolvedValue(undefined);
 
     render(<AuthLoader />);
@@ -55,7 +55,7 @@ describe("AuthLoader", () => {
 
   it("resets cart when syncCart fails", async () => {
     mockLoad.mockImplementation(async () => {
-      authState.token = "restored-token";
+      authState.isAuthenticated = true;
     });
     mockSyncCart.mockRejectedValue(new Error("sync failed"));
 

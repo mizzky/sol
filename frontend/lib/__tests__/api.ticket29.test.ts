@@ -15,7 +15,6 @@ import {
 describe("ticket29 api functions", () => {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem("auth_token", "test-token");
     jest.resetAllMocks();
   });
 

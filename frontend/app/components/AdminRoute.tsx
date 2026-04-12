@@ -7,7 +7,7 @@ type Props = { children: React.ReactNode };
 
 export default function AdminRoute({ children }: Props) {
   const router = useRouter();
-  const { token, user, loadFromStorage, logout } = useAuthStore();
+  const { isAuthenticated, user, loadFromStorage, logout } = useAuthStore();
   const [restoring, setRestoring] = useState<boolean>(true);
 
   useEffect(() => {
@@ -32,13 +32,13 @@ export default function AdminRoute({ children }: Props) {
   useEffect(() => {
     if (restoring) return;
 
-    if (!token) {
+    if (!isAuthenticated) {
       router.push("/login");
       return;
     }
 
     if (!user) {
-      logout();
+      void logout();
       router.push("/login");
       return;
     }
@@ -47,9 +47,9 @@ export default function AdminRoute({ children }: Props) {
       router.push("/");
       return;
     }
-  }, [restoring, token, user, router, logout]);
+  }, [restoring, isAuthenticated, user, router, logout]);
 
   if (restoring) return null;
-  if (!token || !user || user.role !== "admin") return null;
+  if (!isAuthenticated || !user || user.role !== "admin") return null;
   return <>{children}</>;
 }

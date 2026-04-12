@@ -3,7 +3,6 @@ import { addToCart, getCart, updateCartItem } from "../api";
 describe("cart api", () => {
   beforeEach(() => {
     localStorage.clear();
-    localStorage.setItem("auth_token", "test-token");
     jest.resetAllMocks();
   });
 

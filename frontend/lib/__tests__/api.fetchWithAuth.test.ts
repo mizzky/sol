@@ -4,13 +4,11 @@ import useAuthStore from "../../store/useAuthStore";
 describe("fetchWithAuth", () => {
   beforeEach(() => {
     localStorage.clear();
-    useAuthStore.setState({ token: null, user: null });
+    useAuthStore.setState({ isAuthenticated: false, user: null });
     jest.resetAllMocks();
   });
 
-  it("トークンあり: Authorizationヘッダが自動付与される", async () => {
-    localStorage.setItem("auth_token", "test-token-123");
-
+  it("credentials: include でリクエストされる", async () => {
     global.fetch = jest.fn(() =>
       Promise.resolve({
         ok: true,
@@ -23,32 +21,46 @@ describe("fetchWithAuth", () => {
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/products"),
       expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: "Bearer test-token-123",
-        }),
+        credentials: "include",
       }),
     );
   });
 
-  it("トークンなし: Authorizationヘッダが付与されない", async () => {
-    global.fetch = jest.fn(() =>
-      Promise.resolve({
+  it("401時: refresh成功なら元リクエストを再試行する", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: "Unauthorized" }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        json: async () => ({}),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => ({ success: true }),
-      }) as unknown as Response,
-    ) as unknown as typeof global.fetch;
+      } as unknown as Response) as unknown as typeof global.fetch;
 
-    await fetchWithAuth("/api/products", { method: "GET" });
+    const res = await fetchWithAuth("/api/products", { method: "GET" });
 
-    const callArgs = (global.fetch as jest.Mock).mock.calls[0];
-    const headers = callArgs[1]?.headers || {};
-    
-    expect(headers.Authorization).toBeUndefined();
+    expect(res.ok).toBe(true);
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("/api/refresh"),
+      expect.objectContaining({ method: "POST", credentials: "include" }),
+    );
+    expect((global.fetch as jest.Mock).mock.calls).toHaveLength(3);
   });
 
-  it("401エラー: 自動ログアウトが実行される", async () => {
-    localStorage.setItem("auth_token", "expired-token");
-    useAuthStore.getState().setToken("expired-token");
+  it("401時: refresh失敗ならログアウトされる", async () => {
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { id: 1, name: "User", email: "u@example.com", role: "member" },
+    });
 
     global.fetch = jest.fn(() =>
       Promise.resolve({
@@ -58,17 +70,24 @@ describe("fetchWithAuth", () => {
       }) as unknown as Response,
     ) as unknown as typeof global.fetch;
 
-    await expect(
-      fetchWithAuth("/api/products", { method: "GET" }),
-    ).rejects.toThrow("認証が必要です");
+    await expect(fetchWithAuth("/api/products", { method: "GET" })).rejects.toThrow(
+      "認証が必要です",
+    );
 
-    // ログアウトが実行されたことを確認
-    expect(useAuthStore.getState().token).toBeNull();
-    expect(localStorage.getItem("auth_token")).toBeNull();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().user).toBeNull();
   });
 
   it("正常系: レスポンスを返す", async () => {
-    localStorage.setItem("auth_token", "valid-token");
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+      }) as unknown as Response,
+    ) as unknown as typeof global.fetch;
+
+    await fetchWithAuth("/api/products", { method: "GET" });
 
     const mockData = { id: 1, name: "Product" };
     global.fetch = jest.fn(() =>

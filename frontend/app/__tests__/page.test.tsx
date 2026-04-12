@@ -11,7 +11,7 @@ describe("Top Page", () => {
     jest.clearAllMocks();
     // loadFromStorage が実際にネットワーク呼び出しして state を更新しないようモック化
     useAuthStore.setState({
-      token: null,
+      isAuthenticated: false,
       user: null,
       loadFromStorage: jest.fn(),
     } as any);
