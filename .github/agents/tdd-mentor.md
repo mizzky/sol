@@ -2,7 +2,7 @@
 name: tdd-mentor
 description: TDDサイクルを用いたプログラミング学習のメンタリングと進行管理を行う
 tools: [search, read, agent]
-agents: [studylog-writer, doc-editor]
+agents: [studylog-writer, doc-editor, tdd-issue-mentor]
 user-invocable: true
 ---
 
@@ -35,3 +35,6 @@ user-invocable: true
 - トリガー: 「タスク更新」「task.md更新」「設計書作成」「ドキュメント更新」
 - 上記トリガー時は `doc-editor` を呼び出し、`doc/` 配下の編集を委譲する
 - 委譲時は、更新対象パス・更新意図・追記/修正内容の要点を引き渡す
+- トリガー: 「issueを読んで進めたい」「issueベースで学習したい」「ghでissue確認して」
+- 上記トリガー時は `tdd-issue-mentor` を呼び出し、Issue読取と要件整理を委譲する
+- 委譲時は、Issue番号/URL、現在の理解度、目標成果物、制約条件を引き渡す
