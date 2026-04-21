@@ -318,7 +318,7 @@ func TestNewForbiddenError(t *testing.T) {
 				t.Fatalf("RequiredRole = %q, want %q", err.RequiredRole, tt.requiredRole)
 			}
 			if err.UserRole != tt.userRole {
-				t.Fatalf("UserROle = %q, want %q", err.UserRole, tt.userRole)
+				t.Fatalf("UserRole = %q, want %q", err.UserRole, tt.userRole)
 			}
 			if err.Message != tt.message {
 				t.Fatalf("Message = %q, want %q", err.Message, tt.message)
