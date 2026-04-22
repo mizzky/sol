@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/respond"
 	"strconv"
 
@@ -27,12 +28,12 @@ func CreateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 		var req CreateCategoryHandlerRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
 			return
 		}
 
 		if req.Name == "" {
-			respond.RespondError(c, http.StatusBadRequest, "カテゴリ名は必須です")
+			respond.RespondWithError(c, apperror.NewValidationError("category", nil, "", ""))
 			return
 		}
 
@@ -49,7 +50,7 @@ func CreateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 			Description: description,
 		})
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("CreateCategory", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -77,18 +78,18 @@ func UpdateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "IDが正しくありません")
+			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 
 		var req UpdateCategoryHandlerRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
 			return
 		}
 
 		if req.Name == nil || *req.Name == "" {
-			respond.RespondError(c, http.StatusBadRequest, "カテゴリ名は必須です")
+			respond.RespondWithError(c, apperror.NewValidationError("category", nil, "", ""))
 			return
 		}
 
@@ -107,9 +108,9 @@ func UpdateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 		})
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondError(c, http.StatusNotFound, "カテゴリが見つかりません")
+				respond.RespondWithError(c, apperror.NewNotFoundError("category", id, ""))
 			} else {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondWithError(c, apperror.NewInternalError("UpdateCategory", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -132,7 +133,7 @@ func GetCategoriesHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		categories, err := queries.ListCategories(c.Request.Context())
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("ListCategories", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		resp := make([]CategoryResponse, 0, len(categories))
@@ -156,16 +157,16 @@ func DeleteCategoryHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "IDが正しくありません")
+			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 
 		respErr := queries.DeleteCategory(c.Request.Context(), int64(id))
 		if respErr != nil {
 			if respErr == sql.ErrNoRows {
-				respond.RespondError(c, http.StatusNotFound, "カテゴリが見つかりません")
+				respond.RespondWithError(c, apperror.NewNotFoundError("category", id, ""))
 			} else {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondWithError(c, apperror.NewInternalError("DeleteCategory", respErr, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
