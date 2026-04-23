@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/respond"
 
 	"github.com/gin-gonic/gin"
@@ -50,7 +51,7 @@ func LogoutHandler(queries db.Querier) gin.HandlerFunc {
 			if errors.Is(err, sql.ErrNoRows) {
 
 			} else {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondWithError(c, apperror.NewInternalError("RevokeRefreshTokenByHash", err, apperror.InternalServerMessageCommon))
 				c.Abort()
 				return
 			}
