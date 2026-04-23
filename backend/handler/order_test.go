@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ func TestCreateOrderLogic(t *testing.T) {
 		userID      int64
 		setupMock   func(*testutil.MockDB)
 		expectedErr string
+		checkErr    func(*testing.T, error)
 	}{
 		{
 			name:   "U1: 単一商品の注文作成",
@@ -230,7 +232,11 @@ func TestCreateOrderLogic(t *testing.T) {
 				m.On("ListCartItemsByUser", mock.Anything, int64(1)).Return(
 					[]db.ListCartItemsByUserRow{}, nil)
 			},
-			expectedErr: "カートが空です",
+			checkErr: func(t *testing.T, err error) {
+				var ve *apperror.ValidationError
+				assert.True(t, errors.As(err, &ve))
+				assert.Equal(t, "cart", ve.Field)
+			},
 		},
 		{
 			name:   "U5：カート内の商品が削除されている",
@@ -263,7 +269,11 @@ func TestCreateOrderLogic(t *testing.T) {
 				m.On("GetProductForUpdate", mock.Anything, int64(999)).Return(
 					db.Product{}, sql.ErrNoRows)
 			},
-			expectedErr: "商品が見つかりません",
+			checkErr: func(t *testing.T, err error) {
+				var ne *apperror.NotFoundError
+				assert.True(t, errors.As(err, &ne))
+				assert.Equal(t, "product", ne.Resource)
+			},
 		},
 		{
 			name:   "U6：在庫不足",
@@ -308,7 +318,11 @@ func TestCreateOrderLogic(t *testing.T) {
 						UpdatedAt:     now,
 					}, nil)
 			},
-			expectedErr: "在庫不足です",
+			checkErr: func(t *testing.T, err error) {
+				var ce *apperror.ConflictError
+				assert.True(t, errors.As(err, &ce))
+				assert.Equal(t, "qty", ce.Field)
+			},
 		},
 		{
 			name:   "U7：DB Error CreateOrder",
@@ -495,7 +509,10 @@ func TestCreateOrderLogic(t *testing.T) {
 			ctx := context.Background()
 			order, err := createOrderLogic(ctx, mockDB, tt.userID)
 
-			if tt.expectedErr != "" {
+			if tt.checkErr != nil {
+				assert.Error(t, err, tt.name)
+				tt.checkErr(t, err)
+			} else if tt.expectedErr != "" {
 				assert.Error(t, err, tt.name)
 				assert.Contains(t, err.Error(), tt.expectedErr)
 			} else {
@@ -516,6 +533,7 @@ func TestCancelOrderLogic(t *testing.T) {
 		userID      int64
 		setupMock   func(*testutil.MockDB)
 		expectedErr string
+		checkErr    func(*testing.T, error)
 	}{
 		{
 			name:    "U1:単一商品のキャンセル",
@@ -570,7 +588,11 @@ func TestCancelOrderLogic(t *testing.T) {
 				m.On("GetOrderByIDForUpdate", mock.Anything, int64(10)).Return(
 					db.GetOrderByIDForUpdateRow{}, sql.ErrNoRows)
 			},
-			expectedErr: "注文が見つかりません",
+			checkErr: func(t *testing.T, err error) {
+				var ne *apperror.NotFoundError
+				assert.True(t, errors.As(err, &ne))
+				assert.Equal(t, "order", ne.Resource)
+			},
 		},
 		{
 			name:    "U4:他ユーザーの注文",
@@ -581,7 +603,11 @@ func TestCancelOrderLogic(t *testing.T) {
 				m.On("GetOrderByIDForUpdate", mock.Anything, int64(11)).Return(
 					db.GetOrderByIDForUpdateRow{ID: 11, UserID: 1, Total: 1000, Status: "pending", CreatedAt: now, UpdatedAt: now}, nil)
 			},
-			expectedErr: "注文が見つかりません",
+			checkErr: func(t *testing.T, err error) {
+				var ne *apperror.NotFoundError
+				assert.True(t, errors.As(err, &ne))
+				assert.Equal(t, "order", ne.Resource)
+			},
 		},
 		{
 			name:    "U5: キャンセル済み",
@@ -639,7 +665,10 @@ func TestCancelOrderLogic(t *testing.T) {
 				tt.setupMock(mockDB)
 			}
 			result, err := cancelOrderLogic(context.Background(), mockDB, tt.orderID, tt.userID)
-			if tt.expectedErr == "" {
+			if tt.checkErr != nil {
+				assert.Error(t, err, tt.name)
+				tt.checkErr(t, err)
+			} else if tt.expectedErr == "" {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
 			} else {
