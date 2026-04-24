@@ -48,5 +48,7 @@ const (
 	ForbiddenMessageAdmin   = "管理者権限が必要です"
 
 	// 500
-	InternalServerMessageCommon = "予期せぬエラーが発生しました"
+	InternalServerMessageCommon   = "予期せぬエラーが発生しました"
+	InternalServerMessageRefresh  = "リフレッシュトークンの保存に失敗しました"
+	InternalServerMessageGenToken = "トークンの生成に失敗しました"
 )
