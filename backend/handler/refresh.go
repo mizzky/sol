@@ -55,7 +55,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 
 		newRefresh, _, expiresAt, err := GenerateRefreshToken(c.Request.Context(), q, user.ID)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("GenerateRefresToken", err, apperror.InternalServerMessageRefresh))
+			respond.RespondWithError(c, apperror.NewInternalError("GenerateRefreshToken", err, apperror.InternalServerMessageRefresh))
 			c.Abort()
 			return
 		}
