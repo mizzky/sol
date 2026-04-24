@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/respond"
 	"time"
 
@@ -18,7 +19,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 	return func(c *gin.Context) {
 		cookie, err := c.Request.Cookie("refresh_token")
 		if err != nil {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("invalid_refresh_token", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		sum := sha256.Sum256([]byte(cookie.Value))
@@ -27,16 +28,16 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 		rt, err := q.GetRefreshTokenByHash(c.Request.Context(), hash)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth))
 			} else {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondWithError(c, apperror.NewInternalError("GetRefreshTokenByHash", err, apperror.InternalServerMessageCommon))
 			}
 			c.Abort()
 			return
 		}
 
 		if rt.RevokedAt.Valid || rt.ExpiresAt.Before(time.Now()) {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("refresh_token_revoked_alredy", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -44,9 +45,9 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 		user, err := q.GetUserByID(c.Request.Context(), rt.UserID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth))
 			} else {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondWithError(c, apperror.NewInternalError("GetUserByID", err, apperror.InternalServerMessageCommon))
 			}
 			c.Abort()
 			return
@@ -54,7 +55,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 
 		newRefresh, _, expiresAt, err := GenerateRefreshToken(c.Request.Context(), q, user.ID)
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "リフレッシュトークンの保存に失敗しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GenerateRefresToken", err, apperror.InternalServerMessageRefresh))
 			c.Abort()
 			return
 		}
@@ -63,7 +64,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 			if errors.Is(err, sql.ErrNoRows) {
 				// 存在しないトークンは無視
 			} else {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondWithError(c, apperror.NewInternalError("RevokeRefreshByRaw", err, apperror.InternalServerMessageCommon))
 				c.Abort()
 				return
 			}
@@ -71,7 +72,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 
 		accessToken, err := tokenGenerator.GenerateToken(user.ID)
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GenerateToken", err, apperror.InternalServerMessageGenToken))
 			c.Abort()
 			return
 		}
@@ -151,7 +152,7 @@ func RevokeRefreshHandler(q db.Querier) gin.HandlerFunc {
 			if errors.Is(err, sql.ErrNoRows) {
 
 			} else {
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+				respond.RespondWithError(c, apperror.NewInternalError("RevokeRefreshByRaw", err, apperror.InternalServerMessageCommon))
 				c.Abort()
 				return
 			}
