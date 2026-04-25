@@ -3,10 +3,10 @@ package handler
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/respond"
 	"sol_coffeesys/backend/pkg/validation"
 	"strconv"
@@ -29,7 +29,7 @@ var BcryptGenerateFromPassword = bcrypt.GenerateFromPassword
 func HashPassword(password string) (string, error) {
 	hashed, err := BcryptGenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("パスワードのハッシュ化に失敗しました: %w", err)
+		return "", apperror.NewInternalError("HashPassword", err, apperror.InternalServerMessagePassword)
 	}
 	return string(hashed), nil
 }
@@ -40,28 +40,30 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 		var req RegisterRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			c.Error(err)
+			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
 			return
 		}
 		// バリデーションチェック
 		if err := validation.ValidateRegisterRequest(req.Name, req.Email, req.Password); err != nil {
 			switch {
 			case errors.Is(err, validation.ErrInvalidName):
-				respond.RespondError(c, http.StatusBadRequest, "名前は必須です")
+				respond.RespondWithError(c, apperror.NewValidationError("name", nil, "", ""))
 			case errors.Is(err, validation.ErrInvalidEmail):
-				respond.RespondError(c, http.StatusBadRequest, "メールアドレスの形式が正しくありません")
+				respond.RespondWithError(c, apperror.NewValidationError("email", nil, "", ""))
 			case errors.Is(err, validation.ErrInvalidPassword):
-				respond.RespondError(c, http.StatusBadRequest, "パスワードの形式が正しくありません")
+				respond.RespondWithError(c, apperror.NewValidationError("password", nil, "", ""))
 			default:
 				c.Error(err)
-				respond.RespondError(c, http.StatusBadRequest, "入力が不正です")
+				respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
 			}
 			return
 		}
 
 		hashed, err := HashPassword(req.Password)
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "パスワードのハッシュ化に失敗しました")
+			c.Error(err)
+			respond.RespondWithError(c, err)
 			return
 		}
 
@@ -75,11 +77,11 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 			var pqErr *pq.Error
 			if errors.As(err, &pqErr) {
 				if pqErr.Code == "23505" {
-					respond.RespondError(c, http.StatusBadRequest, "このメールアドレスは既に登録されています")
+					respond.RespondWithError(c, apperror.NewValidationError("email", req.Email, "", apperror.ValidationMessageConflictedEmail))
 					return
 				}
 			}
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("CreateUser", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -98,42 +100,42 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			fmt.Printf("Bind Error: %v\n", err)
-			respond.RespondError(c, http.StatusBadRequest, "リクエスト形式が正しくありません")
+			c.Error(err)
+			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
 			return
 		}
 
 		// バリデーションチェック
 		if err := validation.ValidateEmail(req.Email); err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "メールアドレスの形式が正しくありません")
+			respond.RespondWithError(c, apperror.NewValidationError("email", nil, "", ""))
 			return
 		}
 		if err := validation.ValidatePassword(req.Password); err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "パスワードの形式が正しくありません")
+			respond.RespondWithError(c, apperror.NewValidationError("password", nil, "", ""))
 			return
 		}
 
 		user, err := q.GetUserByEmail(c.Request.Context(), req.Email)
 		if err != nil {
-			respond.RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageEmailOrPassword))
 			return
 		}
 		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 		if err != nil {
-			respond.RespondError(c, http.StatusUnauthorized, "メールアドレスまたはパスワードが正しくありません")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageEmailOrPassword))
 			return
 		}
 
 		token, err := tokenGenerator.GenerateToken(user.ID)
 		// token, err := auth.GenerateToken(int32(user.ID))
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "トークンの生成に失敗しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GenerateToken", err, apperror.InternalServerMessageGenToken))
 			return
 		}
 
 		refreshToken, _, expiresAt, err := GenerateRefreshToken(c.Request.Context(), q, user.ID)
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "リフレッシュトークンの保存に失敗しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GenerateRefreshToken", err, apperror.InternalServerMessageRefresh))
 			return
 		}
 
@@ -188,29 +190,29 @@ func SetUserRoleHandler(q db.Querier) gin.HandlerFunc {
 		idStr := c.Param("id")
 		userID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "無効なユーザーIDです")
+			respond.RespondWithError(c, apperror.NewValidationError("id", nil, "", ""))
 			return
 		}
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		adminID := raw.(int64)
 
 		if adminID == userID {
-			respond.RespondError(c, http.StatusBadRequest, "自分自身のロールは変更できません")
+			respond.RespondWithError(c, apperror.NewBusinessLogicError(apperror.BusinessLogicMessageRole))
 			return
 		}
 
 		var req SetUserRoleRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "リクエストが不正です")
+			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
 			return
 		}
 
 		if err := validation.ValidateRole(req.Role); err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "無効なロール")
+			respond.RespondWithError(c, apperror.NewValidationError("role", nil, "", ""))
 			return
 		}
 
@@ -220,10 +222,10 @@ func SetUserRoleHandler(q db.Querier) gin.HandlerFunc {
 		})
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondError(c, http.StatusNotFound, "ユーザーが見つかりません")
+				respond.RespondWithError(c, apperror.NewNotFoundError("user", userID, ""))
 				return
 			}
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("UpdateUserRole", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		c.JSON(http.StatusOK, user)

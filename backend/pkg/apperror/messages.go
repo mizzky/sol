@@ -51,4 +51,5 @@ const (
 	InternalServerMessageCommon   = "予期せぬエラーが発生しました"
 	InternalServerMessageRefresh  = "リフレッシュトークンの保存に失敗しました"
 	InternalServerMessageGenToken = "トークンの生成に失敗しました"
+	InternalServerMessagePassword = "パスワードのハッシュ化に失敗しました"
 )
