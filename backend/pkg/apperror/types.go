@@ -17,10 +17,14 @@ func NewValidationError(field string, value any, rule string, message string) *V
 			v = maskEmail(s)
 		}
 	}
+	var valueType string
+	if value != nil {
+		valueType = reflect.TypeOf(value).String()
+	}
 	return &ValidationError{
 		Field:     field,
 		Value:     v,
-		ValueType: reflect.TypeOf(value).String(),
+		ValueType: valueType,
 		Rule:      rule,
 		Message:   message,
 	}

@@ -388,7 +388,7 @@ func TestSetUserRoleHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusBadRequest,
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
-				assert.Equal(t, resp["error"], "無効なロール")
+				assert.Equal(t, resp["error"], "無効なロールです")
 			},
 		},
 		{
@@ -442,7 +442,7 @@ func TestSetUserRoleHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusBadRequest,
 			checkResponse: func(t *testing.T, resp map[string]interface{}) {
-				assert.Contains(t, resp["error"], "リクエストが不正です")
+				assert.Contains(t, resp["error"], "リクエスト形式が正しくありません")
 			},
 		},
 	}

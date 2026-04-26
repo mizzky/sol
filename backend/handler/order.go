@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/respond"
 	"strconv"
 
@@ -27,7 +29,7 @@ func createOrderLogic(ctx context.Context, qtx db.Querier, userID int64) (*db.Cr
 
 	// カートが空の場合はエラー
 	if len(items) == 0 {
-		return nil, errors.New("カートが空です")
+		return nil, apperror.NewValidationError("cart", nil, "", "")
 	}
 
 	// 合計金額計算
@@ -42,13 +44,13 @@ func createOrderLogic(ctx context.Context, qtx db.Querier, userID int64) (*db.Cr
 		product, err := qtx.GetProductForUpdate(ctx, item.ProductID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return nil, errors.New("商品が見つかりません")
+				return nil, apperror.NewNotFoundError("product", item.ProductID, apperror.NotFoundMessageProduct)
 			}
 			return nil, err
 		}
 
 		if product.StockQuantity < item.Quantity {
-			return nil, errors.New("在庫不足です")
+			return nil, apperror.NewConflictError("qty", fmt.Sprint(item.ProductID), "")
 		}
 	}
 
@@ -96,7 +98,7 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -109,13 +111,13 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("userID_parse_failed", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		tx, err := conn.BeginTx(c.Request.Context(), nil)
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("BeginTx", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -124,21 +126,22 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 
-			switch {
-			case err.Error() == "カートが空です":
-				respond.RespondError(c, http.StatusBadRequest, "カートが空です")
-			case err.Error() == "商品が見つかりません":
-				respond.RespondError(c, http.StatusNotFound, "商品が見つかりません")
-			case err.Error() == "在庫不足です":
-				respond.RespondError(c, http.StatusConflict, "在庫不足です")
-			default:
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			var ve *apperror.ValidationError
+			var ce *apperror.ConflictError
+			var ne *apperror.NotFoundError
+			var be *apperror.BusinessLogicError
+
+			if errors.As(err, &ve) || errors.As(err, &ne) || errors.As(err, &ce) || errors.As(err, &be) {
+				respond.RespondWithError(c, err)
+				return
 			}
+
+			respond.RespondWithError(c, apperror.NewInternalError("CreateOrder", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("Commit", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{"order": order})
@@ -149,17 +152,17 @@ func cancelOrderLogic(ctx context.Context, qtx db.Querier, orderID int64, userID
 	ord, err := qtx.GetOrderByIDForUpdate(ctx, orderID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("注文が見つかりません")
+			return nil, apperror.NewNotFoundError("order", orderID, "")
 		}
 		return nil, err
 	}
 	// 所有権チェック
 	if ord.UserID != userID {
-		return nil, errors.New("注文が見つかりません")
+		return nil, apperror.NewNotFoundError("order", orderID, "")
 	}
 
 	if ord.Status != "pending" {
-		return nil, errors.New("この注文はキャンセルできません")
+		return nil, apperror.NewBusinessLogicError("この注文はキャンセルできません")
 	}
 
 	items, err := qtx.ListOrderItemsByOrderID(ctx, orderID)
@@ -192,18 +195,18 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orderIDParam := c.Param("id")
 		if orderIDParam == "" {
-			respond.RespondError(c, http.StatusBadRequest, "注文IDが必要です")
+			respond.RespondWithError(c, apperror.NewValidationError("order", nil, "", apperror.ValidationMessageEssentialOrder))
 			return
 		}
 		orderID, err := strconv.ParseInt(orderIDParam, 10, 64)
 		if err != nil {
-			respond.RespondError(c, http.StatusBadRequest, "無効な注文IDです")
+			respond.RespondWithError(c, apperror.NewValidationError("order", nil, "", apperror.ValidationMessageOrder))
 			return
 		}
 
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -216,13 +219,13 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		tx, err := conn.BeginTx(c.Request.Context(), nil)
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("BeginTx", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -230,19 +233,22 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		updated, err := cancelOrderLogic(c.Request.Context(), qtx, orderID, userID)
 		if err != nil {
 			_ = tx.Rollback()
-			switch {
-			case err.Error() == "注文が見つかりません":
-				respond.RespondError(c, http.StatusNotFound, "注文が見つかりません")
-			case err.Error() == "この注文はキャンセルできません":
-				respond.RespondError(c, http.StatusBadRequest, "この注文はキャンセルできません")
-			default:
-				respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+
+			var ve *apperror.ValidationError
+			var ce *apperror.ConflictError
+			var ne *apperror.NotFoundError
+			var be *apperror.BusinessLogicError
+
+			if errors.As(err, &ve) || errors.As(err, &ne) || errors.As(err, &ce) || errors.As(err, &be) {
+				respond.RespondWithError(c, err)
+				return
 			}
+			respond.RespondWithError(c, apperror.NewInternalError("CancelOrder", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("Commit", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"order": updated})
@@ -290,7 +296,7 @@ func GetOrdersHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -303,19 +309,19 @@ func GetOrdersHandler(queries db.Querier) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		status := c.Query("status")
 		if !isValidOrderStatus(status) {
-			respond.RespondError(c, http.StatusBadRequest, "無効なステータスです")
+			respond.RespondWithError(c, apperror.NewValidationError("status", status, "", ""))
 			return
 		}
 
 		orders, err := getOrderLogic(c.Request.Context(), queries, userID)
 		if err != nil {
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GetOrders", err, apperror.InternalServerMessageCommon))
 			return
 		}
 

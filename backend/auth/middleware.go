@@ -3,11 +3,11 @@ package auth
 import (
 	"database/sql"
 	"errors"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/respond"
 
 	"github.com/gin-gonic/gin"
@@ -18,27 +18,27 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr, err := tokenFromRequest(c)
 		if err != nil {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 		token, err := Validate(tokenStr)
 		if err != nil || token == nil || !token.Valid {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		rawID, ok := claims["user.id"]
 		if !ok {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -50,7 +50,7 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 		case string:
 			id, perr := strconv.ParseInt(v, 10, 64)
 			if perr != nil {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
@@ -60,17 +60,17 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 		user, err := queries.GetUserForUpdate(c.Request.Context(), userID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GetUserForUpdate", err, apperror.InternalServerMessageCommon))
 			c.Abort()
 			return
 		}
 
 		if user.Role != "admin" {
-			respond.RespondError(c, http.StatusForbidden, "管理者権限が必要です")
+			respond.RespondWithError(c, apperror.NewForbiddenError("admin", "user", apperror.ForbiddenMessageAdmin))
 			c.Abort()
 			return
 		}
@@ -85,28 +85,28 @@ func RequireAuth(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr, err := tokenFromRequest(c)
 		if err != nil {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		token, err := Validate(tokenStr)
 		if err != nil || token == nil || !token.Valid {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		rawID, ok := claims["user.id"]
 		if !ok {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -124,13 +124,13 @@ func RequireAuth(queries db.Querier) gin.HandlerFunc {
 		case string:
 			id, perr := strconv.ParseInt(v, 10, 64)
 			if perr != nil {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
 			userID = id
 		default:
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -138,11 +138,11 @@ func RequireAuth(queries db.Querier) gin.HandlerFunc {
 		user, err := queries.GetUserForUpdate(c.Request.Context(), userID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GetUserForUpdate", err, apperror.InternalServerMessageCommon))
 			c.Abort()
 			return
 		}

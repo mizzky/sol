@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/respond"
 	"strconv"
 	"strings"
@@ -17,31 +18,31 @@ func MeHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("invalid_format_token", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		tokenStr := parts[1]
 
 		token, err := auth.Validate(tokenStr)
 		if err != nil || token == nil || !token.Valid {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("invalid_token", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("failed_to_decode_token", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		rawID, ok := claims["user.id"]
 		if !ok {
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("userID_claims_not_found", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -52,21 +53,21 @@ func MeHandler(q db.Querier) gin.HandlerFunc {
 		case string:
 			id, perr := strconv.ParseInt(v, 10, 64)
 			if perr != nil {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("userID_parse_failed", apperror.UnauthorizedMessageAuth))
 				return
 			}
 			userID = id
 		default:
-			respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+			respond.RespondWithError(c, apperror.NewUnauthorizedError("userID_type_is_invalid", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		user, err := q.GetUserForUpdate(c.Request.Context(), userID)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondError(c, http.StatusUnauthorized, "認証が必要です")
+				respond.RespondWithError(c, apperror.NewUnauthorizedError("userID_is_not_authenticated", apperror.UnauthorizedMessageAuth))
 				return
 			}
-			respond.RespondError(c, http.StatusInternalServerError, "予期せぬエラーが発生しました")
+			respond.RespondWithError(c, apperror.NewInternalError("GetUserForUpdate", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
