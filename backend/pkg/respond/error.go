@@ -10,11 +10,6 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-type ValidationError struct {
-	Error  string                 `json:"error"`
-	Fields map[string]interface{} `json:"fields,omitempty"`
-}
-
 func RespondWithError(c *gin.Context, err error) {
 	status, msg := apperror.ToHTTP(err)
 	c.JSON(status, ErrorResponse{Error: msg})
