@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sync"
 	"testing"
 
@@ -119,6 +121,7 @@ func TestCreateOrderHandler_Concurrency(t *testing.T) {
 					<-ready
 
 					router := gin.New()
+					router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 					router.POST("/api/orders", func(c *gin.Context) {
 						c.Set("userID", userID)
 						handler.CreateOrderHandler(testDB, queries)(c)

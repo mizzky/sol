@@ -8,7 +8,6 @@ import (
 
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
-	"sol_coffeesys/backend/pkg/respond"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,27 +17,28 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr, err := tokenFromRequest(c)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 		token, err := Validate(tokenStr)
 		if err != nil || token == nil || !token.Valid {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		rawID, ok := claims["user.id"]
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -50,7 +50,7 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 		case string:
 			id, perr := strconv.ParseInt(v, 10, 64)
 			if perr != nil {
-				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+				_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
@@ -60,17 +60,17 @@ func AdminOnly(queries db.Querier) gin.HandlerFunc {
 		user, err := queries.GetUserForUpdate(c.Request.Context(), userID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+				_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
-			respond.RespondWithError(c, apperror.NewInternalError("GetUserForUpdate", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("GetUserForUpdate", err, apperror.InternalServerMessageCommon))
 			c.Abort()
 			return
 		}
 
 		if user.Role != "admin" {
-			respond.RespondWithError(c, apperror.NewForbiddenError("admin", "user", apperror.ForbiddenMessageAdmin))
+			_ = c.Error(apperror.NewForbiddenError("admin", "user", apperror.ForbiddenMessageAdmin))
 			c.Abort()
 			return
 		}
@@ -85,28 +85,28 @@ func RequireAuth(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr, err := tokenFromRequest(c)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		token, err := Validate(tokenStr)
 		if err != nil || token == nil || !token.Valid {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
 
 		rawID, ok := claims["user.id"]
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -124,13 +124,13 @@ func RequireAuth(queries db.Querier) gin.HandlerFunc {
 		case string:
 			id, perr := strconv.ParseInt(v, 10, 64)
 			if perr != nil {
-				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+				_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
 			userID = id
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -138,11 +138,11 @@ func RequireAuth(queries db.Querier) gin.HandlerFunc {
 		user, err := queries.GetUserForUpdate(c.Request.Context(), userID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+				_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 				c.Abort()
 				return
 			}
-			respond.RespondWithError(c, apperror.NewInternalError("GetUserForUpdate", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("GetUserForUpdate", err, apperror.InternalServerMessageCommon))
 			c.Abort()
 			return
 		}

@@ -9,6 +9,8 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -224,6 +226,7 @@ func TestMeHandler(t *testing.T) {
 				auth.Validate = origValidate
 			}
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)

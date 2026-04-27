@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
-	"sol_coffeesys/backend/pkg/respond"
 	"strconv"
 	"time"
 
@@ -16,7 +15,7 @@ func GetCartHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -29,13 +28,13 @@ func GetCartHandler(q db.Querier) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		rows, err := q.ListCartItemsByUser(c.Request.Context(), userID)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("ListCartItemsByUser", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("ListCartItemsByUser", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -67,17 +66,17 @@ func AddToCartHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uid, ok := c.Get("userID")
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		var req addToCartRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("request", nil, "", ""))
 			return
 		}
 		if req.Quantity <= 0 {
-			respond.RespondWithError(c, apperror.NewValidationError("qty", req.Quantity, "", ""))
+			_ = c.Error(apperror.NewValidationError("qty", req.Quantity, "", ""))
 			return
 		}
 
@@ -90,23 +89,23 @@ func AddToCartHandler(q db.Querier) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		product, err := q.GetProduct(c.Request.Context(), req.ProductID)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("product", req.ProductID, ""))
+				_ = c.Error(apperror.NewNotFoundError("product", req.ProductID, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetProduct", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetProduct", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
 
 		cart, err := q.GetOrCreateCartForUser(c.Request.Context(), userID)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("GetOrCreateCartForUser", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("GetOrCreateCartForUser", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -117,7 +116,7 @@ func AddToCartHandler(q db.Querier) gin.HandlerFunc {
 			Price:     int64(product.Price),
 		})
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("AddCartItem", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("AddCartItem", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -134,23 +133,23 @@ func UpdateCartItemHandler(q db.Querier) gin.HandlerFunc {
 		// URL pramの解析
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 
 		uid, ok := c.Get("userID")
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		var req updateCartItemRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("request", nil, "", ""))
 			return
 		}
 
 		if req.Quantity <= 0 {
-			respond.RespondWithError(c, apperror.NewValidationError("qty", req.Quantity, "", ""))
+			_ = c.Error(apperror.NewValidationError("qty", req.Quantity, "", ""))
 			return
 		}
 
@@ -163,7 +162,7 @@ func UpdateCartItemHandler(q db.Querier) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -174,9 +173,9 @@ func UpdateCartItemHandler(q db.Querier) gin.HandlerFunc {
 		})
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("cart_item", id, ""))
+				_ = c.Error(apperror.NewNotFoundError("cart_item", id, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("UpdateCartItemQtyByUser", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("UpdateCartItemQtyByUser", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -190,13 +189,13 @@ func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
 
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 
 		uid, ok := c.Get("userID")
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		var userID int64
@@ -208,16 +207,16 @@ func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		item, err := q.GetCartItemByID(c.Request.Context(), id)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("cart_item", id, ""))
+				_ = c.Error(apperror.NewNotFoundError("cart_item", id, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetCartItemByID", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetCartItemByID", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -225,15 +224,15 @@ func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
 		cart, err := q.GetCartByUser(c.Request.Context(), userID)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("cart", userID, ""))
+				_ = c.Error(apperror.NewNotFoundError("cart", userID, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetCartByUser", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetCartByUser", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
 
 		if item.CartID != cart.ID {
-			respond.RespondWithError(c, apperror.NewNotFoundError("cart_item", id, ""))
+			_ = c.Error(apperror.NewNotFoundError("cart_item", id, ""))
 			return
 		}
 
@@ -241,7 +240,7 @@ func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
 			ID:     id,
 			UserID: userID,
 		}); err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("RemoveCartItemByUser", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("RemoveCartItemByUser", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -254,7 +253,7 @@ func ClearCartHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uid, ok := c.Get("userID")
 		if !ok {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		var userID int64
@@ -266,12 +265,12 @@ func ClearCartHandler(q db.Querier) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		if err := q.ClearCartByUser(c.Request.Context(), userID); err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("ClearCartByUser", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("ClearCartByUser", err, apperror.InternalServerMessageCommon))
 			return
 		}
 

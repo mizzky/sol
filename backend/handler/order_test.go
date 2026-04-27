@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
 	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 	"time"
@@ -1200,6 +1201,7 @@ func TestGetOrdersHandler(t *testing.T) {
 			}
 
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			router.GET("/api/orders", func(c *gin.Context) {
 				if tt.userID != nil {
 					c.Set("userID", tt.userID)

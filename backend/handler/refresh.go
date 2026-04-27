@@ -9,7 +9,6 @@ import (
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
-	"sol_coffeesys/backend/pkg/respond"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +18,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 	return func(c *gin.Context) {
 		cookie, err := c.Request.Cookie("refresh_token")
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("invalid_refresh_token", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("invalid_refresh_token", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		sum := sha256.Sum256([]byte(cookie.Value))
@@ -28,16 +27,16 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 		rt, err := q.GetRefreshTokenByHash(c.Request.Context(), hash)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondWithError(c, apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth))
+				_ = c.Error(apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetRefreshTokenByHash", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetRefreshTokenByHash", err, apperror.InternalServerMessageCommon))
 			}
 			c.Abort()
 			return
 		}
 
 		if rt.RevokedAt.Valid || rt.ExpiresAt.Before(time.Now()) {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("refresh_token_revoked_alredy", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("refresh_token_revoked_alredy", apperror.UnauthorizedMessageAuth))
 			c.Abort()
 			return
 		}
@@ -45,9 +44,9 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 		user, err := q.GetUserByID(c.Request.Context(), rt.UserID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondWithError(c, apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth))
+				_ = c.Error(apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetUserByID", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetUserByID", err, apperror.InternalServerMessageCommon))
 			}
 			c.Abort()
 			return
@@ -55,7 +54,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 
 		newRefresh, _, expiresAt, err := GenerateRefreshToken(c.Request.Context(), q, user.ID)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("GenerateRefreshToken", err, apperror.InternalServerMessageRefresh))
+			_ = c.Error(apperror.NewInternalError("GenerateRefreshToken", err, apperror.InternalServerMessageRefresh))
 			c.Abort()
 			return
 		}
@@ -64,7 +63,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 			if errors.Is(err, sql.ErrNoRows) {
 				// 存在しないトークンは無視
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("RevokeRefreshByRaw", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("RevokeRefreshByRaw", err, apperror.InternalServerMessageCommon))
 				c.Abort()
 				return
 			}
@@ -72,7 +71,7 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 
 		accessToken, err := tokenGenerator.GenerateToken(user.ID)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("GenerateToken", err, apperror.InternalServerMessageGenToken))
+			_ = c.Error(apperror.NewInternalError("GenerateToken", err, apperror.InternalServerMessageGenToken))
 			c.Abort()
 			return
 		}
@@ -152,7 +151,7 @@ func RevokeRefreshHandler(q db.Querier) gin.HandlerFunc {
 			if errors.Is(err, sql.ErrNoRows) {
 
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("RevokeRefreshByRaw", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("RevokeRefreshByRaw", err, apperror.InternalServerMessageCommon))
 				c.Abort()
 				return
 			}

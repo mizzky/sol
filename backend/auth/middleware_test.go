@@ -11,6 +11,8 @@ import (
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -267,6 +269,7 @@ func TestAdminOnly(t *testing.T) {
 	fq := &FakeQuerier{users: users}
 
 	router := gin.New()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	router.GET("/admin", auth.AdminOnly(fq), func(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 	})
@@ -412,6 +415,7 @@ func TestAdminOnly(t *testing.T) {
 			}
 
 			localRouter := gin.New()
+			localRouter.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			if tt.name == "DB接続エラー" {
 				badQ := &BadQuerier{FakeQuerier: &FakeQuerier{users: map[int64]db.User{}}}
 				localRouter.GET("/admin", auth.AdminOnly(badQ), func(c *gin.Context) {
@@ -545,6 +549,7 @@ func TestRequireAuth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)

@@ -11,6 +11,8 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	"sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -131,6 +133,7 @@ func TestCreateCategory_AdminAndNonAdmin(t *testing.T) {
 			}
 
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			router.POST("/api/categories", auth.AdminOnly(mockDB), handler.CreateCategoryHandler(mockDB))
 			router.PUT("/api/categories/:id", auth.AdminOnly(mockDB), handler.UpdateCategoryHandler(mockDB))
 			router.DELETE("/api/categories/:id", auth.AdminOnly(mockDB), handler.DeleteCategoryHandler(mockDB))

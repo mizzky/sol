@@ -9,6 +9,8 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 	"time"
 
@@ -153,6 +155,7 @@ func TestCartFlow_TableTopCases(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			if tc.setupMock != nil {
 				tc.setupMock(mockDB)
