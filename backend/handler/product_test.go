@@ -10,6 +10,8 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ import (
 func TestCreateProductHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	now := time.Now()
@@ -110,6 +113,7 @@ func TestProductCRUD_HappyPath(t *testing.T) {
 	// Create
 	{
 		router := gin.Default()
+		router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 		router.POST("/api/products", handler.CreateProductHandler(mockDB))
 		body := map[string]interface{}{
 			"name":           "Coffee",
@@ -132,6 +136,7 @@ func TestProductCRUD_HappyPath(t *testing.T) {
 	// Get
 	{
 		router := gin.Default()
+		router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 		router.GET("/api/products/:id", handler.GetProductHandler(mockDB))
 		req := httptest.NewRequest(http.MethodGet, "/api/products/1", nil)
 		w := httptest.NewRecorder()
@@ -142,6 +147,7 @@ func TestProductCRUD_HappyPath(t *testing.T) {
 	// List
 	{
 		router := gin.Default()
+		router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 		router.GET("/api/products", handler.ListProductsHandler(mockDB))
 		req := httptest.NewRequest(http.MethodGet, "/api/products", nil)
 		w := httptest.NewRecorder()
@@ -152,6 +158,7 @@ func TestProductCRUD_HappyPath(t *testing.T) {
 	// Update(PUT)
 	{
 		router := gin.Default()
+		router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 		router.PUT("/api/products/:id", handler.UpdateProductHandler(mockDB))
 		updateBody := map[string]interface{}{
 			"name":           "Coffee Updated",
@@ -174,6 +181,7 @@ func TestProductCRUD_HappyPath(t *testing.T) {
 	// Delete
 	{
 		router := gin.Default()
+		router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 		router.DELETE("/api/products/:id", handler.DeleteProductHandler(mockDB))
 		req := httptest.NewRequest(http.MethodDelete, "/api/products/1", nil)
 		w := httptest.NewRecorder()
@@ -199,6 +207,7 @@ func TestCreateProduct_ValidationTable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			router.POST("/api/products", handler.CreateProductHandler(mockDB))
 			var b []byte
@@ -220,6 +229,7 @@ func TestCreateProduct_ValidationTable(t *testing.T) {
 func TestCreateProduct_CategoryNotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{}, sql.ErrNoRows)
@@ -253,6 +263,7 @@ func TestCreateProduct_CategoryNotFound(t *testing.T) {
 func TestUpdateProduct_CategoryNotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{}, sql.ErrNoRows)
@@ -283,6 +294,7 @@ func TestUpdateProduct_CategoryNotFound(t *testing.T) {
 func TestUpdateProduct_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{
@@ -319,6 +331,7 @@ func TestUpdateProduct_NotFound(t *testing.T) {
 func TestGetProduct_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	mockDB.On("GetProduct", mock.Anything, int64(999)).Return(db.Product{}, sql.ErrNoRows)
@@ -337,6 +350,7 @@ func TestGetProduct_NotFound(t *testing.T) {
 func TestDeleteProduct_NotFound(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	mockDB.On("DeleteProduct", mock.Anything, int64(999)).Return(sql.ErrNoRows)
@@ -370,6 +384,7 @@ func TestUpdateProducts_ValidationTable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			router.PUT("/api/products/:id", handler.UpdateProductHandler(mockDB))
 			var b []byte
@@ -391,6 +406,7 @@ func TestUpdateProducts_ValidationTable(t *testing.T) {
 func TestGetProduct_InvalidID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 	router.GET("/api/products/:id", handler.GetProductHandler(mockDB))
 
@@ -407,6 +423,7 @@ func TestGetProduct_InvalidID(t *testing.T) {
 func TestUpdateProduct_InvalidID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	router.PUT("/api/products/:id", handler.UpdateProductHandler(mockDB))
@@ -437,6 +454,7 @@ func TestUpdateProduct_InvalidID(t *testing.T) {
 func TestDeleteProduct_InvalidID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	router.DELETE("/api/products/:id", handler.DeleteProductHandler(mockDB))
@@ -455,6 +473,7 @@ func TestDeleteProduct_InvalidID(t *testing.T) {
 func TestCreateProduct_SkuConflict_409(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{
@@ -488,6 +507,7 @@ func TestCreateProduct_SkuConflict_409(t *testing.T) {
 func TestUpdateProduct_SkuConflict_409(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	mockDB.On("GetCategory", mock.Anything, int64(1)).Return(db.Category{
@@ -526,6 +546,7 @@ func TestProductAuth_AdminOnly_Routes(t *testing.T) {
 	mockDB := new(testutil.MockDB)
 
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	router.POST("/api/products", auth.AdminOnly(mockDB), handler.CreateProductHandler(mockDB))
 
 	// 1)認証なし=>401

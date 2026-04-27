@@ -10,6 +10,8 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	"sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ func TestRefreshTokenHandler_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 	mockTG := new(MockTokenGenerator)
 
@@ -243,6 +246,7 @@ func TestRefreshTokenHandler_Errros(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			mockTG := new(MockTokenGenerator)
 
@@ -276,6 +280,7 @@ func TestRefreshTokenHandler_Errros(t *testing.T) {
 func TestRevokeRefreshHandler_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	oldRefresh := strings.Repeat("a", 64)
@@ -324,6 +329,7 @@ func TestRevokeRefreshHandler_Success(t *testing.T) {
 func TestRevokeRefreshHandler_DBError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	oldRefresh := strings.Repeat("a", 64)

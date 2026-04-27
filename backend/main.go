@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"sol_coffeesys/backend/db"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/routes"
 
 	"github.com/gin-contrib/cors"
@@ -38,6 +40,9 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowCredentials: true,
 	}))
+
+	// エラーハンドラ
+	r.Use(middleware.ErrorHandler(apperror.ToHTTP))
 
 	//4. ルーティング設定
 	routes.SetupRoutes(r, conn, queries)

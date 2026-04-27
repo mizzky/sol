@@ -7,7 +7,6 @@ import (
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
-	"sol_coffeesys/backend/pkg/respond"
 	"sol_coffeesys/backend/pkg/validation"
 	"strconv"
 	"time"
@@ -41,21 +40,21 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.Error(err)
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
+			_ = c.Error(apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
 			return
 		}
 		// バリデーションチェック
 		if err := validation.ValidateRegisterRequest(req.Name, req.Email, req.Password); err != nil {
 			switch {
 			case errors.Is(err, validation.ErrInvalidName):
-				respond.RespondWithError(c, apperror.NewValidationError("name", nil, "", ""))
+				_ = c.Error(apperror.NewValidationError("name", nil, "", ""))
 			case errors.Is(err, validation.ErrInvalidEmail):
-				respond.RespondWithError(c, apperror.NewValidationError("email", nil, "", ""))
+				_ = c.Error(apperror.NewValidationError("email", nil, "", ""))
 			case errors.Is(err, validation.ErrInvalidPassword):
-				respond.RespondWithError(c, apperror.NewValidationError("password", nil, "", ""))
+				_ = c.Error(apperror.NewValidationError("password", nil, "", ""))
 			default:
 				c.Error(err)
-				respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
+				_ = c.Error(apperror.NewValidationError("request", nil, "", ""))
 			}
 			return
 		}
@@ -63,7 +62,7 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 		hashed, err := HashPassword(req.Password)
 		if err != nil {
 			c.Error(err)
-			respond.RespondWithError(c, err)
+			_ = c.Error(err)
 			return
 		}
 
@@ -77,11 +76,11 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 			var pqErr *pq.Error
 			if errors.As(err, &pqErr) {
 				if pqErr.Code == "23505" {
-					respond.RespondWithError(c, apperror.NewValidationError("email", req.Email, "", apperror.ValidationMessageConflictedEmail))
+					_ = c.Error(apperror.NewValidationError("email", req.Email, "", apperror.ValidationMessageConflictedEmail))
 					return
 				}
 			}
-			respond.RespondWithError(c, apperror.NewInternalError("CreateUser", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("CreateUser", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -101,41 +100,41 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.Error(err)
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
+			_ = c.Error(apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
 			return
 		}
 
 		// バリデーションチェック
 		if err := validation.ValidateEmail(req.Email); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("email", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("email", nil, "", ""))
 			return
 		}
 		if err := validation.ValidatePassword(req.Password); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("password", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("password", nil, "", ""))
 			return
 		}
 
 		user, err := q.GetUserByEmail(c.Request.Context(), req.Email)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageEmailOrPassword))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageEmailOrPassword))
 			return
 		}
 		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageEmailOrPassword))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageEmailOrPassword))
 			return
 		}
 
 		token, err := tokenGenerator.GenerateToken(user.ID)
 		// token, err := auth.GenerateToken(int32(user.ID))
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("GenerateToken", err, apperror.InternalServerMessageGenToken))
+			_ = c.Error(apperror.NewInternalError("GenerateToken", err, apperror.InternalServerMessageGenToken))
 			return
 		}
 
 		refreshToken, _, expiresAt, err := GenerateRefreshToken(c.Request.Context(), q, user.ID)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("GenerateRefreshToken", err, apperror.InternalServerMessageRefresh))
+			_ = c.Error(apperror.NewInternalError("GenerateRefreshToken", err, apperror.InternalServerMessageRefresh))
 			return
 		}
 
@@ -190,29 +189,29 @@ func SetUserRoleHandler(q db.Querier) gin.HandlerFunc {
 		idStr := c.Param("id")
 		userID, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", nil, "", ""))
 			return
 		}
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 		adminID := raw.(int64)
 
 		if adminID == userID {
-			respond.RespondWithError(c, apperror.NewBusinessLogicError(apperror.BusinessLogicMessageRole))
+			_ = c.Error(apperror.NewBusinessLogicError(apperror.BusinessLogicMessageRole))
 			return
 		}
 
 		var req SetUserRoleRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
+			_ = c.Error(apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
 			return
 		}
 
 		if err := validation.ValidateRole(req.Role); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("role", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("role", nil, "", ""))
 			return
 		}
 
@@ -222,10 +221,10 @@ func SetUserRoleHandler(q db.Querier) gin.HandlerFunc {
 		})
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				respond.RespondWithError(c, apperror.NewNotFoundError("user", userID, ""))
+				_ = c.Error(apperror.NewNotFoundError("user", userID, ""))
 				return
 			}
-			respond.RespondWithError(c, apperror.NewInternalError("UpdateUserRole", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("UpdateUserRole", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		c.JSON(http.StatusOK, user)

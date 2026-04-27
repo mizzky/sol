@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"sol_coffeesys/backend/handler"
 	"sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"strings"
 	"testing"
 
@@ -19,6 +21,7 @@ import (
 func TestLogoutHandler_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 
 	oldRefresh := strings.Repeat("a", 64)
@@ -105,6 +108,7 @@ func TestLogoutHandler_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 
 			if tt.setupMock != nil {

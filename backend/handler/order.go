@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
-	"sol_coffeesys/backend/pkg/respond"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -98,7 +97,7 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -111,13 +110,13 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("userID_parse_failed", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("userID_parse_failed", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		tx, err := conn.BeginTx(c.Request.Context(), nil)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("BeginTx", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("BeginTx", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -132,16 +131,16 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 			var be *apperror.BusinessLogicError
 
 			if errors.As(err, &ve) || errors.As(err, &ne) || errors.As(err, &ce) || errors.As(err, &be) {
-				respond.RespondWithError(c, err)
+				_ = c.Error(err)
 				return
 			}
 
-			respond.RespondWithError(c, apperror.NewInternalError("CreateOrder", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("CreateOrder", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("Commit", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("Commit", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{"order": order})
@@ -195,18 +194,18 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		orderIDParam := c.Param("id")
 		if orderIDParam == "" {
-			respond.RespondWithError(c, apperror.NewValidationError("order", nil, "", apperror.ValidationMessageEssentialOrder))
+			_ = c.Error(apperror.NewValidationError("order", nil, "", apperror.ValidationMessageEssentialOrder))
 			return
 		}
 		orderID, err := strconv.ParseInt(orderIDParam, 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("order", nil, "", apperror.ValidationMessageOrder))
+			_ = c.Error(apperror.NewValidationError("order", nil, "", apperror.ValidationMessageOrder))
 			return
 		}
 
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -219,13 +218,13 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		tx, err := conn.BeginTx(c.Request.Context(), nil)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("BeginTx", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("BeginTx", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -240,15 +239,15 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 			var be *apperror.BusinessLogicError
 
 			if errors.As(err, &ve) || errors.As(err, &ne) || errors.As(err, &ce) || errors.As(err, &be) {
-				respond.RespondWithError(c, err)
+				_ = c.Error(err)
 				return
 			}
-			respond.RespondWithError(c, apperror.NewInternalError("CancelOrder", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("CancelOrder", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
 		if err := tx.Commit(); err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("Commit", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("Commit", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"order": updated})
@@ -296,7 +295,7 @@ func GetOrdersHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		raw, exists := c.Get("userID")
 		if !exists {
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
@@ -309,19 +308,19 @@ func GetOrdersHandler(queries db.Querier) gin.HandlerFunc {
 		case float64:
 			userID = int64(v)
 		default:
-			respond.RespondWithError(c, apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
+			_ = c.Error(apperror.NewUnauthorizedError("", apperror.UnauthorizedMessageAuth))
 			return
 		}
 
 		status := c.Query("status")
 		if !isValidOrderStatus(status) {
-			respond.RespondWithError(c, apperror.NewValidationError("status", status, "", ""))
+			_ = c.Error(apperror.NewValidationError("status", status, "", ""))
 			return
 		}
 
 		orders, err := getOrderLogic(c.Request.Context(), queries, userID)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("GetOrders", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("GetOrders", err, apperror.InternalServerMessageCommon))
 			return
 		}
 

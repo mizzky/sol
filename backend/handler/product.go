@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
-	"sol_coffeesys/backend/pkg/respond"
 	"strconv"
 	"time"
 
@@ -46,7 +45,7 @@ func ListProductsHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		products, err := q.ListProducts(c.Request.Context())
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("ListProducts", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("ListProducts", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		resp := make([]ProductResponse, 0, len(products))
@@ -82,16 +81,16 @@ func GetProductHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 
 		product, err := q.GetProduct(c.Request.Context(), int64(id))
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("product", id, ""))
+				_ = c.Error(apperror.NewNotFoundError("product", id, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetProduct", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetProduct", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -124,33 +123,33 @@ func CreateProductHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateProductHandlerRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("request", nil, "", ""))
 			return
 		}
 
 		if req.Name == "" {
-			respond.RespondWithError(c, apperror.NewValidationError("name", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("name", nil, "", ""))
 			return
 		}
 		if req.Price <= 0 {
-			respond.RespondWithError(c, apperror.NewValidationError("price", req.Price, "", ""))
+			_ = c.Error(apperror.NewValidationError("price", req.Price, "", ""))
 			return
 		}
 		if req.Sku == "" {
-			respond.RespondWithError(c, apperror.NewValidationError("sku", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("sku", nil, "", ""))
 			return
 		}
 
 		if len(req.Name) > 255 {
-			respond.RespondWithError(c, apperror.NewValidationError("", req.Name, "", apperror.ValidationMessageNameLength))
+			_ = c.Error(apperror.NewValidationError("", req.Name, "", apperror.ValidationMessageNameLength))
 			return
 		}
 
 		if _, err := q.GetCategory(c.Request.Context(), req.CategoryID); err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("category", req.CategoryID, ""))
+				_ = c.Error(apperror.NewNotFoundError("category", req.CategoryID, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetCategory", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetCategory", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -177,10 +176,10 @@ func CreateProductHandler(q db.Querier) gin.HandlerFunc {
 		if err != nil {
 			var pqErr *pq.Error
 			if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-				respond.RespondWithError(c, apperror.NewConflictError("sku", req.Sku, ""))
+				_ = c.Error(apperror.NewConflictError("sku", req.Sku, ""))
 				return
 			}
-			respond.RespondWithError(c, apperror.NewInternalError("CreateProduct", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("CreateProduct", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -214,39 +213,39 @@ func UpdateProductHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 		var req UpdateProductHandlerRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("request", nil, "", ""))
 			return
 		}
 
 		if req.Name == "" {
-			respond.RespondWithError(c, apperror.NewValidationError("name", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("name", nil, "", ""))
 			return
 		}
 		if req.Price <= 0 {
-			respond.RespondWithError(c, apperror.NewValidationError("price", req.Price, "", ""))
+			_ = c.Error(apperror.NewValidationError("price", req.Price, "", ""))
 			return
 		}
 		if req.Sku == "" {
-			respond.RespondWithError(c, apperror.NewValidationError("sku", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("sku", nil, "", ""))
 			return
 		}
 
 		if len(req.Name) > 255 {
-			respond.RespondWithError(c, apperror.NewValidationError("", req.Name, "", apperror.ValidationMessageNameLength))
+			_ = c.Error(apperror.NewValidationError("", req.Name, "", apperror.ValidationMessageNameLength))
 			return
 		}
 
 		// category 存在確認
 		if _, err := q.GetCategory(c.Request.Context(), req.CategoryID); err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("category", req.CategoryID, ""))
+				_ = c.Error(apperror.NewNotFoundError("category", req.CategoryID, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("GetCategory", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("GetCategory", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -274,14 +273,14 @@ func UpdateProductHandler(q db.Querier) gin.HandlerFunc {
 		if err != nil {
 			var pqErr *pq.Error
 			if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-				respond.RespondWithError(c, apperror.NewConflictError("sku", req.Sku, ""))
+				_ = c.Error(apperror.NewConflictError("sku", req.Sku, ""))
 				return
 			}
 
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("product", id, ""))
+				_ = c.Error(apperror.NewNotFoundError("product", id, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("UpdateProduct", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("UpdateProduct", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -316,15 +315,15 @@ func DeleteProductHandler(q db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 		err = q.DeleteProduct(c.Request.Context(), int64(id))
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("product", id, ""))
+				_ = c.Error(apperror.NewNotFoundError("product", id, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("DeleteProduct", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("DeleteProduct", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}

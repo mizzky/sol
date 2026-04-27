@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 	"time"
 
@@ -172,6 +174,7 @@ func TestCreateOrderHandler_HappyPath(t *testing.T) {
 	userID, productID := seedCreateOrderHappyPath(t)
 
 	router := gin.New()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	queries := db.New(testDB)
 	router.POST("/api/orders", func(c *gin.Context) {
 		c.Set("userID", userID)
@@ -366,6 +369,7 @@ func TestCreateOrderHandler(t *testing.T) {
 			}
 
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			queries := db.New(testDB)
 
 			router.POST("/api/orders", func(c *gin.Context) {
@@ -458,6 +462,7 @@ func TestCancelOrderHandler_HappyPath(t *testing.T) {
 	userID, orderID, productID := seedCancelOrderHappyPath(t)
 
 	router := gin.New()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	queries := db.New(testDB)
 
 	router.POST("/api/orders/:id/cancel", func(c *gin.Context) {
@@ -822,6 +827,7 @@ func TestCancelOrderHandler(t *testing.T) {
 			}
 
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			queries := db.New(testDB)
 
 			router.POST("/api/orders/:id/cancel", func(c *gin.Context) {

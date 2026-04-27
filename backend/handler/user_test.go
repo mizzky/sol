@@ -13,6 +13,8 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"strings"
 	"testing"
 	"time"
@@ -219,6 +221,7 @@ func TestLoginUserHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			mockTokenGenerator := new(MockTokenGenerator)
 
@@ -458,6 +461,7 @@ func TestSetUserRoleHandler(t *testing.T) {
 			}
 
 			router := gin.New()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			router.PATCH("/admin/users/:id/role", auth.AdminOnly(mockDB), handler.SetUserRoleHandler(mockDB))
 
 			body, _ := json.Marshal(tt.requestBody)
@@ -666,6 +670,7 @@ func TestRegisterUserHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
@@ -724,6 +729,7 @@ func TestHashPassword(t *testing.T) {
 func TestLoginUserHandler_SetsCookies(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
+	router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 	mockDB := new(testutil.MockDB)
 	mockTokenGenerator := new(MockTokenGenerator)
 
