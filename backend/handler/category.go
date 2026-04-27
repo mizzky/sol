@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
-	"sol_coffeesys/backend/pkg/respond"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -28,12 +27,12 @@ func CreateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 		var req CreateCategoryHandlerRequest
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("request", nil, "", ""))
 			return
 		}
 
 		if req.Name == "" {
-			respond.RespondWithError(c, apperror.NewValidationError("category", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("category", nil, "", ""))
 			return
 		}
 
@@ -50,7 +49,7 @@ func CreateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 			Description: description,
 		})
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("CreateCategory", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("CreateCategory", err, apperror.InternalServerMessageCommon))
 			return
 		}
 
@@ -78,18 +77,18 @@ func UpdateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 
 		var req UpdateCategoryHandlerRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("request", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("request", nil, "bind", apperror.ValidationMessageRequest))
 			return
 		}
 
 		if req.Name == nil || *req.Name == "" {
-			respond.RespondWithError(c, apperror.NewValidationError("category", nil, "", ""))
+			_ = c.Error(apperror.NewValidationError("category", nil, "", ""))
 			return
 		}
 
@@ -108,9 +107,9 @@ func UpdateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 		})
 		if err != nil {
 			if err == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("category", id, ""))
+				_ = c.Error(apperror.NewNotFoundError("category", id, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("UpdateCategory", err, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("UpdateCategory", err, apperror.InternalServerMessageCommon))
 			}
 			return
 		}
@@ -133,7 +132,7 @@ func GetCategoriesHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		categories, err := queries.ListCategories(c.Request.Context())
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewInternalError("ListCategories", err, apperror.InternalServerMessageCommon))
+			_ = c.Error(apperror.NewInternalError("ListCategories", err, apperror.InternalServerMessageCommon))
 			return
 		}
 		resp := make([]CategoryResponse, 0, len(categories))
@@ -157,16 +156,16 @@ func DeleteCategoryHandler(queries db.Querier) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			respond.RespondWithError(c, apperror.NewValidationError("id", id, "", ""))
+			_ = c.Error(apperror.NewValidationError("id", id, "", ""))
 			return
 		}
 
 		respErr := queries.DeleteCategory(c.Request.Context(), int64(id))
 		if respErr != nil {
 			if respErr == sql.ErrNoRows {
-				respond.RespondWithError(c, apperror.NewNotFoundError("category", id, ""))
+				_ = c.Error(apperror.NewNotFoundError("category", id, ""))
 			} else {
-				respond.RespondWithError(c, apperror.NewInternalError("DeleteCategory", respErr, apperror.InternalServerMessageCommon))
+				_ = c.Error(apperror.NewInternalError("DeleteCategory", respErr, apperror.InternalServerMessageCommon))
 			}
 			return
 		}

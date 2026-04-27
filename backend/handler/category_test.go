@@ -11,6 +11,8 @@ import (
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/handler"
 	testutil "sol_coffeesys/backend/handler/testutil"
+	"sol_coffeesys/backend/middleware"
+	"sol_coffeesys/backend/pkg/apperror"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -137,6 +139,7 @@ func TestCreateCategoryHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
@@ -303,6 +306,7 @@ func TestUpdateCategoryHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 
 			if tt.setupMock != nil {
@@ -378,6 +382,7 @@ func TestGetCategoriesHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
@@ -459,6 +464,7 @@ func TestDeleteCategoryHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gin.SetMode(gin.TestMode)
 			router := gin.Default()
+			router.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			mockDB := new(testutil.MockDB)
 			if tt.setupMock != nil {
 				tt.setupMock(mockDB)
