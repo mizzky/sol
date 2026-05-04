@@ -721,4 +721,145 @@
 - 設計メモ: `doc/planning/tickets33-37-plan-2026-03-30.md`
 - 手動確認手順: `doc/ticket33-37-manual-check-2026-03-30.md`
 
+---
+
+## 構造化ロギング実装（#60 対応）（新規追加: 2026-05-04）
+
+### 背景
+- エラーハンドリング基盤（apperror）と request_id ミドルウェアの実装が完了
+- 文字列ベースのエラー処理から `log/slog`（Go 1.21標準）を使った構造化ログ基盤へ移行する
+- 設計ドキュメント: issue #65（ログレベル定義）、#67（カスタムエラー構造体）、#74（ログ設計書）参照
+
+### 目的
+- 異常系シナリオで JSON ログから 10 秒以内に原因特定できる状態を作る
+- エラーログは ErrorHandler（最上位）のみで出力し、二重ログを排除する
+- request_id / user_id を構造化フィールドとして全ログに付与する
+
+### 実装方針
+- **slog 統合先**: `middleware/error_handler.go` を拡張する（専用パッケージは作らない）
+- **ログ出力ポリシー**: 関数内でのログ出力＋エラー返却の同時実行禁止。ErrorHandler 内のみで出力
+- **user_id の取得**: `c.GetInt64("userID")`（`auth.RequireAuth` / `auth.AdminOnly` がセット済み）
+- **request_id の取得**: `c.GetString("request_id")`（`RequestIDMiddleware` がセット済み）
+- **開発フロー**: Issue → TDD実装 → PR（`Close #<issue番号>`）でcloseするフロー
+
+### 実装タスク（優先度順）
+
+#### Issue A: slog ロガーの初期化とマスキング設定
+
+**ドラフト（GitHub Issue 本文）:**
+```
+### slogロガーの役割
+1. `log/slog`のJSONHandlerを使い、構造化JSON形式でログを出力する
+2. `ReplaceAttr`でパスワード・トークンフィールドを`[REDACTED]`に置換する
+3. アプリ起動時に`slog.SetDefault`でグローバルロガーとして設定する
+
+### テスト項目
+- JSONHandler経由でログ出力したとき、JSON形式であること
+- `password`キーの値が`[REDACTED]`に置換されること
+- `token`キーの値が`[REDACTED]`に置換されること
+- マスク対象外のフィールドは値が変わらないこと
+```
+
+- [ ] **チケットA**: slogロガー初期化とマスキング設定
+  - Issue A を GitHub に作成し、TDD で実装
+  - 実装対象: `middleware/error_handler.go`（または `main.go` の初期化部分）
+  - PR で Issue A を Close
+
+#### Issue B: ErrorHandler に slog ログ出力を組み込む
+
+**ドラフト（GitHub Issue 本文）:**
+```
+### ErrorHandlerの拡張役割
+1. `c.Errors.Last()`で取得したエラーをapperrorの型で判定する
+2. エラー型に応じたログレベルでslogを出力する
+   - ValidationError / NotFoundError / ConflictError / BusinessLogicError → INFO
+   - UnauthorizedError / ForbiddenError → WARN
+   - InternalError → ERROR
+3. ログには`event`・`message`・`error_type`・`status`・`method`・`route`フィールドを含める
+4. ログ出力はErrorHandlerのみで行い、ハンドラ層では行わない
+
+### テスト項目
+- `ValidationError`が渡されたとき、INFOレベルでログが出力されること
+- `UnauthorizedError`が渡されたとき、WARNレベルでログが出力されること
+- `InternalError`が渡されたとき、ERRORレベルでログが出力されること
+- ログJSONに`event`・`error_type`・`status`フィールドが含まれること
+```
+
+- [ ] **チケットB**: ErrorHandler に slog ログ出力を組み込む（メイン実装）
+  - 前提: チケットA 完了
+  - Issue B を GitHub に作成し、TDD で実装
+  - 実装対象: `middleware/error_handler.go`
+  - PR で Issue B を Close
+
+#### Issue C: request_id をログフィールドへ付与
+
+**ドラフト（GitHub Issue 本文）:**
+```
+### request_idログ付与の役割
+1. ErrorHandler内でContextから`request_id`を取得する
+2. slogの構造化フィールドとして`request_id`をログに付与する
+3. `request_id`が存在しない場合は空文字を出力する（パニックしない）
+
+### テスト項目
+- RequestIDMiddlewareを通過したリクエストのログに`request_id`フィールドが含まれること
+- `request_id`の値が実際に発行されたIDと一致すること
+- `request_id`がContextに存在しない場合もログ出力が正常に完了すること
+```
+
+- [ ] **チケットC**: request_id をログフィールドへ付与
+  - 前提: チケットB 完了
+  - Issue C を GitHub に作成し、TDD で実装
+  - 実装対象: `middleware/error_handler.go`
+  - PR で Issue C を Close
+
+#### Issue D: user_id をログフィールドへ付与
+
+**ドラフト（GitHub Issue 本文）:**
+```
+### user_idログ付与の役割
+1. ErrorHandler内でContextのキー`"userID"`からuser_idを取得する
+2. slogの構造化フィールドとして`user_id`をログに付与する
+3. 未認証リクエスト（Contextにuser_idなし）の場合はnullまたは0を出力する
+
+### テスト項目
+- 認証済みリクエストのログに`user_id`フィールドが含まれること
+- `user_id`の値がContextにセットされた値と一致すること
+- 未認証リクエスト（user_idなし）でもログ出力がパニックしないこと
+```
+
+- [ ] **チケットD**: user_id をログフィールドへ付与
+  - 前提: チケットC 完了
+  - Issue D を GitHub に作成し、TDD で実装
+  - 実装対象: `middleware/error_handler.go`
+  - 取得キー: `"userID"`（`int64`）— `auth.RequireAuth` / `auth.AdminOnly` がセット
+  - PR で Issue D を Close
+
+### 実装順序
+
+```
+Issue A → PR A
+  ↓
+Issue B → PR B  ← ErrorHandler 拡張のメイン
+  ↓
+Issue C → PR C
+  ↓
+Issue D → PR D
+```
+
+### 受け入れ条件（#60 クローズ基準）
+- [ ] 異常系シナリオ（DB切断・バリデーションエラー）で JSON ログから 10 秒以内に原因特定できること
+- [ ] エラーが最上位（ErrorHandler）で重複なく構造化ログとして出力されていること
+- [ ] JWT署名・DBパスワード・PII（個人情報）がログに含まれていないこと
+- [ ] 各ログレベルの採用理由について自分の論理的根拠があること
+
+### 参考資料
+- メイン Issue: [#60](https://github.com/mizzky/sol/issues/60)
+- ログレベル定義: [#65](https://github.com/mizzky/sol/issues/65)
+- カスタムエラー構造体設計: [#67](https://github.com/mizzky/sol/issues/67)
+- ログ設計書: [#74](https://github.com/mizzky/sol/issues/74)
+- 参考実装 Issue: [#75](https://github.com/mizzky/sol/issues/75)（request_id ミドルウェア）
+
+---
+追加日: 2026-05-04
+
 
