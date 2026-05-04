@@ -33,6 +33,10 @@ func main() {
 	//3. Ginルーター初期化
 	r := gin.Default()
 
+	// 4. ミドルウェア設定
+	// request_id生成
+	r.Use(middleware.RequestIDMiddleware())
+
 	// CORS設定:Next.jsだけに絞る
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
@@ -44,10 +48,10 @@ func main() {
 	// エラーハンドラ
 	r.Use(middleware.ErrorHandler(apperror.ToHTTP))
 
-	//4. ルーティング設定
+	//5. ルーティング設定
 	routes.SetupRoutes(r, conn, queries)
 
-	//5. サーバー起動
+	//6. サーバー起動
 	log.Println("Server starting on :8080...")
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal("failed to run server:", err)
