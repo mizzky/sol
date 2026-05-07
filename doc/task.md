@@ -753,16 +753,32 @@
 2. `ReplaceAttr`でパスワード・トークンフィールドを`[REDACTED]`に置換する
 3. アプリ起動時に`slog.SetDefault`でグローバルロガーとして設定する
 
+### 起動時エラーハンドリング（補足）
+4. `main.go` で以下の起動時エラーを処理する場合、**構造化ログ出力を統一する**：
+   - `DATABASE_URL` 環境変数が未設定の場合
+   - `sql.Open()` 失敗時
+   - `r.Run()` 失敗時
+5. 実装方法:
+   - 従来の `log.Fatal()` / `log.Fatalf()` を使わない
+   - `slog.Error()` で構造化JSONでエラーをログ出力した後、`os.Exit(1)` で終了する
+   - これにより起動時エラーも構造化ログに統一される
+
 ### テスト項目
 - JSONHandler経由でログ出力したとき、JSON形式であること
 - `password`キーの値が`[REDACTED]`に置換されること
 - `token`キーの値が`[REDACTED]`に置換されること
 - マスク対象外のフィールドは値が変わらないこと
+- **`slog.SetDefault`後、`main.go`の起動時エラー（DATABASE_URL未設定など）が構造化JSONで出力されること**
 ```
 
 - [ ] **チケットA**: slogロガー初期化とマスキング設定
   - Issue A を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`（または `main.go` の初期化部分）
+  - 受け入れ条件:
+    - `log/slog` の JSONHandler で構造化ログが出力される
+    - `ReplaceAttr` で password/token が `[REDACTED]` に置換される
+    - マスク対象外フィールドは値が変わらない
+    - `main.go` の起動時エラー（DATABASE_URL 未設定、sql.Open 失敗、r.Run 失敗）が `slog.Error()` + `os.Exit(1)` で処理され、構造化JSONで出力される
   - PR で Issue A を Close
 
 #### Issue B: ErrorHandler に slog ログ出力を組み込む
