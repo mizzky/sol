@@ -753,16 +753,32 @@
 2. `ReplaceAttr`でパスワード・トークンフィールドを`[REDACTED]`に置換する
 3. アプリ起動時に`slog.SetDefault`でグローバルロガーとして設定する
 
+### 起動時エラーハンドリング（補足）
+4. `main.go` で以下の起動時エラーを処理する場合、**構造化ログ出力を統一する**：
+   - `DATABASE_URL` 環境変数が未設定の場合
+   - `sql.Open()` 失敗時
+   - `r.Run()` 失敗時
+5. 実装方法:
+   - 従来の `log.Fatal()` / `log.Fatalf()` を使わない
+   - `slog.Error()` で構造化JSONでエラーをログ出力した後、`os.Exit(1)` で終了する
+   - これにより起動時エラーも構造化ログに統一される
+
 ### テスト項目
 - JSONHandler経由でログ出力したとき、JSON形式であること
 - `password`キーの値が`[REDACTED]`に置換されること
 - `token`キーの値が`[REDACTED]`に置換されること
 - マスク対象外のフィールドは値が変わらないこと
+- **`slog.SetDefault`後、`main.go`の起動時エラー（DATABASE_URL未設定など）が構造化JSONで出力されること**
 ```
 
 - [ ] **チケットA**: slogロガー初期化とマスキング設定
   - Issue A を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`（または `main.go` の初期化部分）
+  - 受け入れ条件:
+    - `log/slog` の JSONHandler で構造化ログが出力される
+    - `ReplaceAttr` で password/token が `[REDACTED]` に置換される
+    - マスク対象外フィールドは値が変わらない
+    - `main.go` の起動時エラー（DATABASE_URL 未設定、sql.Open 失敗、r.Run 失敗）が `slog.Error()` + `os.Exit(1)` で処理され、構造化JSONで出力される
   - PR で Issue A を Close
 
 #### Issue B: ErrorHandler に slog ログ出力を組み込む
@@ -834,6 +850,97 @@
   - 取得キー: `"userID"`（`int64`）— `auth.RequireAuth` / `auth.AdminOnly` がセット
   - PR で Issue D を Close
 
+#### Issue F: 通常イベントログ（INFO/DEBUG）実装（P0）
+
+**ドラフト（GitHub Issue 本文）:**
+```
+- 対象ワークフローについては着手時に再検討すること
+### 通常イベントログの役割
+1. ErrorHandler はエラーログ専任を維持する
+2. 通常イベント（DEBUG/INFO）はハンドラ/サービスの発生源で出力する
+3. 対象フロー: ログイン成功、商品一覧取得、注文作成（最低限）
+4. 必須フィールド: `request_id`, `event`, `method`, `route`, `status`, `duration_ms`（`user_id` は取得可能時に付与）
+5. event命名: snake_case（例: `user_login_succeeded`, `product_list_fetched`, `order_created`）
+6. 同一イベントの重複出力を避ける
+
+### テスト項目
+- 正常系フロー3つ（ログイン成功、商品一覧取得、注文作成）で必須フィールドが欠落なく出力されること
+- request_id を起点に時系列追跡可能であること
+- イベント重複が発生しないこと
+- 実装対象ハンドラ: `handler/user.go`（ログイン）、`handler/product.go`（商品一覧取得）、`handler/order.go`（注文作成）
+```
+
+- [ ] **チケットF**: 通常イベントログ（INFO/DEBUG）実装（P0）
+  - 前提: チケット D 完了
+  - Issue F を GitHub に作成し、TDD で実装
+  - 実装対象:
+    - `handler/user.go` — ログイン成功イベント出力
+    - `handler/product.go` — 商品一覧取得イベント出力
+    - `handler/order.go` — 注文作成イベント出力
+  - 実装内容:
+    - [ ] slog で INFO/DEBUG レベルのイベントログを出力
+    - [ ] 必須フィールド（request_id, event, method, route, status, duration_ms, user_id）を構造化フィールドとして付与
+    - [ ] event 命名を snake_case で統一
+    - [ ] 同一イベントの重複出力チェック
+  - 受け入れ条件:
+    - [ ] 正常系フロー3つで必須フィールドが欠落なく出力される
+    - [ ] request_id 起点で時系列追跡可能
+    - [ ] イベント重複が発生しない
+    - [ ] ハンドラ/サービス層でのみイベント出力が実行される（ErrorHandler との責務分離）
+  - PR で Issue F を Close
+
+#### Issue E: redaction ユーティリティ統合（将来タスク・P1）
+
+**ドラフト（GitHub Issue 本文）:**
+```
+### redaction ユーティリティ統合の役割
+1. マスキング項目・ルール定義を一元化したredactionユーティリティを作成する
+2. apperror（エラー生成時）と logger（slog出力時）が同一ユーティリティを参照する
+3. キー追加時の拡張性を確認するため、ユニットテストで複数キーのマスク挙動を検証する
+
+### テスト項目
+- 既存キー（password, token, email）のマスク挙動が後方互換で維持されること
+- 新規キーが容易に追加できることをテストで確認すること
+- apperror とlogger の両者が同じマスク結果を返すこと
+```
+
+- [ ] **チケットE**: redaction ユーティリティ統合（マスキング一元化）
+  - 前提: チケット A〜D が完了
+  - GitHub Issue E を作成し、実装
+  - 目的: マスキング項目増加に備え、ルール定義を一元化
+  - 実装内容:
+    - [ ] 共通 redaction 関数またはパッケージを作成（例: `pkg/redaction/` または `pkg/logging/`）
+    - [ ] password/token/email のマスク定義を一元管理
+    - [ ] apperror（エラー生成時）と logger（ReplaceAttr）が同じルールセットを参照
+    - [ ] ユニットテスト: キー追加時の拡張性確認
+  - 実装対象: `backend/pkg/redaction/`（新規）
+  - 受け入れ条件:
+    - [ ] 共通 redaction 関数が1箇所に存在
+    - [ ] apperror と logger が同じマスク挙動を実現
+    - [ ] 既存の password/token/email のマスク挙動が後方互換で維持
+    - [ ] 単体テストでキー追加時の拡張性を確認
+  - 優先度: P1（将来拡張）
+  - PR で Issue E を Close
+
+### マスキング責務の2層定義メモ（2026-05-06）
+
+構造化ロギング実装の過程で、マスキング責務を以下のように分層する：
+
+1. **エラー生成時点でのマスキング（apperror層）**
+   - 対象: ドメイン/エラーレスポンスに乗る可能性のある値
+   - 例: メールアドレス（email）、個人識別情報（PII）
+   - 理由: エラーメッセージはクライアントに返却されるため、機微情報を含めない必要がある
+
+2. **slog 出力時でのマスキング（logger層）**
+   - 対象: ログ専用の機微情報
+   - 例: password（データベースパスワード、ユーザー入力パスワード）、token（JWT、APIトークン）
+   - 方法: `ReplaceAttr`で出力時に値を`[REDACTED]`に置換
+   - 理由: ログは運用フェーズで大量に溜まるため、アクセス制御外の情報を含めるべきではない
+
+3. **ErrorHandler最上位ログ出力の原則**
+   - ハンドラ層ではログ出力を行わず、ErrorHandler（最上位）でのみ出力する
+   - 理由: ログの二重出力を排除し、ログの一貫性を保つ
+
 ### 実装順序
 
 ```
@@ -844,9 +951,16 @@ Issue B → PR B  ← ErrorHandler 拡張のメイン
 Issue C → PR C
   ↓
 Issue D → PR D
+  ↓
+Issue F → PR F  ← 通常イベントログ（INFO/DEBUG）実装
+  ↓
+Issue E → PR E  ← 将来タスク（P1、今後マスキング項目が増える際に実施）
 ```
 
+- 通常イベントログ（INFO/DEBUG）は Issue F として Issue D 完了後に着手し、実装PRでCloseする。
+
 ### 受け入れ条件（#60 クローズ基準）
+- [ ] 正常系フロー（ログイン成功、商品一覧取得、注文作成）で request_id 起点に `request_id`・`event`・`method`・`route`・`status`・`duration_ms` が欠落なく出力されること
 - [ ] 異常系シナリオ（DB切断・バリデーションエラー）で JSON ログから 10 秒以内に原因特定できること
 - [ ] エラーが最上位（ErrorHandler）で重複なく構造化ログとして出力されていること
 - [ ] JWT署名・DBパスワード・PII（個人情報）がログに含まれていないこと
@@ -861,5 +975,6 @@ Issue D → PR D
 
 ---
 追加日: 2026-05-04
+更新日: 2026-05-08
 
 

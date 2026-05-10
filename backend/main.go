@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"log/slog"
 	"os"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/middleware"
@@ -16,6 +17,8 @@ import (
 )
 
 func main() {
+	slog.SetDefault(middleware.NewJSONLogger(os.Stdout, slog.LevelInfo))
+
 	//1. DB接続
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
@@ -52,8 +55,9 @@ func main() {
 	routes.SetupRoutes(r, conn, queries)
 
 	//6. サーバー起動
-	log.Println("Server starting on :8080...")
+	slog.Info("Server starting on :8080")
 	if err := r.Run(":8080"); err != nil {
-		log.Fatal("failed to run server:", err)
+		slog.Error("failed to run server", "error", err)
+		os.Exit(1)
 	}
 }
