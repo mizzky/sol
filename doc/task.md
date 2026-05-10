@@ -772,13 +772,14 @@
 ```
 
 - [ ] **チケットA**: slogロガー初期化とマスキング設定
+  - 進捗メモ（2026-05-10）: PR #79 で `feature/structured-logging-issue-77` が `main` に取り込み済み
   - Issue A を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`（または `main.go` の初期化部分）
   - 受け入れ条件:
-    - `log/slog` の JSONHandler で構造化ログが出力される
-    - `ReplaceAttr` で password/token が `[REDACTED]` に置換される
-    - マスク対象外フィールドは値が変わらない
-    - `main.go` の起動時エラー（DATABASE_URL 未設定、sql.Open 失敗、r.Run 失敗）が `slog.Error()` + `os.Exit(1)` で処理され、構造化JSONで出力される
+    - [x] `log/slog` の JSONHandler で構造化ログが出力される
+    - [x] `ReplaceAttr` で password/token が `[REDACTED]` に置換される
+    - [x] マスク対象外フィールドは値が変わらない
+    - [ ] `main.go` の起動時エラー（DATABASE_URL 未設定、sql.Open 失敗、r.Run 失敗）が `slog.Error()` + `os.Exit(1)` で処理され、構造化JSONで出力される
   - PR で Issue A を Close
 
 #### Issue B: ErrorHandler に slog ログ出力を組み込む
