@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"database/sql"
-	"log"
 	"log/slog"
 	"os"
 	"sol_coffeesys/backend/db"
@@ -22,11 +22,17 @@ func main() {
 	//1. DB接続
 	connStr := os.Getenv("DATABASE_URL")
 	if connStr == "" {
-		log.Fatal("DATABASE_URL is not set")
+		slog.Error("startup failed", "phase", "init", "reason", "DATABASE_URL is not set")
+		os.Exit(1)
 	}
 	conn, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("failed to open db: %v", err)
+		slog.Error("startup failed", "phase", "init", "reason", "failed to open db", "error", err)
+		os.Exit(1)
+	}
+
+	if err := conn.PingContext(context.Background()); err != nil {
+		slog.Error("startup failed", "phase", "init", "reason", "failed to ping db", "error", err)
 	}
 	defer conn.Close()
 
