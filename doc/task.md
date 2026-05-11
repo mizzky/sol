@@ -779,7 +779,7 @@
     - [x] `log/slog` の JSONHandler で構造化ログが出力される
     - [x] `ReplaceAttr` で password/token が `[REDACTED]` に置換される
     - [x] マスク対象外フィールドは値が変わらない
-    - [ ] `main.go` の起動時エラー（DATABASE_URL 未設定、sql.Open 失敗、r.Run 失敗）が `slog.Error()` + `os.Exit(1)` で処理され、構造化JSONで出力される
+    - [x] `main.go` の起動時エラー（DATABASE_URL 未設定、sql.Open 失敗、r.Run 失敗）が `slog.Error()` + `os.Exit(1)` で処理され、構造化JSONで出力される
   - PR で Issue A を Close
 
 #### Issue B: ErrorHandler に slog ログ出力を組み込む
