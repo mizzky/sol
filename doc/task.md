@@ -782,30 +782,62 @@
     - [x] `main.go` の起動時エラー（DATABASE_URL 未設定、sql.Open 失敗、r.Run 失敗）が `slog.Error()` + `os.Exit(1)` で処理され、構造化JSONで出力される
   - PR で Issue A を Close
 
+### Phase 1（Issue A～D 完了時点）の必須フィールド表
+
+**ErrorHandler が出力するフィールド（異常系ログ）**:
+
+| フィールド | 型 | 説明 | 例 | 注記 |
+|---|---|---|---|---|
+| `timestamp` | ISO8601 | ログ出力時刻（slog デフォルト `time` キー） | `2026-05-14T10:30:45.123Z` | slog ネイティブ |
+| `level` | string | ログレベル（slog デフォルト） | `INFO`, `WARN`, `ERROR` | 必須 |
+| `message` | string | 人間向けのメッセージ | `invalid email format` | エラー詳細を記載 |
+| `request_id` | string (UUID) | リクエスト ID | `550e8400-e29b-41d4-a716-446655440000` | Issue C で付与 |
+| `method` | string | HTTP メソッド | `GET`, `POST`, `PUT`, `DELETE` | 必須 |
+| `route` | string | ルートパターン（パラメータ名含む） | `/api/users/:id`, `/api/products` | Issue B で付与 |
+| `status` | integer | HTTP ステータスコード | `400`, `401`, `404`, `500` | 必須 |
+| `error_type` | string | 内部エラー型分類 | `ValidationError`, `UnauthorizedError`, `InternalError` | Issue B で判定・付与 |
+| `duration_ms` | float64 | リクエスト処理時間 | `125.45` | Issue B で計測・付与 |
+| `user_id` | int64 \| 省略 | リクエストユーザー ID | `12345` | 認証済みの場合のみ出力、未認証時は省略（Issue D） |
+
+---
+
 #### Issue B: ErrorHandler に slog ログ出力を組み込む
 
 **ドラフト（GitHub Issue 本文）:**
 ```
 ### ErrorHandlerの拡張役割
+
+**責務分離**:
+- ErrorHandler は**エラーログのみ**出力（INFO/WARN/ERROR で事象分類）
+- 正常系イベントログはハンドラ/サービス層で出力（Issue F で実装）
+- ハンドラ層でのログ出力＋エラー返却の同時実行は禁止
+
+### 実装手順
 1. `c.Errors.Last()`で取得したエラーをapperrorの型で判定する
 2. エラー型に応じたログレベルでslogを出力する
    - ValidationError / NotFoundError / ConflictError / BusinessLogicError → INFO
    - UnauthorizedError / ForbiddenError → WARN
    - InternalError → ERROR
-3. ログには`event`・`message`・`error_type`・`status`・`method`・`route`フィールドを含める
-4. ログ出力はErrorHandlerのみで行い、ハンドラ層では行わない
+3. ログには必須フィールド（message, error_type, status, method, route, request_id, duration_ms）を含める
+4. ログ出力はErrorHandlerのみで行う（二重ログ禁止）
 
 ### テスト項目
 - `ValidationError`が渡されたとき、INFOレベルでログが出力されること
 - `UnauthorizedError`が渡されたとき、WARNレベルでログが出力されること
 - `InternalError`が渡されたとき、ERRORレベルでログが出力されること
-- ログJSONに`event`・`error_type`・`status`フィールドが含まれること
+- ログJSONに`message`・`error_type`・`status`・`method`・`route`・`request_id`・`duration_ms`フィールドが欠落なく含まれること
+- ハンドラ層でのログ出力がなく、ErrorHandler が唯一のエラーログ出力地点であること
 ```
 
 - [ ] **チケットB**: ErrorHandler に slog ログ出力を組み込む（メイン実装）
   - 前提: チケットA 完了
   - Issue B を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`
+  - 受け入れ条件:
+    - [ ] ValidationError/UnauthorizedError/InternalError が渡されたとき、対応するレベル（INFO/WARN/ERROR）でログが出力される
+    - [ ] ログJSON に message, error_type, status, method, route, request_id が欠落なく含まれる
+    - [ ] duration_ms（処理時間）がログに含まれる
+    - [ ] ハンドラ層でのログ出力がなく、ErrorHandler が唯一のエラーログ出力地点（二重ログなし）
   - PR で Issue B を Close
 
 #### Issue C: request_id をログフィールドへ付与
@@ -817,6 +849,10 @@
 2. slogの構造化フィールドとして`request_id`をログに付与する
 3. `request_id`が存在しない場合は空文字を出力する（パニックしない）
 
+### 注記
+- request_id は RequestIDMiddleware で全リクエストに付与済みのため、実装上は request_id が存在しない状況は想定されない
+- ただしテスト時の防御確認として「request_id がない場合も正常に完了する」を確認する
+
 ### テスト項目
 - RequestIDMiddlewareを通過したリクエストのログに`request_id`フィールドが含まれること
 - `request_id`の値が実際に発行されたIDと一致すること
@@ -827,6 +863,7 @@
   - 前提: チケットB 完了
   - Issue C を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`
+  - 取得キー: `"request_id"`（string）— `RequestIDMiddleware` がセット
   - PR で Issue C を Close
 
 #### Issue D: user_id をログフィールドへ付与
@@ -835,13 +872,15 @@
 ```
 ### user_idログ付与の役割
 1. ErrorHandler内でContextのキー`"userID"`からuser_idを取得する
-2. slogの構造化フィールドとして`user_id`をログに付与する
-3. 未認証リクエスト（Contextにuser_idなし）の場合はnullまたは0を出力する
+2. 認証済みリクエストの場合、slogの構造化フィールドとして`user_id`をログに付与する
+3. 未認証リクエスト（Contextにuser_idなし）の場合は、user_idフィールドを出力しない（null/0ではなく省略）
+4. user_id 取得でパニックしない
 
 ### テスト項目
 - 認証済みリクエストのログに`user_id`フィールドが含まれること
 - `user_id`の値がContextにセットされた値と一致すること
-- 未認証リクエスト（user_idなし）でもログ出力がパニックしないこと
+- 未認証リクエストのログでは`user_id`フィールドが出力されていないこと（JSONに存在しないこと）
+- user_id 取得失敗でパニックしないこと
 ```
 
 - [ ] **チケットD**: user_id をログフィールドへ付与
@@ -849,18 +888,66 @@
   - Issue D を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`
   - 取得キー: `"userID"`（`int64`）— `auth.RequireAuth` / `auth.AdminOnly` がセット
+  - 受け入れ条件:
+    - [ ] 認証済みリクエストのログに user_id フィールドが含まれる
+    - [ ] 未認証リクエストでは user_id フィールドが出力されない（null/0ではなく省略）
+    - [ ] user_id 取得（Context キー"userID"）でパニックしない
   - PR で Issue D を Close
+
+### Phase 2（Issue F 完了時点）の必須フィールド表
+
+**ハンドラ/サービス層が出力するフィールド（正常系イベントログ）**:
+
+| フィールド | 型 | 説明 | 例 | 注記 |
+|---|---|---|---|---|
+| `timestamp` | ISO8601 | ログ出力時刻（slog デフォルト `time` キー） | `2026-05-14T10:30:45.123Z` | slog ネイティブ |
+| `level` | string | ログレベル（slog デフォルト） | `INFO`, `DEBUG` | INFO：重要な正常系、DEBUG：開発時の詳細 |
+| `message` | string | 人間向けのメッセージ | `user login succeeded` | イベント説明 |
+| `request_id` | string (UUID) | リクエスト ID | `550e8400-e29b-41d4-a716-446655440000` | Issue C で取得 |
+| `event` | string | イベント種別（snake_case） | `user_login_succeeded`, `product_list_fetched` | Issue F で実装 |
+| `method` | string | HTTP メソッド | `GET`, `POST`, `PUT`, `DELETE` | 必須 |
+| `route` | string | ルートパターン（パラメータ名含む） | `/api/users/:id`, `/api/products` | 必須 |
+| `status` | integer | HTTP ステータスコード | `200`, `201` | 正常系のため 2xx |
+| `duration_ms` | float64 | リクエスト処理時間 | `125.45` | 必須 |
+| `user_id` | int64 \| 省略 | リクエストユーザー ID | `12345` | 認証済みの場合のみ出力、未認証時は省略 |
+
+**重要**：
+- `error_type` は出力しない（正常系のため）
+- ErrorHandler はこのログを出力しない（ハンドラ/サービス層が責務）
+
+---
 
 #### Issue F: 通常イベントログ（INFO/DEBUG）実装（P0）
 
 **ドラフト（GitHub Issue 本文）:**
 ```
-- 対象ワークフローについては着手時に再検討すること
-### 通常イベントログの役割
-1. ErrorHandler はエラーログ専任を維持する
-2. 通常イベント（DEBUG/INFO）はハンドラ/サービスの発生源で出力する
+### 責務
+- ErrorHandler は異常系ログ出力を実施（Issue B/C/D 完了後は継続）
+- ハンドラ/サービス層は正常系イベントのみ INFO/DEBUG で出力
+- 同一エラーが複数箇所で出力されない（二重ログ防止）
+
+### 二重ログ防止の実装規約
+
+**NG 例（禁止）**:
+```go
+if err != nil {
+  slog.Error("database error", "err", err)  // ← ハンドラでログ出力（禁止）
+  return err
+}
+```
+
+**OK 例（推奨）**:
+```go
+if err != nil {
+  return err  // ← ErrorHandler が拾ってログ出力
+}
+```
+
+### 実装手順
+1. ハンドラ/サービス層では`return err`のみ（ログ出力しない）
+2. 正常系フロー完了時のみ、ハンドラ層で slog.Info()/slog.Debug() でイベント出力
 3. 対象フロー: ログイン成功、商品一覧取得、注文作成（最低限）
-4. 必須フィールド: `request_id`, `event`, `method`, `route`, `status`, `duration_ms`（`user_id` は取得可能時に付与）
+4. 必須フィールド: `request_id`, `event`, `method`, `route`, `status`, `duration_ms`（`user_id` は認証済み時に付与）
 5. event命名: snake_case（例: `user_login_succeeded`, `product_list_fetched`, `order_created`）
 6. 同一イベントの重複出力を避ける
 
@@ -868,7 +955,6 @@
 - 正常系フロー3つ（ログイン成功、商品一覧取得、注文作成）で必須フィールドが欠落なく出力されること
 - request_id を起点に時系列追跡可能であること
 - イベント重複が発生しないこと
-- 実装対象ハンドラ: `handler/user.go`（ログイン）、`handler/product.go`（商品一覧取得）、`handler/order.go`（注文作成）
 ```
 
 - [ ] **チケットF**: 通常イベントログ（INFO/DEBUG）実装（P0）
@@ -880,14 +966,15 @@
     - `handler/order.go` — 注文作成イベント出力
   - 実装内容:
     - [ ] slog で INFO/DEBUG レベルのイベントログを出力
-    - [ ] 必須フィールド（request_id, event, method, route, status, duration_ms, user_id）を構造化フィールドとして付与
+    - [ ] 必須フィールド（request_id, event, method, route, status, duration_ms）を構造化フィールドとして付与
+    - [ ] 認証済みの場合は user_id も付与
     - [ ] event 命名を snake_case で統一
-    - [ ] 同一イベントの重複出力チェック
+    - [ ] ハンドラ層では正常系イベント出力のみ、エラーは return で ErrorHandler に委譲
   - 受け入れ条件:
-    - [ ] 正常系フロー3つで必須フィールドが欠落なく出力される
-    - [ ] request_id 起点で時系列追跡可能
-    - [ ] イベント重複が発生しない
-    - [ ] ハンドラ/サービス層でのみイベント出力が実行される（ErrorHandler との責務分離）
+    - [ ] 正常系フロー3つ（ログイン成功、商品一覧取得、注文作成）で必須フィールド（request_id, event, status, duration_ms）が欠落なく出力される
+    - [ ] ハンドラ層でのみイベント出力が実行される（ErrorHandler では出力されない）
+    - [ ] 同一イベントの重複出力がない
+    - [ ] ErrorHandler の異常系ログと重複していない（二重ログなし）
   - PR で Issue F を Close
 
 #### Issue E: redaction ユーティリティ統合（将来タスク・P1）
@@ -906,9 +993,10 @@
 ```
 
 - [ ] **チケットE**: redaction ユーティリティ統合（マスキング一元化）
-  - 前提: チケット A〜D が完了
+  - 前提: チケット A, B が完了（Issue C/D/F は並行可能）
   - GitHub Issue E を作成し、実装
   - 目的: マスキング項目増加に備え、ルール定義を一元化
+  - **優先度: P1（将来タスク）** — Issue B/C/D/F の実装後、マスキング項目増加時に実施
   - 実装内容:
     - [ ] 共通 redaction 関数またはパッケージを作成（例: `pkg/redaction/` または `pkg/logging/`）
     - [ ] password/token/email のマスク定義を一元管理
