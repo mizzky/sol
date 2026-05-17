@@ -3,6 +3,7 @@ package middleware_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -91,6 +92,96 @@ func TestErrorHandler(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tt.wantBody) {
 				t.Fatalf("body mismatch: got=%v want=%v", got, tt.wantBody)
+			}
+		})
+	}
+}
+
+func TestErrorHandler_LogOutput(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name          string
+		err           error
+		wantLevel     string
+		wantStatus    int
+		wantErrorType string
+		wantMessage   string
+	}{
+		{
+			name:          "ValidationErrorはINFOで出力",
+			err:           apperror.NewValidationError("email", "bad-email", "format", ""),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusBadRequest,
+			wantErrorType: "ValidationError",
+			wantMessage:   apperror.ValidationMessageEmail,
+		},
+		{
+			name:          "UnauthorizedErrorはWARNで出力",
+			err:           apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth),
+			wantLevel:     "WARN",
+			wantStatus:    http.StatusUnauthorized,
+			wantErrorType: "UnauthorizedError",
+			wantMessage:   apperror.UnauthorizedMessageAuth,
+		},
+		{
+			name:          "InternalErrorはERRORで出力",
+			err:           apperror.NewInternalError("CreateUser", errors.New("db"), apperror.InternalServerMessageCommon),
+			wantLevel:     "ERROR",
+			wantStatus:    http.StatusInternalServerError,
+			wantErrorType: "InternalError",
+			wantMessage:   apperror.InternalServerMessageCommon,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalLogger := slog.Default()
+			t.Cleanup(func() { slog.SetDefault(originalLogger) })
+
+			var buf bytes.Buffer
+			logger := middleware.NewJSONLogger(&buf, slog.LevelInfo)
+			slog.SetDefault(logger)
+
+			r := gin.New()
+			r.Use(middleware.RequestIDMiddleware())
+			r.Use(middleware.ErrorHandler(apperror.ToHTTP))
+			r.GET("/test", func(c *gin.Context) {
+				_ = c.Error(tt.err)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			var got map[string]any
+			if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+				t.Fatalf("failed to decode log: %v raw =%v", err, buf.String())
+			}
+
+			if got["level"] != tt.wantLevel {
+				t.Fatalf("level mismatch: got=%v want=%v", got["level"], tt.wantLevel)
+			}
+			if got["message"] != tt.wantMessage {
+				t.Fatalf("message mismatch: got=%v want=%v", got["message"], tt.wantMessage)
+			}
+			if got["error_type"] != tt.wantErrorType {
+				t.Fatalf("error_type mismatch: got=%v want=%v", got["error_type"], tt.wantErrorType)
+			}
+
+			if int(got["status"].(float64)) != tt.wantStatus {
+				t.Fatalf("status mismatch: got=%v want=%v", got["status"], tt.wantStatus)
+			}
+			if got["method"] != http.MethodGet {
+				t.Fatalf("method mismatch: got=%v want=%v", got["method"], http.MethodGet)
+			}
+			if got["route"] != "/test" {
+				t.Fatalf("route mismatch: got=%v want=%v", got["route"], "/test")
+			}
+			if got["request_id"] == "" {
+				t.Fatal("request_id is empty")
+			}
+			if _, ok := got["duration_ms"]; !ok {
+				t.Fatal("duration_ms is missing")
 			}
 		})
 	}
