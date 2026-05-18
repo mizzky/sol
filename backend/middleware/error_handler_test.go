@@ -177,11 +177,17 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			if got["route"] != "/test" {
 				t.Fatalf("route mismatch: got=%v want=%v", got["route"], "/test")
 			}
-			if got["request_id"] == "" {
-				t.Fatal("request_id is empty")
+			requestID, ok := got["request_id"].(string)
+			if !ok || requestID == "" {
+				t.Fatal("request_id is missing or not string")
 			}
-			if _, ok := got["duration_ms"]; !ok {
-				t.Fatal("duration_ms is missing")
+
+			durationMS, ok := got["duration_ms"].(float64)
+			if !ok {
+				t.Fatal("duration_ms is missing or not numeric")
+			}
+			if durationMS < 0 {
+				t.Fatalf("duration_ms is negative: %v", durationMS)
 			}
 		})
 	}
