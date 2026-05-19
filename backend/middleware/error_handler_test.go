@@ -103,10 +103,13 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 	tests := []struct {
 		name          string
 		err           error
+		route         string
+		requestPath   string
 		wantLevel     string
 		wantStatus    int
 		wantErrorType string
 		wantMessage   string
+		wantRoute     string
 	}{
 		{
 			name:          "ValidationErrorはINFOで出力",
@@ -132,6 +135,42 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			wantErrorType: "InternalError",
 			wantMessage:   apperror.InternalServerMessageCommon,
 		},
+		{
+			name:          "NotFoundErrorはINFOで出力",
+			err:           apperror.NewNotFoundError("user", 0, apperror.NotFoundMessageUser),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusNotFound,
+			wantErrorType: "NotFoundError",
+			wantMessage:   apperror.NotFoundMessageUser,
+		},
+		{
+			name:          "ConflictErrorはINFOで出力",
+			err:           apperror.NewConflictError("sku", "ABC", apperror.ConflictMessageSku),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusConflict,
+			wantErrorType: "ConflictError",
+			wantMessage:   apperror.ConflictMessageSku,
+		},
+		{
+			name:          "BusinessLogicErrorはINFOで出力",
+			err:           apperror.NewBusinessLogicError(apperror.BusinessLogicMessageGeneric),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusBadRequest,
+			wantErrorType: "BusinessLogicError",
+			wantMessage:   apperror.BusinessLogicMessageGeneric,
+		},
+		// /user/42ではなく/user/:idのように識別子ではなくプレースホルダ付きで返すこと
+		{
+			name:          "pathではなくrouteを出力する",
+			route:         "/users/:id",
+			requestPath:   "/users/42",
+			err:           apperror.NewNotFoundError("user", 42, apperror.NotFoundMessageUser),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusNotFound,
+			wantErrorType: "NotFoundError",
+			wantMessage:   apperror.NotFoundMessageUser,
+			wantRoute:     "/users/:id",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -142,14 +181,23 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			logger := middleware.NewJSONLogger(&buf, slog.LevelInfo)
 			slog.SetDefault(logger)
 
+			route := tt.route
+			if route == "" {
+				route = "/test"
+			}
+			requestPath := tt.requestPath
+			if requestPath == "" {
+				requestPath = route
+			}
+
 			r := gin.New()
 			r.Use(middleware.RequestIDMiddleware())
 			r.Use(middleware.ErrorHandler(apperror.ToHTTP))
-			r.GET("/test", func(c *gin.Context) {
+			r.GET(route, func(c *gin.Context) {
 				_ = c.Error(tt.err)
 			})
 
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req := httptest.NewRequest(http.MethodGet, requestPath, nil)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
@@ -174,8 +222,13 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			if got["method"] != http.MethodGet {
 				t.Fatalf("method mismatch: got=%v want=%v", got["method"], http.MethodGet)
 			}
-			if got["route"] != "/test" {
-				t.Fatalf("route mismatch: got=%v want=%v", got["route"], "/test")
+
+			wantRoute := tt.wantRoute
+			if wantRoute == "" {
+				wantRoute = route
+			}
+			if got["route"] != wantRoute {
+				t.Fatalf("route mismatch: got=%v want=%v", got["route"], wantRoute)
 			}
 			requestID, ok := got["request_id"].(string)
 			if !ok || requestID == "" {
