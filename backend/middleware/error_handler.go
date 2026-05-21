@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sol_coffeesys/backend/pkg/apperror"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,6 +31,7 @@ func redactSensitiveAttr(_ []string, attr slog.Attr) slog.Attr {
 
 func ErrorHandler(toHTTP func(error) (int, string)) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		startedAt := time.Now()
 		c.Next()
 
 		if len(c.Errors) == 0 || c.Writer.Written() {
@@ -42,7 +44,7 @@ func ErrorHandler(toHTTP func(error) (int, string)) gin.HandlerFunc {
 		}
 
 		status, msg := toHTTP(err)
-		logError(c, err, status, msg)
+		logError(c, err, status, msg, time.Since(startedAt))
 
 		if c.Writer.Written() {
 			return
@@ -52,7 +54,7 @@ func ErrorHandler(toHTTP func(error) (int, string)) gin.HandlerFunc {
 	}
 }
 
-func logError(c *gin.Context, err error, status int, msg string) {
+func logError(c *gin.Context, err error, status int, msg string, elapsed time.Duration) {
 	route := c.FullPath()
 	if route == "" {
 		route = c.Request.URL.Path
@@ -62,12 +64,13 @@ func logError(c *gin.Context, err error, status int, msg string) {
 		c.Request.Context(),
 		logLevelForError(err),
 		"http_error",
-		slog.String("event", "http_error"),
 		slog.String("message", msg),
 		slog.String("error_type", errorTypeName(err)),
 		slog.Int("status", status),
 		slog.String("method", c.Request.Method),
 		slog.String("route", route),
+		slog.String("request_id", c.GetString("request_id")),
+		slog.Float64("duration_ms", float64(elapsed.Microseconds())/1000),
 	)
 }
 

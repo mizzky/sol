@@ -3,6 +3,7 @@ package middleware_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -91,6 +92,164 @@ func TestErrorHandler(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tt.wantBody) {
 				t.Fatalf("body mismatch: got=%v want=%v", got, tt.wantBody)
+			}
+		})
+	}
+}
+
+func TestErrorHandler_LogOutput(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name          string
+		err           error
+		route         string
+		requestPath   string
+		wantLevel     string
+		wantStatus    int
+		wantErrorType string
+		wantMessage   string
+		wantRoute     string
+	}{
+		{
+			name:          "ValidationErrorはINFOで出力",
+			err:           apperror.NewValidationError("email", "bad-email", "format", ""),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusBadRequest,
+			wantErrorType: "ValidationError",
+			wantMessage:   apperror.ValidationMessageEmail,
+		},
+		{
+			name:          "UnauthorizedErrorはWARNで出力",
+			err:           apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth),
+			wantLevel:     "WARN",
+			wantStatus:    http.StatusUnauthorized,
+			wantErrorType: "UnauthorizedError",
+			wantMessage:   apperror.UnauthorizedMessageAuth,
+		},
+		{
+			name:          "InternalErrorはERRORで出力",
+			err:           apperror.NewInternalError("CreateUser", errors.New("db"), apperror.InternalServerMessageCommon),
+			wantLevel:     "ERROR",
+			wantStatus:    http.StatusInternalServerError,
+			wantErrorType: "InternalError",
+			wantMessage:   apperror.InternalServerMessageCommon,
+		},
+		{
+			name:          "NotFoundErrorはINFOで出力",
+			err:           apperror.NewNotFoundError("user", 0, apperror.NotFoundMessageUser),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusNotFound,
+			wantErrorType: "NotFoundError",
+			wantMessage:   apperror.NotFoundMessageUser,
+		},
+		{
+			name:          "ConflictErrorはINFOで出力",
+			err:           apperror.NewConflictError("sku", "ABC", apperror.ConflictMessageSku),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusConflict,
+			wantErrorType: "ConflictError",
+			wantMessage:   apperror.ConflictMessageSku,
+		},
+		{
+			name:          "BusinessLogicErrorはINFOで出力",
+			err:           apperror.NewBusinessLogicError(apperror.BusinessLogicMessageGeneric),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusBadRequest,
+			wantErrorType: "BusinessLogicError",
+			wantMessage:   apperror.BusinessLogicMessageGeneric,
+		},
+		{
+			name:          "ForbiddenはWARNで出力",
+			err:           apperror.NewForbiddenError("admin", "user", apperror.ForbiddenMessageAdmin),
+			wantLevel:     "WARN",
+			wantStatus:    http.StatusForbidden,
+			wantErrorType: "ForbiddenError",
+			wantMessage:   apperror.ForbiddenMessageAdmin,
+		},
+
+		// /user/42ではなく/user/:idのように識別子ではなくプレースホルダ付きで返すこと
+		{
+			name:          "pathではなくrouteを出力する",
+			route:         "/users/:id",
+			requestPath:   "/users/42",
+			err:           apperror.NewNotFoundError("user", 42, apperror.NotFoundMessageUser),
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusNotFound,
+			wantErrorType: "NotFoundError",
+			wantMessage:   apperror.NotFoundMessageUser,
+			wantRoute:     "/users/:id",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalLogger := slog.Default()
+			t.Cleanup(func() { slog.SetDefault(originalLogger) })
+
+			var buf bytes.Buffer
+			logger := middleware.NewJSONLogger(&buf, slog.LevelInfo)
+			slog.SetDefault(logger)
+
+			route := tt.route
+			if route == "" {
+				route = "/test"
+			}
+			requestPath := tt.requestPath
+			if requestPath == "" {
+				requestPath = route
+			}
+
+			r := gin.New()
+			r.Use(middleware.RequestIDMiddleware())
+			r.Use(middleware.ErrorHandler(apperror.ToHTTP))
+			r.GET(route, func(c *gin.Context) {
+				_ = c.Error(tt.err)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, requestPath, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			var got map[string]any
+			if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+				t.Fatalf("failed to decode log: %v raw =%v", err, buf.String())
+			}
+
+			if got["level"] != tt.wantLevel {
+				t.Fatalf("level mismatch: got=%v want=%v", got["level"], tt.wantLevel)
+			}
+			if got["message"] != tt.wantMessage {
+				t.Fatalf("message mismatch: got=%v want=%v", got["message"], tt.wantMessage)
+			}
+			if got["error_type"] != tt.wantErrorType {
+				t.Fatalf("error_type mismatch: got=%v want=%v", got["error_type"], tt.wantErrorType)
+			}
+
+			if int(got["status"].(float64)) != tt.wantStatus {
+				t.Fatalf("status mismatch: got=%v want=%v", got["status"], tt.wantStatus)
+			}
+			if got["method"] != http.MethodGet {
+				t.Fatalf("method mismatch: got=%v want=%v", got["method"], http.MethodGet)
+			}
+
+			wantRoute := tt.wantRoute
+			if wantRoute == "" {
+				wantRoute = route
+			}
+			if got["route"] != wantRoute {
+				t.Fatalf("route mismatch: got=%v want=%v", got["route"], wantRoute)
+			}
+			requestID, ok := got["request_id"].(string)
+			if !ok || requestID == "" {
+				t.Fatal("request_id is missing or not string")
+			}
+
+			durationMS, ok := got["duration_ms"].(float64)
+			if !ok {
+				t.Fatal("duration_ms is missing or not numeric")
+			}
+			if durationMS < 0 {
+				t.Fatalf("duration_ms is negative: %v", durationMS)
 			}
 		})
 	}
