@@ -159,6 +159,15 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			wantErrorType: "BusinessLogicError",
 			wantMessage:   apperror.BusinessLogicMessageGeneric,
 		},
+		{
+			name:          "ForbiddenはWARNで出力",
+			err:           apperror.NewForbiddenError("admin", "user", apperror.ForbiddenMessageAdmin),
+			wantLevel:     "WARN",
+			wantStatus:    http.StatusForbidden,
+			wantErrorType: "ForbiddenError",
+			wantMessage:   apperror.ForbiddenMessageAdmin,
+		},
+
 		// /user/42ではなく/user/:idのように識別子ではなくプレースホルダ付きで返すこと
 		{
 			name:          "pathではなくrouteを出力する",
