@@ -829,15 +829,15 @@
 - ハンドラ層でのログ出力がなく、ErrorHandler が唯一のエラーログ出力地点であること
 ```
 
-- [ ] **チケットB**: ErrorHandler に slog ログ出力を組み込む（メイン実装）
+- [x] **チケットB**: ErrorHandler に slog ログ出力を組み込む（メイン実装）
   - 前提: チケットA 完了
   - Issue B を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`
   - 受け入れ条件:
-    - [ ] ValidationError/UnauthorizedError/InternalError が渡されたとき、対応するレベル（INFO/WARN/ERROR）でログが出力される
-    - [ ] ログJSON に message, error_type, status, method, route, request_id が欠落なく含まれる
-    - [ ] duration_ms（処理時間）がログに含まれる
-    - [ ] ハンドラ層でのログ出力がなく、ErrorHandler が唯一のエラーログ出力地点（二重ログなし）
+    - [x] ValidationError/UnauthorizedError/InternalError が渡されたとき、対応するレベル（INFO/WARN/ERROR）でログが出力される
+    - [x] ログJSON に message, error_type, status, method, route, request_id が欠落なく含まれる
+    - [x] duration_ms（処理時間）がログに含まれる
+    - [x] ハンドラ層でのログ出力がなく、ErrorHandler が唯一のエラーログ出力地点（二重ログなし）
   - PR で Issue B を Close
 
 #### Issue C: request_id をログフィールドへ付与
