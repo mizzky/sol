@@ -40,7 +40,8 @@ func main() {
 	queries := db.New(conn)
 
 	//3. Ginルーター初期化
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 
 	// 4. ミドルウェア設定
 	// request_id生成
