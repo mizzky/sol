@@ -101,15 +101,18 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name          string
-		err           error
-		route         string
-		requestPath   string
-		wantLevel     string
-		wantStatus    int
-		wantErrorType string
-		wantMessage   string
-		wantRoute     string
+		name                     string
+		err                      error
+		route                    string
+		requestPath              string
+		omitRequestIDMiddleware  bool
+		wantRequestIDEmpty       bool
+		checkRequestIDWithHeader bool
+		wantLevel                string
+		wantStatus               int
+		wantErrorType            string
+		wantMessage              string
+		wantRoute                string
 	}{
 		{
 			name:          "ValidationErrorはINFOで出力",
@@ -180,6 +183,26 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			wantMessage:   apperror.NotFoundMessageUser,
 			wantRoute:     "/users/:id",
 		},
+		{
+			name:                    "request_idなしで空文字が出る",
+			err:                     apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth),
+			omitRequestIDMiddleware: true,
+			wantRequestIDEmpty:      true,
+			wantLevel:               "WARN",
+			wantStatus:              http.StatusUnauthorized,
+			wantErrorType:           "UnauthorizedError",
+			wantMessage:             apperror.UnauthorizedMessageAuth,
+		},
+		{
+			name:                     "request_idがヘッダと一致する",
+			err:                      apperror.NewUnauthorizedError("token_not_found", apperror.UnauthorizedMessageAuth),
+			omitRequestIDMiddleware:  false,
+			checkRequestIDWithHeader: true,
+			wantLevel:                "WARN",
+			wantStatus:               http.StatusUnauthorized,
+			wantErrorType:            "UnauthorizedError",
+			wantMessage:              apperror.UnauthorizedMessageAuth,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -200,7 +223,9 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			}
 
 			r := gin.New()
-			r.Use(middleware.RequestIDMiddleware())
+			if !tt.omitRequestIDMiddleware {
+				r.Use(middleware.RequestIDMiddleware())
+			}
 			r.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			r.GET(route, func(c *gin.Context) {
 				_ = c.Error(tt.err)
@@ -240,8 +265,27 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 				t.Fatalf("route mismatch: got=%v want=%v", got["route"], wantRoute)
 			}
 			requestID, ok := got["request_id"].(string)
-			if !ok || requestID == "" {
+			if !ok {
 				t.Fatal("request_id is missing or not string")
+			}
+			if tt.wantRequestIDEmpty {
+				if requestID != "" {
+					t.Fatalf("request_id mismatch: got=%q want empty", requestID)
+				}
+			} else {
+				if requestID == "" {
+					t.Fatal("request_id should not be empty")
+				}
+			}
+
+			if tt.checkRequestIDWithHeader {
+				headerID := w.Header().Get("X-Request-ID")
+				if headerID == "" {
+					t.Fatal("X-Request-ID header is empty")
+				}
+				if requestID != headerID {
+					t.Fatalf("request_id mismatch: log=%q header=%q", requestID, headerID)
+				}
 			}
 
 			durationMS, ok := got["duration_ms"].(float64)
