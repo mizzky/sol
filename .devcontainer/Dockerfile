@@ -10,7 +10,7 @@ RUN curl -sS https://starship.rs/install.sh | sh -s -- -y
 
 #goツールインストール
 RUN go install github.com/air-verse/air@latest && \
-    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest && \
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 && \
     go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 RUN chmod -R 755 /go/bin

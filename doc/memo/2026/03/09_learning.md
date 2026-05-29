@@ -31,9 +31,9 @@
 
 **学んだ内容：**
 - **migrate CLI の基本コマンド**
-  - `migrate up / down` — applying/reverting
-  - `migrate version` — current state + dirty flag
-  - `migrate force <version>` — dirty を解除（破壊的、要バックアップ）
+  - `migrate -path db/migrations -database "$DATABASE_URL" up / down` — applying/reverting
+  - `migrate -path db/migrations -database "$DATABASE_URL" version` — current state + dirty flag
+  - `migrate -path db/migrations -database "$DATABASE_URL" force <version>` — dirty を解除（破壊的、要バックアップ）
   
 - **ファイル命名規則**
   - 既存プロジェクト: `000001_create_users_table.up.sql` / `.down.sql` （連番）
