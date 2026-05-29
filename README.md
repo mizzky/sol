@@ -27,19 +27,27 @@
    - VSCodeにDev Containers拡張が入っていること
 2. 開発コンテナ起動
 3. 環境変数
-   - .envに`JWT_SECRET`を設定する
-   - 必要に応じ`DATABASE_URL`を設定する
-4. アプリケーション起動
+   - .envに`JWT_SECRET`,`DATABASE_URL`を設定する
+
+4. DBマイグレーション
    ```bash
-   // terminal1(backend)
+   cd /workspaces/sol_coffeesys/backend
+   migrate -path db/migrations -database "$DATABASE_URL" up
+   ```
+
+5. アプリケーション起動
+   ```bash
+   # terminal1(backend)
    cd /workspaces/sol_coffeesys/backend
    air
-   // terminal2(frontend)
+   # terminal2(frontend)
    cd /workspaces/sol_coffeesys/frontend
    npm run dev
    ```
+6. 初期データ投入
+  - `test.init.http`をrest clientで実行する
 
-5. 動作確認
+7. 動作確認
    - ブラウザでログインから商品閲覧、カート、注文作成までの基本フローが動作することを確認   
 ### ドキュメント
 - API設計書
