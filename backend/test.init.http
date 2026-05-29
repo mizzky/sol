@@ -1,0 +1,103 @@
+# 前工程のresponseを利用するリクエストもあるので手順成功確認後に連続実行すること
+# 途中で失敗した場合依存する後続リクエストも失敗するためレコード削除等で再実行する
+
+### 初期投入 0) 空DB疎通確認
+GET http://localhost:8080/api/products
+
+### 初期投入 1) 管理者候補ユーザー登録
+# @name registerAdmin
+POST http://localhost:8080/api/register
+Content-Type: application/json
+
+{
+    "name": "Seed Admin",
+    "email": "seed-admin@example.com",
+    "password": "Password123"
+}
+
+### 初期投入 2) 手動SQL: 管理者昇格（REST Clientでは実行されない）
+# 下記をターミナルで1回実行
+# psql "$DATABASE_URL" -c "UPDATE users SET role='admin' WHERE email='seed-admin@example.com';"
+
+### 初期投入 3) 管理者ログイン
+# @name loginAdmin
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+    "email": "seed-admin@example.com",
+    "password": "Password123"
+}
+
+### 初期投入 4) カテゴリ作成(admin)
+# @name createCategory
+POST http://localhost:8080/api/categories
+Content-Type: application/json
+
+{
+    "name": "Seed Category",
+    "description": "初期投入カテゴリ"
+}
+
+### 初期投入 5) 商品作成（admin）
+# @name createProduct
+POST http://localhost:8080/api/products
+Content-Type: application/json
+
+{
+  "name": "Seed Product",
+  "price": 1200,
+  "is_available": true,
+  "category_id": {{createCategory.response.body.$.id}},
+  "sku": "SEED-SKU-0001",
+  "description": "初期投入商品",
+  "image_url": "https://example.com/seed.jpg",
+  "stock_quantity": 20
+}
+
+### 初期投入 6) 一般ユーザー登録
+# @name registerMember
+POST http://localhost:8080/api/register
+Content-Type: application/json
+
+{
+  "name": "Seed Member",
+  "email": "seed-member@example.com",
+  "password": "Password123"
+}
+
+### 初期投入 7) 一般ユーザーログイン
+# @name loginMember
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+  "email": "seed-member@example.com",
+  "password": "Password123"
+}
+
+
+### 初期投入 8) 商品一覧確認
+GET http://localhost:8080/api/products
+
+
+### 初期投入 9) カート追加
+POST http://localhost:8080/api/cart/items
+Content-Type: application/json
+
+{
+  "product_id": {{createProduct.response.body.$.id}},
+  "quantity": 1
+}
+
+
+### 初期投入 10) 注文作成
+# @name createOrder
+POST http://localhost:8080/api/orders
+Content-Type: application/json
+
+{}
+
+
+### 初期投入 11) 注文一覧確認
+GET http://localhost:8080/api/orders
