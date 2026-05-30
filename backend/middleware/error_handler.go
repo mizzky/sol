@@ -60,10 +60,7 @@ func logError(c *gin.Context, err error, status int, msg string, elapsed time.Du
 		route = c.Request.URL.Path
 	}
 
-	slog.LogAttrs(
-		c.Request.Context(),
-		logLevelForError(err),
-		"http_error",
+	attrs := []slog.Attr{
 		slog.String("message", msg),
 		slog.String("error_type", errorTypeName(err)),
 		slog.Int("status", status),
@@ -71,6 +68,19 @@ func logError(c *gin.Context, err error, status int, msg string, elapsed time.Du
 		slog.String("route", route),
 		slog.String("request_id", c.GetString("request_id")),
 		slog.Float64("duration_ms", float64(elapsed.Microseconds())/1000),
+	}
+
+	if raw, ok := c.Get("userID"); ok {
+		if uid, ok := raw.(int64); ok {
+			attrs = append(attrs, slog.Int64("user_id", uid))
+		}
+	}
+
+	slog.LogAttrs(
+		c.Request.Context(),
+		logLevelForError(err),
+		"http_error",
+		attrs...,
 	)
 }
 
