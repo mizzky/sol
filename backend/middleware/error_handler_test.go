@@ -108,6 +108,7 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 		omitRequestIDMiddleware  bool
 		wantRequestIDEmpty       bool
 		checkRequestIDWithHeader bool
+		authenticated            bool
 		wantLevel                string
 		wantStatus               int
 		wantErrorType            string
@@ -203,11 +204,34 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			wantErrorType:            "UnauthorizedError",
 			wantMessage:              apperror.UnauthorizedMessageAuth,
 		},
+		{
+			name:          "認証済みの場合user_idがContextと同じ値がログに含まれる",
+			err:           apperror.NewNotFoundError("user", 42, apperror.NotFoundMessageUser),
+			authenticated: true,
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusNotFound,
+			wantErrorType: "NotFoundError",
+			wantMessage:   apperror.NotFoundMessageUser,
+		},
+		{
+			name:          "未認証の場合user_idがログに含まれない",
+			err:           apperror.NewNotFoundError("user", 42, apperror.NotFoundMessageUser),
+			authenticated: false,
+			wantLevel:     "INFO",
+			wantStatus:    http.StatusNotFound,
+			wantErrorType: "NotFoundError",
+			wantMessage:   apperror.NotFoundMessageUser,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			originalLogger := slog.Default()
 			t.Cleanup(func() { slog.SetDefault(originalLogger) })
+
+			// 認証用userid
+			var expectedUserID int64
+			expectedUserID = 42
 
 			var buf bytes.Buffer
 			logger := middleware.NewJSONLogger(&buf, slog.LevelInfo)
@@ -228,6 +252,9 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 			}
 			r.Use(middleware.ErrorHandler(apperror.ToHTTP))
 			r.GET(route, func(c *gin.Context) {
+				if tt.authenticated {
+					c.Set("userID", expectedUserID)
+				}
 				_ = c.Error(tt.err)
 			})
 
@@ -285,6 +312,24 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 				}
 				if requestID != headerID {
 					t.Fatalf("request_id mismatch: log=%q header=%q", requestID, headerID)
+				}
+			}
+
+			if tt.authenticated {
+				raw, ok := got["user_id"]
+				if !ok {
+					t.Fatal("user_id is missing")
+				}
+				id, ok := raw.(float64)
+				if !ok {
+					t.Fatalf("user_id type mismatch: %T", raw)
+				}
+				if int64(id) != expectedUserID {
+					t.Fatalf("user_id mismatch: log=%v expected=%v", id, expectedUserID)
+				}
+			} else {
+				if _, exists := got["user_id"]; exists {
+					t.Fatalf("user_id should not exist in unauthentiated case: got=%v", got["user_id"])
 				}
 			}
 
