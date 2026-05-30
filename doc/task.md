@@ -884,15 +884,15 @@
 - user_id 取得失敗でパニックしないこと
 ```
 
-- [ ] **チケットD**: user_id をログフィールドへ付与
+- [x] **チケットD**: user_id をログフィールドへ付与
   - 前提: チケットC 完了
   - Issue D を GitHub に作成し、TDD で実装
   - 実装対象: `middleware/error_handler.go`
   - 取得キー: `"userID"`（`int64`）— `auth.RequireAuth` / `auth.AdminOnly` がセット
   - 受け入れ条件:
-    - [ ] 認証済みリクエストのログに user_id フィールドが含まれる
-    - [ ] 未認証リクエストでは user_id フィールドが出力されない（null/0ではなく省略）
-    - [ ] user_id 取得（Context キー"userID"）でパニックしない
+    - [x] 認証済みリクエストのログに user_id フィールドが含まれる
+    - [x] 未認証リクエストでは user_id フィールドが出力されない（null/0ではなく省略）
+    - [x] user_id 取得（Context キー"userID"）でパニックしない
   - PR で Issue D を Close
 
 ### Phase 2（Issue F 完了時点）の必須フィールド表
