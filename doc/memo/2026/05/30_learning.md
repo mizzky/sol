@@ -222,3 +222,118 @@ it("should not include user_id when unauthorized", func() {
 
 ### 学習ポイント
 **重要**: アーキテクチャ設計とコード実装の責任分離が重要。「何を記録するか」の判断基準（ポリシー）は設計フェーズで決めきり、「どう実装するか」の手段選択は実装フェーズに任せる。また、エラーと成功ログの分離方針により、各ハンドラの責任が明確になり、保守性が向上する。PII 出力は「マスキング機能」ではなく「最初から出さない設計」から始まることが重要。
+
+---
+
+## セッション 3 (17:30 - )
+
+### 取り組んだタスク
+- Ticket F（通常イベントログヘルパー設計）の実装前設計仕上げ
+- ヘルパー配置・責務・呼び出し方式の最終確定
+- request_id と duration_ms の優先順問題の整理
+- 正常系ログ検証方針の決定
+
+### ユーザーが質問した内容
+- 通常イベントログヘルパーはどこに配置すべきか？（middleware vs pkg）
+- ヘルパーが責務とすべき範囲は？
+- request_id と duration_ms の優先順序はどう決めるべき？
+- 正常系ログのテストはどの粒度まで必要か？
+
+### 躓いたポイントと解決策
+
+#### 1. ヘルパー配置の判断
+**問題**: ヘルパーを middleware として実装すべきか、pkg 配下の汎用ヘルパーとすべきか不明確
+**解決**:
+- middleware は「HTTP リクエスト周期に紐付く」機能に限定
+- ヘルパーは「各ハンドラが任意のタイミングで呼び出せる」汎用関数
+- **結論**: ヘルパーは `backend/pkg` 配下に配置。middleware は request_id/duration_ms 基盤のみ担当
+
+#### 2. request_id と duration_ms の「優先順」の誤解
+**躓き**: 「request_id と duration_ms のどちらを先に確定するか」という優先順の質問があった
+**解決**:
+- これは「優先順」ではなく「**並行確定**」の問題
+- 両者とも最上流（middleware）で同一タイミングで確定すべき
+  - リクエスト受信時に request_id を生成 → Context に保存
+  - 同時に start_time をContext に保存 → ハンドラ終端で duration_ms = now - start_time で計算
+- **結論**: 競合ではなく、最上流で両方確定するのが最適
+
+#### 3. 正常系ログの検証粒度
+**問題**: 正常系ログが増えると、テストコード量が急増する可能性
+**解決**:
+- 検証対象を絞る：
+  - ヘルパー自体のUT → 共通フィールド付与が正しいか確認
+  - 全体UT → エンドツーエンドでイベント出力されているか確認
+  - 各ハンドラUT → ハンドラ固有ロジックの検証（ログ出力は UT 対象外）
+- **結論**: ハンドラUT では正常系ログ検証は過剰になるため、ヘルパーUT中心で進める
+
+### 合意したヘルパー設計方針
+
+#### 1. ヘルパー配置と名称
+- **パス**: `backend/pkg/eventlog`
+- **構成**: `logger.go`（ヘルパー関数）+ `logger_test.go`
+
+#### 2. ヘルパー責務（4つのみ）
+1. 共通フィールド付与（request_id, method, route, status, duration_ms, user_id）
+2. message フィールド処理（optional）
+3. 業務最小項目の受け取り（event, status, message, その他 domain 固有フィールド）
+4. slog.InfoContext() への委譲
+
+#### 3. ハンドラ終端での呼び出し方式
+```
+ハンドラ終端で以下を渡す:
+- event（例：user_login_success）
+- status（例：200, 201）
+- message（オプション、例：nil）
+- domain 固有フィールド（例：login_method: "password"）
+
+ヘルパーが以下を自動付与:
+- request_id（Context から取得）
+- method, route（Context から取得）
+- duration_ms（Context の start_time から計算）
+- user_id（認証済みの場合のみ Context から取得）
+```
+
+#### 4. ログレベルと出力ルール
+- **INFO**: 1 リクエスト = 原則 1 件、状態遷移時のみ追加 1 件まで
+- **DEBUG**: 開発環境メイン、本番は原則無効（調査時のみ一時有効化）
+- **PII**: 出力禁止（設計上最初から排除）
+
+#### 5. duration_ms の計算方式
+- **確定タイミング**: リクエスト受信時（middleware）
+- **実装**:
+  - middleware: `ctx.Set("start_time", time.Now())`
+  - ハンドラ終端: `duration_ms := time.Since(ctx.GetTime("start_time")).Milliseconds()`
+  - 成功系・異常系で同じ定義を使用（コード重複回避）
+
+#### 6. message フィールド
+- **型**: `*string`（nil で optional 表現）
+- **用途**: エラー時の補足説明（通常は nil）
+- **例**:
+  - 成功時: message = nil
+  - エラー時: message = "Invalid email format"
+
+### 実行計画（Ticket F 消化方針）
+1. **ヘルパー最小実装** → 共通フィールド付与 + slog.InfoContext() 委譲
+2. **ヘルパーUT** → 各フィールドが正しく付与されることを確認
+3. **ログイン成功 1 ケースに適用** → handler/user.go の Login 終端で呼び出し
+4. **全体TE** → エンドツーエンドでイベント出力を確認
+5. **横展開** → 他のハンドラへ段階的に適用
+
+### ユーザーの判断
+- **設計書追記**: 1 セクション粒度で短く。GitHub markdown snippet 化して利用
+- **優先度**: ヘルパー実装完了後、具体例を追加
+
+### 今回完了したこと
+- 通常イベントログヘルパーの配置・責務を確定
+- request_id / duration_ms の並行確定パターンを明確化
+- 正常系ログUT の検証粒度（ヘルパーUT 中心）を決定
+- Ticket F 実装開始の全条件が確定
+
+### 次回課題
+- [ ] Ticket F Step 1: backend/pkg/eventlog/logger.go 実装
+- [ ] Ticket F Step 2: logger_test.go 実装（RED → GREEN）
+- [ ] Ticket F Step 3: handler/user.go Login 関数に適用
+- [ ] 全体TE と横展開 Check
+
+### 学習ポイント
+**重要**: middleware と pkg の役割分離が設計の鍵。middleware は「最上流の基盤化」（request_id, start_time の確定）に徹し、ハンドラが任意タイミングで呼び出すヘルパーは pkg に配置することで、関心の分離が実現される。また「優先順」と「並行確定」の用語の正確性が、チーム内コミュニケーションのズレを防ぐ。UT の粒度決定も「何をテストの責務とするか」の明確な分担で、テストコード量の増加を制御できる。
