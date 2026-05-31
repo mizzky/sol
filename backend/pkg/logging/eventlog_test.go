@@ -1,6 +1,8 @@
 package logging
 
 import (
+	"bytes"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -147,4 +149,80 @@ func attrsToMap(attrs []slog.Attr) map[string]any {
 		result[attr.Key] = attr.Value.Any()
 	}
 	return result
+}
+
+func TestLogEvent_UsesEventAsMessageWhenMessageEmpty(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orig := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(orig) })
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/login", nil)
+	c.Set(CtxKeyRequestID, "req-1")
+	c.Set(CtxKeyRequestStartedAt, time.Now().Add(-10*time.Millisecond))
+	c.Set(CtxKeyUserID, int64(42))
+
+	LogEvent(c, EventInput{
+		Event:  "auth_login_succeeded",
+		Status: http.StatusOK,
+		Level:  slog.LevelInfo,
+		// Messageは空
+	})
+
+	var got map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("failed to decode log json: %v raw=%s", err, buf.String())
+	}
+
+	// slogのmessageキーは "msg"
+	if got["msg"] != "auth_login_succeeded" {
+		t.Fatalf("msg mismatch: got=%v want=%v", got["msg"], "auth_login_succeeded")
+	}
+	if got["event"] != "auth_login_succeeded" {
+		t.Fatalf("event mismatch: got=%v want=%v", got["event"], "auth_login_succeeded")
+	}
+	if got["request_id"] != "req-1" {
+		t.Fatalf("request_id mismatch: got=%v want=%v", got["request_id"], "req-1")
+	}
+}
+
+func TestLogEvent_DefaultLevelInfoWhenLevelNotSpecified(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orig := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(orig) })
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/health", nil)
+	c.Set(CtxKeyRequestID, "req-2")
+	c.Set(CtxKeyRequestStartedAt, time.Now().Add(-5*time.Millisecond))
+
+	// Level未指定（ゼロ値）
+	LogEvent(c, EventInput{
+		Event:  "health_checked",
+		Status: http.StatusOK,
+	})
+
+	var got map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("failed to decode log json: %v raw=%s", err, buf.String())
+	}
+
+	if got["level"] != "INFO" {
+		t.Fatalf("level mismatch: got=%v want=INFO", got["level"])
+	}
+	if got["msg"] != "health_checked" {
+		t.Fatalf("msg mismatch: got=%v want=health_checked", got["msg"])
+	}
 }

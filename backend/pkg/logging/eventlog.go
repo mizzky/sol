@@ -49,3 +49,19 @@ func BuildAttrs(c *gin.Context, in EventInput) []slog.Attr {
 
 	return attrs
 }
+
+func LogEvent(c *gin.Context, in EventInput) {
+	level := in.Level
+
+	if level == 0 {
+		level = slog.LevelInfo
+	}
+
+	msg := in.Message
+	if msg == "" {
+		msg = in.Event
+	}
+
+	attrs := BuildAttrs(c, in)
+	slog.LogAttrs(c.Request.Context(), level, msg, attrs...)
+}
