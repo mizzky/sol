@@ -3,9 +3,11 @@ package handler
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"strconv"
 	"time"
 
@@ -73,6 +75,12 @@ func ListProductsHandler(q db.Querier) gin.HandlerFunc {
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"products": resp})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "products_listed",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -114,6 +122,12 @@ func GetProductHandler(q db.Querier) gin.HandlerFunc {
 			StockQuantity: product.StockQuantity,
 			CreatedAt:     product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:     product.UpdatedAt.Format(time.RFC3339),
+		})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "product_fetched",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
 		})
 	}
 }
@@ -204,6 +218,12 @@ func CreateProductHandler(q db.Querier) gin.HandlerFunc {
 			StockQuantity: product.StockQuantity,
 			CreatedAt:     product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:     product.UpdatedAt.Format(time.RFC3339),
+		})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "product_created",
+			Status: http.StatusCreated,
+			Level:  slog.LevelInfo,
 		})
 	}
 }
@@ -307,6 +327,12 @@ func UpdateProductHandler(q db.Querier) gin.HandlerFunc {
 			CreatedAt:     product.CreatedAt.Format(time.RFC3339),
 			UpdatedAt:     product.UpdatedAt.Format(time.RFC3339),
 		})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "product_updated",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -328,5 +354,11 @@ func DeleteProductHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusNoContent, nil)
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "product_deleted",
+			Status: http.StatusNoContent,
+			Level:  slog.LevelInfo,
+		})
 	}
 }

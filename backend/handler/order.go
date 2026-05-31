@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -144,6 +146,12 @@ func CreateOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusCreated, gin.H{"order": order})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "order_created",
+			Status: http.StatusCreated,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -251,6 +259,12 @@ func CancelOrderHandler(conn *sql.DB, queries *db.Queries) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"order": updated})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "order_cancelled",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -336,5 +350,11 @@ func GetOrdersHandler(queries db.Querier) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"orders": filtered})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "orders_listed",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }

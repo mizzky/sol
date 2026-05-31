@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,6 +41,13 @@ func LogoutHandler(queries db.Querier) gin.HandlerFunc {
 			http.SetCookie(c.Writer, clearAccess)
 			http.SetCookie(c.Writer, clearRefresh)
 			c.JSON(http.StatusOK, gin.H{"message": "ログアウトしました"})
+
+			logging.LogEvent(c, logging.EventInput{
+				Event:  "auth_logout_succeeded",
+				Status: http.StatusOK,
+				Level:  slog.LevelInfo,
+			})
+
 			return
 		}
 
@@ -79,5 +88,11 @@ func LogoutHandler(queries db.Querier) gin.HandlerFunc {
 		http.SetCookie(c.Writer, clearAccess)
 		http.SetCookie(c.Writer, clearRefresh)
 		c.JSON(http.StatusOK, gin.H{"message": "ログアウトしました"})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "auth_logout_succeeded",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }

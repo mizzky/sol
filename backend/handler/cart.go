@@ -2,9 +2,11 @@ package handler
 
 import (
 	"database/sql"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"strconv"
 	"time"
 
@@ -54,6 +56,12 @@ func GetCartHandler(q db.Querier) gin.HandlerFunc {
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"items": items})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "cart_items_listed",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -121,6 +129,12 @@ func AddToCartHandler(q db.Querier) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusCreated, gin.H{"item": item})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "cart_item_added",
+			Status: http.StatusCreated,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -181,6 +195,12 @@ func UpdateCartItemHandler(q db.Querier) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"item": item})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "cart_item_updated",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -246,6 +266,12 @@ func RemoveCartItemHandler(q db.Querier) gin.HandlerFunc {
 
 		c.Status(http.StatusNoContent)
 
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "cart_item_deleted",
+			Status: http.StatusNoContent,
+			Level:  slog.LevelInfo,
+		})
+
 	}
 }
 
@@ -275,5 +301,11 @@ func ClearCartHandler(q db.Querier) gin.HandlerFunc {
 		}
 
 		c.Status(http.StatusNoContent)
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "cart_cleared",
+			Status: http.StatusNoContent,
+			Level:  slog.LevelInfo,
+		})
 	}
 }

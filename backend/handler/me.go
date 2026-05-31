@@ -2,10 +2,12 @@ package handler
 
 import (
 	"database/sql"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"strconv"
 	"strings"
 
@@ -76,6 +78,14 @@ func MeHandler(q db.Querier) gin.HandlerFunc {
 				"email": user.Email,
 				"role":  user.Role,
 			},
+		})
+
+		c.Set("userID", userID)
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "auth_me_fetched",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
 		})
 	}
 }
