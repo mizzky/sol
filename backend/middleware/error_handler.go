@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"strings"
 	"time"
 
@@ -32,6 +33,12 @@ func redactSensitiveAttr(_ []string, attr slog.Attr) slog.Attr {
 func ErrorHandler(toHTTP func(error) (int, string)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		startedAt := time.Now()
+		if raw, ok := c.Get(logging.CtxKeyRequestStartedAt); ok {
+			if v, ok := raw.(time.Time); ok {
+				startedAt = v
+			}
+		}
+
 		c.Next()
 
 		if len(c.Errors) == 0 || c.Writer.Written() {

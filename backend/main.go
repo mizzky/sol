@@ -44,6 +44,8 @@ func main() {
 	r.Use(gin.Recovery())
 
 	// 4. ミドルウェア設定
+	// duration_ms
+	r.Use(middleware.RequestStartedAtMiddleware())
 	// request_id生成
 	r.Use(middleware.RequestIDMiddleware())
 
