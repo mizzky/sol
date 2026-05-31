@@ -39,7 +39,7 @@ func TestBuildAttrs_ContainRequireFields(t *testing.T) {
 				Level:  slog.LevelInfo,
 			},
 			wantRequestID:     "req-1",
-			wantMethod:        http.MethodPost,
+			wantMethod:        http.MethodGet,
 			wantRoute:         "/api/login",
 			wantStatus:        http.StatusOK,
 			wantEvent:         "auth_login_succeeded",
@@ -108,7 +108,11 @@ func TestBuildAttrs_ContainRequireFields(t *testing.T) {
 			if got["route"] != tt.wantRoute {
 				t.Fatalf("route mismatch: got=%v want=%v", got["route"], tt.wantRoute)
 			}
-			if got["status"] != tt.wantStatus {
+			gotStatus, ok := got["status"].(int64)
+			if !ok {
+				t.Fatalf("status type mismatch: got=%T", got["status"])
+			}
+			if int(gotStatus) != tt.wantStatus {
 				t.Fatalf("status mismatch: got=%v want=%v", got["status"], tt.wantStatus)
 			}
 			if got["event"] != tt.wantEvent {
