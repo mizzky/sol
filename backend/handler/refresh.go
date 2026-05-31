@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -113,6 +115,13 @@ func RefreshTokenHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.H
 			},
 		})
 
+		c.Set("userID", user.ID)
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "auth_refresh_token_updated",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
+
 	}
 }
 
@@ -143,6 +152,13 @@ func RevokeRefreshHandler(q db.Querier) gin.HandlerFunc {
 			http.SetCookie(c.Writer, clearAccess)
 			http.SetCookie(c.Writer, clearRefresh)
 			c.JSON(http.StatusOK, gin.H{"message": "リフレッシュトークンを破棄しました"})
+
+			logging.LogEvent(c, logging.EventInput{
+				Event:  "auth_refresh_token_revoked",
+				Status: http.StatusOK,
+				Level:  slog.LevelInfo,
+			})
+
 			return
 		}
 
@@ -181,5 +197,11 @@ func RevokeRefreshHandler(q db.Querier) gin.HandlerFunc {
 		http.SetCookie(c.Writer, clearAccess)
 		http.SetCookie(c.Writer, clearRefresh)
 		c.JSON(http.StatusOK, gin.H{"message": "リフレッシュトークンを破棄しました"})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "auth_refresh_token_revoked",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }

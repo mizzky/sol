@@ -2,9 +2,11 @@ package handler
 
 import (
 	"database/sql"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -61,6 +63,12 @@ func CreateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 			ID:          category.ID,
 			Name:        category.Name,
 			Description: responseDescription,
+		})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "category_created",
+			Status: http.StatusCreated,
+			Level:  slog.LevelInfo,
 		})
 	}
 }
@@ -124,6 +132,12 @@ func UpdateCategoryHandler(queries db.Querier) gin.HandlerFunc {
 			Description: responseDescription,
 		})
 
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "category_updated",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
+
 	}
 }
 
@@ -148,6 +162,12 @@ func GetCategoriesHandler(queries db.Querier) gin.HandlerFunc {
 			})
 		}
 		c.JSON(http.StatusOK, gin.H{"categories": resp})
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "categories_listed",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -171,5 +191,11 @@ func DeleteCategoryHandler(queries db.Querier) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusNoContent, nil)
+
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "category_deleted",
+			Status: http.StatusNoContent,
+			Level:  slog.LevelInfo,
+		})
 	}
 }

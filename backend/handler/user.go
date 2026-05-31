@@ -3,11 +3,14 @@ package handler
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sol_coffeesys/backend/auth"
 	"sol_coffeesys/backend/db"
 	"sol_coffeesys/backend/pkg/apperror"
+	"sol_coffeesys/backend/pkg/logging"
 	"sol_coffeesys/backend/pkg/validation"
+
 	"strconv"
 	"time"
 
@@ -86,6 +89,13 @@ func RegisterUserHandler(q db.Querier) gin.HandlerFunc {
 
 		// 登録成功		migrate -path db/migrations -database "postgres://user:password@db:5432/coffeesys_db?sslmode=disable" up
 		c.JSON(http.StatusCreated, user)
+
+		c.Set("userID", user.ID)
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "auth_register_succeeded",
+			Status: http.StatusCreated,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
 
@@ -176,6 +186,14 @@ func LoginUserHandler(q db.Querier, tokenGenerator auth.TokenGenerator) gin.Hand
 				"role":  user.Role,
 			},
 		})
+
+		c.Set("userID", user.ID)
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "auth_login_succeeded",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
+
 	}
 }
 
@@ -228,5 +246,12 @@ func SetUserRoleHandler(q db.Querier) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, user)
+
+		c.Set("userID", userID)
+		logging.LogEvent(c, logging.EventInput{
+			Event:  "auth_setrole_succeeded",
+			Status: http.StatusOK,
+			Level:  slog.LevelInfo,
+		})
 	}
 }
