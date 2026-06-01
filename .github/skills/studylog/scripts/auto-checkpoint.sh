@@ -7,8 +7,12 @@ set -eu
 # - transcript_path があれば永続化用スナップショットを保存する
 # - 解析できる項目は抽出し、解析不可でも生データ断片を残す
 
-# Workspace root は hook の cwd を前提にする
-WORKSPACE_ROOT="${PWD}"
+# Workspace root は git root を優先する。Codex はサブディレクトリから起動されることがある。
+if command -v git >/dev/null 2>&1 && git rev-parse --show-toplevel >/dev/null 2>&1; then
+  WORKSPACE_ROOT="$(git rev-parse --show-toplevel)"
+else
+  WORKSPACE_ROOT="${PWD}"
+fi
 
 # 入力JSONを一時ファイルに退避
 TMP_INPUT="$(mktemp)"
@@ -79,15 +83,15 @@ RESOLUTION=""
 NEXT_STEP=""
 
 if command -v jq >/dev/null 2>&1; then
-  EVENT_NAME="$(jq -r '.hookEventName // .event // .name // "PreCompact"' "${TMP_INPUT}" 2>/dev/null || echo "PreCompact")"
+  EVENT_NAME="$(jq -r '.hookEventName // .hook_event_name // .event // .name // "PreCompact"' "${TMP_INPUT}" 2>/dev/null || echo "PreCompact")"
   HOOK_TIMESTAMP="$(jq -r '.timestamp // ""' "${TMP_INPUT}" 2>/dev/null || true)"
   SESSION_ID="$(jq -r '.sessionId // .session_id // ""' "${TMP_INPUT}" 2>/dev/null || true)"
   TRIGGER="$(jq -r '.trigger // ""' "${TMP_INPUT}" 2>/dev/null || true)"
   TRANSCRIPT_PATH="$(jq -r '.transcript_path // .transcriptPath // ""' "${TMP_INPUT}" 2>/dev/null || true)"
 
   # 代表的な候補キーを幅広く拾う（存在しなければ空）
-  TOPIC="$(jq -r '.topic // .task // .summary // .session.topic // ""' "${TMP_INPUT}" 2>/dev/null || true)"
-  QUESTION="$(jq -r '.question // .userPrompt // .prompt // .session.question // ""' "${TMP_INPUT}" 2>/dev/null || true)"
+  TOPIC="$(jq -r '.topic // .task // .summary // .session.topic // .last_assistant_message // ""' "${TMP_INPUT}" 2>/dev/null || true)"
+  QUESTION="$(jq -r '.question // .userPrompt // .user_prompt // .prompt // .session.question // ""' "${TMP_INPUT}" 2>/dev/null || true)"
   BLOCKER="$(jq -r '.blocker // .issue // .session.blocker // ""' "${TMP_INPUT}" 2>/dev/null || true)"
   RESOLUTION="$(jq -r '.resolution // .fix // .session.resolution // ""' "${TMP_INPUT}" 2>/dev/null || true)"
   NEXT_STEP="$(jq -r '.next // .nextStep // .session.next // ""' "${TMP_INPUT}" 2>/dev/null || true)"

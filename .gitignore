@@ -32,4 +32,6 @@ learning/
 .github/agents/tech-mentor.md
 
 doc/**/*.tmp.md
+doc/**/transcripts/
+doc/**/*_transcript_index.tsv
 backend/test.http
