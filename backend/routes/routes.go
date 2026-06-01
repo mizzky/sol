@@ -35,7 +35,7 @@ func SetupRoutes(r *gin.Engine, conn *sql.DB, queries *db.Queries) {
 		api.DELETE("/cart/items/:id", auth.RequireAuth(queries), handler.RemoveCartItemHandler(queries))
 		api.DELETE("/cart", auth.RequireAuth(queries), handler.ClearCartHandler(queries))
 
-		api.GET("/me", handler.MeHandler(queries))
+		api.GET("/me", auth.RequireAuth(queries), handler.MeHandler(queries))
 
 		api.GET("/orders", auth.RequireAuth(queries), handler.GetOrdersHandler(queries))
 		api.POST("/orders", auth.RequireAuth(queries), handler.CreateOrderHandler(conn, queries))
