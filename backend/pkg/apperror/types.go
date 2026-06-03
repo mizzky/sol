@@ -1,6 +1,9 @@
 package apperror
 
-import "reflect"
+import (
+	"reflect"
+	"sol_coffeesys/backend/pkg/redaction"
+)
 
 type ValidationError struct {
 	Field     string
@@ -14,7 +17,7 @@ func NewValidationError(field string, value any, rule string, message string) *V
 	v := value
 	if field == "email" {
 		if s, ok := value.(string); ok {
-			v = maskEmail(s)
+			v = redaction.MaskEmail(s)
 		}
 	}
 	var valueType string
