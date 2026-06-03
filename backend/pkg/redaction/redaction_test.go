@@ -96,10 +96,10 @@ func TestMaskEmail(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T){
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := MaskEmail(tt.in); got != tt,want {
+			if got := MaskEmail(tt.in); got != tt.want {
 				t.Fatalf("MaskEmail() = %q want %q", got, tt.want)
 			}
 		})
