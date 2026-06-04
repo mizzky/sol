@@ -69,6 +69,15 @@ func logError(c *gin.Context, err error, status int, msg string, elapsed time.Du
 		slog.Float64("duration_ms", float64(elapsed.Microseconds())/1000),
 	}
 
+	// internal用メッセージ
+	var internErr *apperror.InternalError
+	if errors.As(err, &internErr) {
+		attrs = append(attrs, slog.String("operation", internErr.Operation))
+		if internErr.Cause != nil {
+			attrs = append(attrs, slog.String("cause_type", fmt.Sprintf("%T", internErr.Cause)))
+		}
+	}
+
 	if raw, ok := c.Get("userID"); ok {
 		if uid, ok := raw.(int64); ok {
 			attrs = append(attrs, slog.Int64("user_id", uid))

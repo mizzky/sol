@@ -344,6 +344,79 @@ func TestErrorHandler_LogOutput(t *testing.T) {
 	}
 }
 
+type sensitiveCause struct{}
+
+func (e *sensitiveCause) Error() string {
+	return "db password=super-secret token=raw-token"
+}
+
+func TestErrorHandler_LogOutput_InternalErrorDetails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name          string
+		err           error
+		wantOperation string
+		wantCauseType string
+		notContains   []string
+	}{
+		{
+			name: "InternalErrorはoperationとcause_typeを出力しcause生文字列は出力しない",
+			err: apperror.NewInternalError(
+				"ListCartItemByUser",
+				&sensitiveCause{},
+				apperror.InternalServerMessageCommon,
+			),
+			wantOperation: "ListCartItemByUser",
+			wantCauseType: "*middleware_test.sensitiveCause",
+			notContains: []string{
+				"supser-secret",
+				"raw-token",
+				"db password=",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orgLogger := slog.Default()
+			t.Cleanup(func() { slog.SetDefault(orgLogger) })
+			var buf bytes.Buffer
+			logger := middleware.NewJSONLogger(&buf, slog.LevelInfo)
+			slog.SetDefault(logger)
+
+			r := gin.New()
+			r.Use(middleware.RequestIDMiddleware())
+			r.Use(middleware.ErrorHandler(apperror.ToHTTP))
+			r.GET("/test", func(c *gin.Context) {
+				_ = c.Error(tt.err)
+			})
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			var got map[string]any
+			if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+				t.Fatalf("failed to decode log :%v raw=%s", err, buf.String())
+			}
+
+			if got["operation"] != tt.wantOperation {
+				t.Fatalf("operation mismatch: got=%v want=%v", got["operation"], tt.wantOperation)
+			}
+			if got["cause_type"] != tt.wantCauseType {
+				t.Fatalf("cause_type mismatch: got=%v want=%v", got["cause_type"], tt.wantCauseType)
+			}
+
+			raw := buf.String()
+			for _, s := range tt.notContains {
+				if strings.Contains(raw, s) {
+					t.Fatalf("log should not contain %q: %s", s, raw)
+				}
+			}
+		})
+	}
+}
+
 func TestNewJSONLogger_Redaction(t *testing.T) {
 	t.Parallel()
 
