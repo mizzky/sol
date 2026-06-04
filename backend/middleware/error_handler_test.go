@@ -385,6 +385,36 @@ func TestNewJSONLogger_Redaction(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:  "access_tokenが[REDACTED]に置換される",
+			attrs: []any{"access_token", "access-token-value"},
+			assertion: func(t *testing.T, got map[string]any) {
+				t.Helper()
+				if got["access_token"] != "[REDACTED]" {
+					t.Fatalf("access_token mismatch: got=%v want=%v", got["access_token"], "[REDACTED]")
+				}
+			},
+		},
+		{
+			name:  "refresh_tokenが[REDACTED]に置換される",
+			attrs: []any{"refresh_token", "refresh-token-value"},
+			assertion: func(t *testing.T, got map[string]any) {
+				t.Helper()
+				if got["refresh_token"] != "[REDACTED]" {
+					t.Fatalf("refresh_token mismatch: got=%v want=%v", got["refresh_token"], "[REDACTED]")
+				}
+			},
+		},
+		{
+			name:  "emailが共通redactionでマスクされる",
+			attrs: []any{"email", "user@example.com"},
+			assertion: func(t *testing.T, got map[string]any) {
+				t.Helper()
+				if got["email"] != "u****@example.com" {
+					t.Fatalf("email mismatch: got=%v want=%v", got["email"], "u****@example.com")
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

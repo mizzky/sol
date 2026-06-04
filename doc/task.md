@@ -1000,22 +1000,22 @@ if err != nil {
 - apperror とlogger の両者が同じマスク結果を返すこと
 ```
 
-- [ ] **チケットE**: redaction ユーティリティ統合（マスキング一元化）
+- [x] **チケットE**: redaction ユーティリティ統合（マスキング一元化）
   - 前提: チケット A, B が完了（Issue C/D/F は並行可能）
   - GitHub Issue E を作成し、実装
   - 目的: マスキング項目増加に備え、ルール定義を一元化
   - **優先度: P1（将来タスク）** — Issue B/C/D/F の実装後、マスキング項目増加時に実施
   - 実装内容:
-    - [ ] 共通 redaction 関数またはパッケージを作成（例: `pkg/redaction/` または `pkg/logging/`）
-    - [ ] password/token/email のマスク定義を一元管理
-    - [ ] apperror（エラー生成時）と logger（ReplaceAttr）が同じルールセットを参照
-    - [ ] ユニットテスト: キー追加時の拡張性確認
+    - [x] 共通 redaction 関数またはパッケージを作成（例: `pkg/redaction/` または `pkg/logging/`）
+    - [x] password/token/email のマスク定義を一元管理
+    - [x] apperror（エラー生成時）と logger（ReplaceAttr）が同じルールセットを参照
+    - [x] ユニットテスト: キー追加時の拡張性確認
   - 実装対象: `backend/pkg/redaction/`（新規）
   - 受け入れ条件:
-    - [ ] 共通 redaction 関数が1箇所に存在
-    - [ ] apperror と logger が同じマスク挙動を実現
-    - [ ] 既存の password/token/email のマスク挙動が後方互換で維持
-    - [ ] 単体テストでキー追加時の拡張性を確認
+    - [x] 共通 redaction 関数が1箇所に存在
+    - [x] apperror と logger が同じマスク挙動を実現
+    - [x] 既存の password/token/email のマスク挙動が後方互換で維持
+    - [x] 単体テストでキー追加時の拡張性を確認
   - 優先度: P1（将来拡張）
   - PR で Issue E を Close
 
