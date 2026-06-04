@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sol_coffeesys/backend/pkg/apperror"
 	"sol_coffeesys/backend/pkg/logging"
+	"sol_coffeesys/backend/pkg/redaction"
 	"strings"
 	"time"
 
@@ -16,18 +17,9 @@ import (
 func NewJSONLogger(w io.Writer, level slog.Leveler) *slog.Logger {
 	handler := slog.NewJSONHandler(w, &slog.HandlerOptions{
 		Level:       level,
-		ReplaceAttr: redactSensitiveAttr,
+		ReplaceAttr: redaction.RedactAttr,
 	})
 	return slog.New(handler)
-}
-
-func redactSensitiveAttr(_ []string, attr slog.Attr) slog.Attr {
-	switch strings.ToLower(attr.Key) {
-	case "password", "token":
-		return slog.String(attr.Key, "[REDACTED]")
-	default:
-		return attr
-	}
 }
 
 func ErrorHandler(toHTTP func(error) (int, string)) gin.HandlerFunc {
