@@ -4,6 +4,7 @@
 *.exe
 *.test
 bin/
+.cache/
 
 # Node.js
 /frontend/node_modules/
