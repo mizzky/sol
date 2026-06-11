@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import {
   API_URL,
-  fetchWithAuth,
   login as apiLogin,
   register as apiRegister,
   revokeRefreshToken,
@@ -24,6 +23,8 @@ interface AuthState {
   logout: () => void;
   loadFromStorage: () => Promise<void>;
 }
+
+let revokeRefreshPromise: Promise<void> | null = null;
 
 export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
@@ -53,16 +54,32 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     useCartStore.getState().resetCart();
     set({ isAuthenticated: false, user: null });
-    void revokeRefreshToken().catch(() => {
-      // クライアント状態クリアを優先する
-    });
+    if (!revokeRefreshPromise) {
+      revokeRefreshPromise = revokeRefreshToken()
+        .catch(() => {
+          // クライアント状態クリアを優先する
+        })
+        .finally(() => {
+          revokeRefreshPromise = null;
+        });
+    }
   },
   loadFromStorage: async () => {
     try {
-      const res = await fetchWithAuth(`${API_URL}/api/me`, {
+      const res = await fetch(`${API_URL}/api/me`, {
         method: "GET",
         headers: { Accept: "application/json" },
+        credentials: "include",
       });
+
+      if (res.status === 401) {
+        set({ isAuthenticated: false, user: null });
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error("認証状態の復元に失敗しました");
+      }
 
       const payload = await res.json();
       const user = payload.user ?? payload;

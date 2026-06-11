@@ -188,6 +188,18 @@ async function refreshSession(): Promise<boolean> {
   return res.ok;
 }
 
+let refreshSessionPromise: Promise<boolean> | null = null;
+
+async function refreshSessionOnce(): Promise<boolean> {
+  if (!refreshSessionPromise) {
+    refreshSessionPromise = refreshSession().finally(() => {
+      refreshSessionPromise = null;
+    });
+  }
+
+  return refreshSessionPromise;
+}
+
 async function fetchWithAuthInternal(
   url: string,
   options: RequestInit = {},
@@ -213,7 +225,7 @@ async function fetchWithAuthInternal(
   if (response.status === 401) {
     if (retryOnUnauthorized) {
       try {
-        const refreshed = await refreshSession();
+        const refreshed = await refreshSessionOnce();
         if (refreshed) {
           return fetchWithAuthInternal(url, options, false);
         }

@@ -3,7 +3,7 @@ import useAuthStore from "../../store/useAuthStore";
 describe("useAuthStore", () => {
   beforeEach(() => {
     // reset zustand state
-    useAuthStore.setState({ isAuthenticated: false, user: null } as unknown as any);
+    useAuthStore.setState({ isAuthenticated: false, user: null });
     localStorage.clear();
     jest.resetAllMocks();
   });
@@ -44,36 +44,24 @@ describe("useAuthStore", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 
-  it("loadFromStorage refresh後に /api/me を再試行して復元できる", async () => {
-    const fakeUser = { id: 3, name: "Refreshed User", email: "refresh@example.com", role: "member" };
-
-    global.fetch = jest
-      .fn()
-      .mockResolvedValueOnce({
+  it("loadFromStorage は /api/me の401で refresh/revoke を呼ばず未認証にする", async () => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
         ok: false,
         status: 401,
         json: async () => ({ error: "Unauthorized" }),
-      } as unknown as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ message: "refreshed" }),
-      } as unknown as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ user: fakeUser }),
-      } as unknown as Response) as unknown as typeof global.fetch;
+      }) as unknown as Response,
+    ) as unknown as typeof global.fetch;
 
     await useAuthStore.getState().loadFromStorage();
 
-    expect(global.fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining("/api/refresh"),
-      expect.objectContaining({ method: "POST", credentials: "include" }),
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/me"),
+      expect.objectContaining({ method: "GET", credentials: "include" }),
     );
-    expect(useAuthStore.getState().user).toEqual(fakeUser);
-    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
   describe("login", () => {
