@@ -17,7 +17,8 @@
         "cweijan.vscode-database-client2",
         "humao.rest-client",
         "eamodio.gitlens",
-        "Arjun.swagger-viewer"
+        "Arjun.swagger-viewer",
+        "openai.chatgpt"
       ],
       "settings": {
         // ターミナルのフォントなどはホスト側の設定に依存しますが、
