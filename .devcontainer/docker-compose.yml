@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ..:/workspaces/sol_coffeesys:cached
+      # codexのタスク履歴をdevcontainerリビルドしても維持する
+      - codex-data:/home/vscode/.codex
     network_mode: service:db # DBと同じネットワークを共有
     # 開発を止めないための設定
     command: sleep infinity
@@ -20,3 +22,7 @@ services:
       POSTGRES_DB: coffeesys_db
     ports:
       - "5432:5432"
+
+volumes:
+  codex-data:
+    name: sol_coffeesys_codex_data

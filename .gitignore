@@ -36,3 +36,9 @@ doc/**/*.tmp.md
 doc/**/transcripts/
 doc/**/*_transcript_index.tsv
 backend/test.http
+
+
+.codex/auth.json
+.codex/sessions/
+.codex/*.sqlite*
+.codex/logs/

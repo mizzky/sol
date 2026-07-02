@@ -38,7 +38,7 @@
   },
   "forwardPorts": [3000, 8080, 5432],
   "remoteUser": "vscode",
-  "postCreateCommand": "sudo chown -R $(whoami):$(whoami) /go",
+  "postCreateCommand": "sudo chown -R $(whoami):$(whoami) /go /home/vscode/.codex",
   "remoteEnv": {
     "JWT_SECRET": "${containerEnv:JWT_SECRET}"
   }
