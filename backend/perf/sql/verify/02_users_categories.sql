@@ -1,6 +1,8 @@
 \set ON_ERROR_STOP on
 
 \ir ../seed/00_guard.sql
+\ir ../seed/00_profile.sql
+
 
 DO $verify$
 DECLARE
@@ -13,12 +15,17 @@ DECLARE
     users_sequence_value BIGINT;
     users_sequence_called BOOLEAN;
     categories_sequence_value BIGINT;
+    expected_users BIGINT;
     categories_sequence_called BOOLEAN;
 BEGIN
+    SELECT users_count
+    INTO expected_users
+    FROM pg_temp.perf_profile;
+
     SELECT count(*) INTO actual_users
     FROM public.users;
 
-    IF actual_users <> 1000 THEN
+    IF actual_users <> expected_users THEN
         RAISE EXCEPTION
             'users count mismatch: expected 1000, actual %',
             actual_users;
@@ -35,7 +42,7 @@ BEGIN
 
     SELECT count(*) INTO invalid_users
     FROM public.users
-    WHERE id NOT BETWEEN 1 AND 1000
+    WHERE id NOT BETWEEN 1 AND expected_users
        OR name <> format('user-%s', lpad(id::text, 6, '0'))
        OR email <> format('user-%s@example.test', lpad(id::text, 6, '0'))
        OR password_hash <> 'perf-not-a-real-password-hash'
@@ -88,7 +95,7 @@ BEGIN
     INTO users_sequence_value, users_sequence_called
     FROM public.users_id_seq;
 
-    IF users_sequence_value <> 1000 OR NOT users_sequence_called THEN
+    IF users_sequence_value <> expected_users OR NOT users_sequence_called THEN
         RAISE EXCEPTION
             'users sequence mismatch: value %, called %',
             users_sequence_value,
