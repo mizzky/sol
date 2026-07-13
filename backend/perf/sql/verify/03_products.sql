@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP on
 
 \ir ../seed/00_guard.sql
+\ir ../seed/00_profile.sql
 
 DO $verify$
 DECLARE
@@ -21,18 +22,41 @@ DECLARE
 
     invalid_category_distribution BIGINT;
 
+    expected_products BIGINT;
+    expected_available_products BIGINT;
+    expected_unavailable_products BIGINT;
+    expected_zero_stock BIGINT;
+    expected_low_stock BIGINT;
+    expected_normal_stock BIGINT;
+    expected_high_stock BIGINT;
+
+
     products_sequence_value BIGINT;
     products_sequence_called BOOLEAN;
 BEGIN
+    SELECT products_count
+    INTO expected_products
+    FROM pg_temp.perf_profile;
+
+    expected_available_products := expected_products * 19 / 20;
+    expected_unavailable_products := expected_products / 20;
+    expected_zero_stock  := expected_products / 10;
+    expected_low_stock := expected_products * 2 / 10;
+    expected_normal_stock := expected_products * 6 / 10;
+    expected_high_stock := expected_products / 10;
+
+
     SELECT count(*), min(id), max(id)
     INTO actual_products, min_product_id, max_product_id
     FROM public.products;
 
-    IF actual_products <> 10000
+    IF actual_products <> expected_products
        OR min_product_id IS DISTINCT FROM 1
-       OR max_product_id IS DISTINCT FROM 10000 THEN
+       OR max_product_id IS DISTINCT FROM expected_products THEN
         RAISE EXCEPTION
-            'products range mismatch: expected count/min/max 10000/1/10000, actual %/%/%',
+            'products range mismatch: expected count/min/max %/1/%, actual %/%/%',
+            expected_products,
+            expected_products,
             actual_products,
             min_product_id,
             max_product_id;
@@ -95,10 +119,12 @@ BEGIN
         unavailable_products
     FROM public.products;
 
-    IF available_products <> 9500
-       OR unavailable_products <> 500 THEN
+    IF available_products <> expected_available_products
+       OR unavailable_products <> expected_unavailable_products THEN
         RAISE EXCEPTION
-            'availability mismatch: expected true/false 9500/500, actual %/%',
+            'availability mismatch: expected true/false %/%, actual %/%',
+            expected_available_products,
+            expected_unavailable_products,
             available_products,
             unavailable_products;
     END IF;
@@ -115,12 +141,16 @@ BEGIN
         high_stock_products
     FROM public.products;
 
-    IF zero_stock_products <> 1000
-       OR low_stock_products <> 2000
-       OR normal_stock_products <> 6000
-       OR high_stock_products <> 1000 THEN
+    IF zero_stock_products <> expected_zero_stock
+       OR low_stock_products <> expected_low_stock
+       OR normal_stock_products <> expected_normal_stock
+       OR high_stock_products <> expected_high_stock THEN
         RAISE EXCEPTION
-            'stock distribution mismatch: expected 1000/2000/6000/1000, actual %/%/%/%',
+            'stock distribution mismatch: expected %/%/%/%, actual %/%/%/%',
+            expected_zero_stock,
+            expected_low_stock,
+            expected_normal_stock,
+            expected_high_stock,
             zero_stock_products,
             low_stock_products,
             normal_stock_products,
@@ -136,16 +166,16 @@ BEGIN
     ) AS actual
     FULL JOIN (
         VALUES
-            (1::BIGINT, 4000::BIGINT),
-            (2::BIGINT, 2000::BIGINT),
-            (3::BIGINT, 500::BIGINT),
-            (4::BIGINT, 500::BIGINT),
-            (5::BIGINT, 500::BIGINT),
-            (6::BIGINT, 500::BIGINT),
-            (7::BIGINT, 500::BIGINT),
-            (8::BIGINT, 500::BIGINT),
-            (9::BIGINT, 500::BIGINT),
-            (10::BIGINT, 500::BIGINT)
+            (1::BIGINT, expected_products * 40 / 100),
+            (2::BIGINT, expected_products * 20 / 100),
+            (3::BIGINT, expected_products * 5 / 100),
+            (4::BIGINT, expected_products * 5 / 100),
+            (5::BIGINT, expected_products * 5 / 100),
+            (6::BIGINT, expected_products * 5 / 100),
+            (7::BIGINT, expected_products * 5 / 100),
+            (8::BIGINT, expected_products * 5 / 100),
+            (9::BIGINT, expected_products * 5 / 100),
+            (10::BIGINT, expected_products * 5 / 100)
     ) AS expected(category_id, expected_count)
         USING (category_id)
     WHERE actual.actual_count
@@ -184,7 +214,7 @@ BEGIN
     INTO products_sequence_value, products_sequence_called
     FROM public.products_id_seq;
 
-    IF products_sequence_value <> 10000
+    IF products_sequence_value <> expected_products
        OR NOT products_sequence_called THEN
         RAISE EXCEPTION
             'products sequence mismatch: value %, called %',
