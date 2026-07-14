@@ -3,6 +3,7 @@
 BEGIN;
 
 \ir 00_guard.sql
+\ir 00_profile.sql
 
 -- 1. carts 500件作成
 INSERT INTO public.carts(
@@ -16,7 +17,8 @@ SELECT
     n AS user_id,
     TIMESTAMPTZ '2025-01-01 00:00:00+00' AS created_at,
     TIMESTAMPTZ '2025-01-01 00:00:00+00' AS updated_at
-FROM generate_series(1, 500) AS series(n)
+FROM pg_temp.perf_profile AS config
+CROSS JOIN generate_series(1, config.carts_count) AS series(n)
 ORDER BY n;
 
 WITH cart_item_plan AS (
@@ -28,11 +30,12 @@ WITH cart_item_plan AS (
 
     UNION ALL
 
-    -- cart3-500: 各3明細
+    -- cart3以降: 各3明細
     SELECT
         cart_id,
         item_ordinal
-    FROM generate_series(3, 500) AS cart_series(cart_id)
+    FROM pg_temp.perf_profile AS config
+    CROSS JOIN generate_series(3, config.carts_count) AS cart_series(cart_id)
     CROSS JOIN generate_series(1, 3) AS item_series(item_ordinal)
 ),
 product_candidates AS (
