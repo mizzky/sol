@@ -97,7 +97,7 @@ BEGIN
     WHERE updated_at IS DISTINCT FROM created_at
     OR created_at IS DISTINCT FROM
         CASE 
-            WHEN id BETWEEN (expected_orders_count - 59) AND expected_orders_count THEN  TIMESTAMPTZ '2025-02-01 00:00:00+00'
+            WHEN id BETWEEN (expected_user1_orders - 59) AND expected_user1_orders THEN  TIMESTAMPTZ '2025-02-01 00:00:00+00'
             ELSE  TIMESTAMPTZ '2025-01-01 00:00:00+00' + (id * INTERVAL '1 second')
         END;
     
@@ -127,7 +127,7 @@ BEGIN
         LIMIT 60
     ) AS latest_orders
     WHERE user_id <> 1
-    OR id NOT BETWEEN (expected_orders_count - 59) AND expected_orders_count
+    OR id NOT BETWEEN (expected_user1_orders - 59) AND expected_user1_orders
     OR created_at IS DISTINCT FROM TIMESTAMPTZ '2025-02-01 00:00:00+00';
 
     IF invalid_latest_page_orders <> 0 THEN
