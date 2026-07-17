@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP ON
 
 \ir ../seed/00_guard.sql
+\ir ../seed/00_profile.sql
 
 DO $verify$
 DECLARE
@@ -25,16 +26,35 @@ DECLARE
     order_items_sequence_value BIGINT;
     order_items_sequence_called BOOLEAN;
 
+    expected_orders_count BIGINT;
+    expected_order_items_count BIGINT;
+    expected_one_item_orders BIGINT;
+    expected_two_item_orders BIGINT;
+    expected_six_item_orders BIGINT;
+
 BEGIN
+
+    SELECT orders_count
+    INTO expected_orders_count
+    FROM pg_temp.perf_profile;
+
+    expected_order_items_count := expected_orders_count * 3;
+    expected_one_item_orders := expected_orders_count * 20 / 100;
+    expected_two_item_orders := expected_orders_count * 50 / 100;
+    expected_six_item_orders := expected_orders_count * 30 / 100;
+
+
     SELECT count(*), min(id), max(id)
     INTO actual_order_items, min_order_items_id, max_order_items_id
     FROM public.order_items;
 
-    IF actual_order_items <> 30000
+    IF actual_order_items <> expected_order_items_count
         OR min_order_items_id IS DISTINCT FROM 1
-        OR max_order_items_id IS DISTINCT FROM 30000 THEN
+        OR max_order_items_id IS DISTINCT FROM expected_order_items_count THEN
             RAISE EXCEPTION
-                'order items range mismatch: expected count/min/max 30000/1/30000,  actual %/%/%',
+                'order items range mismatch: expected count/min/max %/1/%,  actual %/%/%',
+                expected_order_items_count,
+                expected_order_items_count,
                 actual_order_items, min_order_items_id, max_order_items_id;
     END IF;
 
@@ -131,9 +151,12 @@ BEGIN
         GROUP BY orders.id
     ) AS order_item_counts;
 
-    IF one_item_orders <> 2000 OR two_item_orders <> 5000 OR six_item_orders <> 3000 THEN
+    IF one_item_orders <> expected_one_item_orders OR two_item_orders <> expected_two_item_orders OR six_item_orders <> expected_six_item_orders THEN
         RAISE EXCEPTION
-            'order items by orders mismatch: expected one/two/six 2000/5000/3000,  actual %/%/%',
+            'order items by orders mismatch: expected one/two/six %/%/%,  actual %/%/%',
+            expected_one_item_orders,
+            expected_two_item_orders,
+            expected_six_item_orders,
             one_item_orders, two_item_orders, six_item_orders;
     END IF;
 
@@ -162,7 +185,7 @@ BEGIN
     INTO order_items_sequence_value, order_items_sequence_called
     FROM public.order_items_id_seq;
 
-    IF order_items_sequence_value <> 30000 OR NOT order_items_sequence_called THEN
+    IF order_items_sequence_value <> expected_order_items_count OR NOT order_items_sequence_called THEN
         RAISE EXCEPTION
             'order items sequence mismatch: value %, called %',
             order_items_sequence_value, order_items_sequence_called;
