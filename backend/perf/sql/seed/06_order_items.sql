@@ -3,6 +3,7 @@
 BEGIN;
 
 \ir 00_guard.sql
+\ir 00_profile.sql
 
 
 -- INSERT
@@ -16,15 +17,6 @@ WITH order_item_plan AS (
             ELSE  6
         END AS item_count
     FROM public.orders AS orders
-),
-product_candidates AS (
-    SELECT
-        id AS product_id,
-        name,
-        price,
-        row_number() OVER (ORDER BY id) AS candidate_ordinal,
-        count(*) OVER () AS candidate_count
-    FROM public.products AS products
 )
 INSERT INTO public.order_items(
     id,
@@ -40,17 +32,18 @@ SELECT
         ORDER BY plan.order_id, item_series.item_ordinal
     ) AS id,
     plan.order_id,
-    products.product_id,
+    products.id AS product_id,
     1 + ((plan.order_id + item_series.item_ordinal - 2) % 3) AS quantity,
     products.price AS unit_price,
     products.name AS product_name_snapshot,
     plan.created_at
 FROM order_item_plan AS plan
+CROSS JOIN pg_temp.perf_profile AS config
 CROSS JOIN generate_series(1, plan.item_count) AS item_series(item_ordinal)
-JOIN product_candidates AS products
-ON products.candidate_ordinal = (
-    ((plan.order_id - 1) * 6 + item_series.item_ordinal - 1) % products.candidate_count
-) + 1
+JOIN public.products AS products
+    ON products.id = (
+        ((plan.order_id - 1) * 6 + item_series.item_ordinal - 1) % config.products_count
+    ) + 1
 ORDER BY plan.order_id, item_series.item_ordinal;
 
 UPDATE public.orders AS orders
