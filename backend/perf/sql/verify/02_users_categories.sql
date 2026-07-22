@@ -27,7 +27,8 @@ BEGIN
 
     IF actual_users <> expected_users THEN
         RAISE EXCEPTION
-            'users count mismatch: expected 1000, actual %',
+            'users count mismatch: expected %, actual %',
+            expected_users,
             actual_users;
     END IF;
 
@@ -97,7 +98,8 @@ BEGIN
 
     IF users_sequence_value <> expected_users OR NOT users_sequence_called THEN
         RAISE EXCEPTION
-            'users sequence mismatch: value %, called %',
+            'users sequence mismatch: expected value %, actual value %, called %',
+            expected_users,
             users_sequence_value,
             users_sequence_called;
     END IF;
