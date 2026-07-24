@@ -1,6 +1,7 @@
 \set ON_ERROR_STOP on
 
 \ir ../seed/00_guard.sql
+\ir ../seed/00_profile.sql
 
 DO $verify$
 DECLARE
@@ -29,16 +30,28 @@ DECLARE
     carts_sequence_called BOOLEAN;
     cart_items_sequence_value BIGINT;
     cart_items_sequence_called BOOLEAN;
+
+    expected_carts BIGINT;
+    expected_cart_items BIGINT;
+
 BEGIN
+    SELECT carts_count
+    INTO expected_carts
+    FROM pg_temp.perf_profile;
+
+    expected_cart_items := 100 + 3 * (expected_carts - 2);
+
     SELECT count(*), min(id), max(id)
     INTO actual_carts, min_cart_id, max_cart_id
     FROM public.carts;
 
-    IF actual_carts <> 500
+    IF actual_carts <> expected_carts
        OR min_cart_id IS DISTINCT FROM 1
-       OR max_cart_id IS DISTINCT FROM 500 THEN
+       OR max_cart_id IS DISTINCT FROM expected_carts THEN
         RAISE EXCEPTION
-            'carts range mismatch: expected count/min/max 500/1/500, actual %/%/%',
+            'carts range mismatch: expected count/min/max %/1/%, actual %/%/%',
+            expected_carts,
+            expected_carts,
             actual_carts,
             min_cart_id,
             max_cart_id;
@@ -48,11 +61,13 @@ BEGIN
     INTO actual_cart_items, min_cart_item_id, max_cart_item_id
     FROM public.cart_items;
 
-    IF actual_cart_items <> 1594
+    IF actual_cart_items <> expected_cart_items
        OR min_cart_item_id IS DISTINCT FROM 1
-       OR max_cart_item_id IS DISTINCT FROM 1594 THEN
+       OR max_cart_item_id IS DISTINCT FROM expected_cart_items THEN
         RAISE EXCEPTION
-            'cart_items range mismatch: expected count/min/max 1594/1/1594, actual %/%/%',
+            'cart_items range mismatch: expected count/min/max %/1/%, actual %/%/%',
+            expected_cart_items,
+            expected_cart_items,
             actual_cart_items,
             min_cart_item_id,
             max_cart_item_id;
@@ -62,7 +77,7 @@ BEGIN
     INTO invalid_carts
     FROM public.carts
     WHERE user_id IS DISTINCT FROM id
-       OR user_id NOT BETWEEN 1 AND 500
+       OR user_id NOT BETWEEN 1 AND expected_carts
        OR created_at IS DISTINCT FROM TIMESTAMPTZ '2025-01-01 00:00:00+00'
        OR updated_at IS DISTINCT FROM TIMESTAMPTZ '2025-01-01 00:00:00+00';
 
@@ -204,7 +219,7 @@ BEGIN
     INTO carts_sequence_value, carts_sequence_called
     FROM public.carts_id_seq;
 
-    IF carts_sequence_value <> 500
+    IF carts_sequence_value <> expected_carts
        OR NOT carts_sequence_called THEN
         RAISE EXCEPTION
             'carts sequence mismatch: value %, called %',
@@ -216,7 +231,7 @@ BEGIN
     INTO cart_items_sequence_value, cart_items_sequence_called
     FROM public.cart_items_id_seq;
 
-    IF cart_items_sequence_value <> 1594
+    IF cart_items_sequence_value <> expected_cart_items
        OR NOT cart_items_sequence_called THEN
         RAISE EXCEPTION
             'cart_items sequence mismatch: value %, called %',

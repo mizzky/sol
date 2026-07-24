@@ -3,6 +3,7 @@
 BEGIN;
 
 \ir 00_guard.sql
+\ir 00_profile.sql
 
 
 -- INSERT
@@ -10,18 +11,19 @@ WITH order_source AS (
     SELECT
         n AS id,
         CASE 
-            WHEN n BETWEEN 1 AND 2000 THEN 1 
-            ELSE  2 + ((n - 2001) % 999)
+            WHEN n BETWEEN 1 AND config.orders_count * 20 / 100 THEN 1
+            ELSE  2 + ((n - (config.orders_count * 20 / 100) - 1) % (config.users_count - 1))
         END AS user_id,
         CASE 
             WHEN n % 10 =0 THEN  'cancelled'
             ELSE 'pending'
         END AS status,
         CASE 
-        WHEN n BETWEEN 1941 AND 2000 THEN  TIMESTAMPTZ '2025-02-01 00:00:00+00'
+        WHEN n BETWEEN (config.orders_count * 20 / 100) - 59 AND config.orders_count * 20 / 100 THEN  TIMESTAMPTZ '2025-02-01 00:00:00+00'
         ELSE  TIMESTAMPTZ '2025-01-01 00:00:00+00' + (n * INTERVAL '1 second')
         END AS created_at
-    FROM generate_series(1, 10000) AS series(n)
+    FROM pg_temp.perf_profile AS config
+    CROSS JOIN generate_series(1, config.orders_count) AS series(n)
 )
 INSERT INTO public.orders (
     id,

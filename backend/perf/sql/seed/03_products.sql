@@ -3,6 +3,7 @@
 BEGIN;
 
 \ir 00_guard.sql
+\ir 00_profile.sql
 
 WITH product_source AS (
     SELECT
@@ -10,7 +11,8 @@ WITH product_source AS (
         100 + ((n - 1) % 1000) * 10 AS price,
         ((n - 1) / 20) % 10 AS stock_bucket,
         (n - 1) % 100 AS category_bucket
-    FROM generate_series(1, 10000) AS series(n)
+    FROM pg_temp.perf_profile AS config
+    CROSS JOIN generate_series(1, config.products_count) AS series(n)
 )
 INSERT INTO public.products (
     id,

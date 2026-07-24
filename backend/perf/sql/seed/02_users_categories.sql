@@ -3,6 +3,7 @@
 BEGIN;
 
 \ir 00_guard.sql
+\ir 00_profile.sql
 
 INSERT INTO public.users (
     id,
@@ -25,7 +26,8 @@ SELECT
     NULL,
     TIMESTAMPTZ '2025-01-01 00:00:00+00',
     TIMESTAMPTZ '2025-01-01 00:00:00+00'
-FROM generate_series(1, 1000) AS series(n)
+FROM pg_temp.perf_profile AS config
+CROSS JOIN generate_series(1, config.users_count) AS series(n)
 ORDER BY n;
 
 INSERT INTO public.categories (
