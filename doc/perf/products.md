@@ -33,4 +33,4 @@ sed -n '2p'
 |中央値|2.744|
 |Scan type|Index Scan using products_pkey|
 |推定rows / 実測rows|10000/10000|
-|実行Buffers|242
+|実行Buffers|shared hit=242|
