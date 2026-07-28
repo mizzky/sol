@@ -23,14 +23,55 @@ sed -n '2p'
 2.744
 ```
 
-### 測定結果
+### small 測定結果
 |測定項目|結果|
 |---|---|
 |計測対象| 商品一覧|
 |計測条件| small|
 |実行回数| 3回|
-|各Execution Time|2.555/2.744/4.329|
+|各Execution Time(ms)|2.555/2.744/4.329|
 |中央値|2.744|
 |Scan type|Index Scan using products_pkey|
-|推定rows / 実測rows|10000/10000|
+|推定rows / 実測rows|10,000/10,000|
 |実行Buffers|shared hit=242|
+
+### medium 測定結果
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| medium|
+|実行回数| 3回|
+|各Execution Time(ms)|27.167/24.910/25.769|
+|中央値|25.769|
+|Scan type|Index Scan using products_pkey|
+|推定rows / 実測rows|100,000/100,000|
+|実行Buffers|shared hit=2403
+
+
+### large 測定結果
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| large|
+|実行回数| 3回|
+|各Execution Time(ms)|337.262/359.847/365.246|
+|中央値|359.847|
+|Scan type|Index Scan using products_pkey|
+|推定rows / 実測rows|1,000,000/1,000,000|
+|実行Buffers|shared read=24,012 written=55(*run-1のみ)
+
+
+- `shared hit`：すでにPostgreSQLの共有バッファ上にある8KBブロックを参照
+- `shared read`：共有バッファになかったので、OSキャッシュまたはストレージから読み込んで共有バッファへ載せる|
+
+- `shared hit`ではなく`shared read=24,012`になった理由
+  - shared_buffersが128MBであったため、容量が足りず次の実行時に再度読み込んでいる
+```bash
+# postgreSQLの共有バッファ容量を確認
+⬢ [Docker] ❯ psql "$PERF_DATABASE_URL" -X -Atc 'SHOW shared_buffers;'
+128MB
+```
+
+### 結果
+- rows約10倍、Buffers約10倍、largeの時間約13.96倍とおおむねデータ量通りの実行時間、実行内容であった
+- largeの場合はデータ量が多くバッファキャッシュに収まらないため速度が少し遅い`shared read`でブロックの読み込みを行っていることが分かった
