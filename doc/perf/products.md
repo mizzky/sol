@@ -7,7 +7,7 @@ FROM products
 ORDER BY id;
 ```
 
-## small before計測
+## before計測
 
 - `backend/perf/sql/queries/products_list.sql`を使用する
 - 3回計測して中央値を測定する
