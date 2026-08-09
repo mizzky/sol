@@ -75,3 +75,45 @@ sed -n '2p'
 ### 結果
 - rows約10倍、Buffers約10倍、largeの時間約13.96倍とおおむねデータ量通りの実行時間、実行内容であった
 - largeの場合はデータ量が多くバッファキャッシュに収まらないため速度が少し遅い`shared read`でブロックの読み込みを行っていることが分かった
+
+
+## keyset pagination計測
+### 概要
+issue #103 の`3-3. 注文一覧before計測`で、OFFSETによるページネーションでは読み取り位置が深くなるにつれて実行時間が増加することがわかったので、Keyset Paginationの方が読み取り位置が深くても読み取り量と実行時間が増加しにくいことを理解するためのタスク。
+
+`products`を読み取る際に、`WHERE id > :cursor`で読み取り位置を変えて`LIMIT 50`で50件表示するSQLで計測を行う。
+
+### 計測SQL・条件
+- large profileを使用する
+
+計測に使うSQLは以下
+
+```sql
+EXPLAIN(ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT
+    id,
+    name,
+    price,
+    is_available,
+category_id,
+    sku,
+    description,
+    image_url,
+    stock_quantity,
+    created_at,
+    updated_at
+FROM public.products
+WHERE id > :cursor
+ORDER BY id
+LIMIT 50;
+```
+
+### cursor 0
+
+### cursor 500,000
+
+### cursor 999,950
+
+### 全件取得との比較
+
+### 結果
