@@ -109,10 +109,41 @@ LIMIT 50;
 ```
 
 ### cursor 0
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| cursor 0|
+|実行回数| 3回|
+|各Execution Time(ms)|0.209/0.081/0.200|
+|中央値|0.200|
+|Scan type|Index Scan using products_pkey on products|
+|推定rows / 実測rows|1,000,000/50|
+|実行Buffers|shared hit=8|
 
 ### cursor 500,000
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| cursor 999,950|
+|実行回数| 3回|
+|各Execution Time(ms)|0.813/0.096/0.095|
+|中央値|0.200|
+|Scan type|Index Scan using products_pkey on products|
+|推定rows / 実測rows|501,699/50|
+|実行Buffers|shared hit=8|
 
 ### cursor 999,950
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| cursor 999,950|
+|実行回数| 3回|
+|各Execution Time(ms)|0.087/0.238/0.188|
+|中央値|0.188|
+|Scan type|Index Scan using products_pkey on products|
+|推定rows / 実測rows|50/50|
+|実行Buffers|shared hit=8|
+
 
 ### 全件取得との比較
 
