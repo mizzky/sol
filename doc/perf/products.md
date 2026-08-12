@@ -95,7 +95,7 @@ SELECT
     name,
     price,
     is_available,
-category_id,
+    category_id,
     sku,
     description,
     image_url,
@@ -124,10 +124,10 @@ LIMIT 50;
 |測定項目|結果|
 |---|---|
 |計測対象| 商品一覧|
-|計測条件| cursor 999,950|
+|計測条件| cursor 500,000|
 |実行回数| 3回|
 |各Execution Time(ms)|0.813/0.096/0.095|
-|中央値|0.200|
+|中央値|0.096|
 |Scan type|Index Scan using products_pkey on products|
 |推定rows / 実測rows|501,699/50|
 |実行Buffers|shared hit=8|
@@ -144,7 +144,10 @@ LIMIT 50;
 |推定rows / 実測rows|50/50|
 |実行Buffers|shared hit=8|
 
-
-### 全件取得との比較
-
 ### 結果
+カーソルの位置に応じてIndex Scanの推定rowsが1,000,000->501,699->50と減少した。
+
+全ての条件で実測rowsは50でBuffersは`shared hit=8`だった。
+
+すべての条件で実行速度に大きな差は無く、keyset paginationは読み取り位置が深くなってもインデックスから開始位置へ移動し必要な５０件だけを取得できることが分かった。
+
