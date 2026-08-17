@@ -855,3 +855,77 @@ func TestCancelOrderHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestListOrdersByUser_SameCreatedAtOrdersAreSortedByIDDesc(t *testing.T) {
+	createdAt := time.Date(2026, 8, 17, 0, 0, 0, 0, time.UTC)
+
+	var userID int64
+
+	err := testDB.QueryRow(`
+		INSERT INTO users (name, email, password_hash)
+		VALUES ($1, $2, $3)
+		RETURNING id
+	`,
+		"注文順序テストユーザー",
+		fmt.Sprintf("order-sort-%d@example.com", time.Now().UnixNano()),
+		"dummy_hash",
+	).Scan(&userID)
+	if err != nil {
+		t.Fatalf("user insert failed: %v", err)
+	}
+
+	t.Cleanup(func() {
+		cleanupOrderRelatedTables(t)
+	})
+	createdOrderIDs := make([]int64, 0, 3)
+
+	for i := 0; i < 3; i++ {
+		var orderID int64
+		err := testDB.QueryRow(`
+			INSERT INTO orders (
+			user_id,
+			total,
+			status,
+			created_at,
+			updated_at
+			)
+			VALUES ($1, $2, $3, $4, $4)
+			RETURNING id
+		`,
+			userID,
+			1000,
+			"pending",
+			createdAt,
+		).Scan(&orderID)
+		if err != nil {
+			t.Fatalf("order insert failed: %v", err)
+		}
+
+		createdOrderIDs = append(createdOrderIDs, orderID)
+	}
+
+	queries := db.New(testDB)
+
+	orders, err := queries.ListOrdersByUser(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("ListOrdersByUser failed: %v", err)
+	}
+
+	if !assert.Len(t, orders, 3) {
+		return
+	}
+
+	gotOrderIDs := []int64{
+		orders[0].ID,
+		orders[1].ID,
+		orders[2].ID,
+	}
+
+	expectedOrderIDs := []int64{
+		createdOrderIDs[2],
+		createdOrderIDs[1],
+		createdOrderIDs[0],
+	}
+
+	assert.Equal(t, expectedOrderIDs, gotOrderIDs)
+}
