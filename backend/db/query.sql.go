@@ -834,7 +834,7 @@ SELECT
     id, user_id, total, status, created_at, updated_at
 FROM orders
 WHERE user_id = $1
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 `
 
 type ListOrdersByUserRow struct {
