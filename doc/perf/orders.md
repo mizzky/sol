@@ -246,3 +246,105 @@ OFFSET 100,000では100,050件を読み取って50件を返したのに対し、
 現在のインデックスは`(user_id, created_at DESC)`であり、`ORDER BY created_at DESC, id DESC`のうち`id DESC`を満たしていないため、すべての条件で`Incremental Sort`が発生した。
 
 以上から、keyset paginationは読み取り位置が深くなっても読み取り量が増加しにくいことを確認した。
+
+
+## 複合インデックス変更後のafter計測
+
+keyset paginationでは`ORDER BY created_at DESC, id DESC`で並び順を指定している。
+
+変更前のインデックスは`(user_id, created_at DESC)`であり、`id DESC`を満たしていないため、`Incremental Sort`が発生していた。
+
+そこでクエリの検索条件と並び順をインデックスで満たすことで`Incremental Sort`を不要とすることを期待して、phase4-4にてインデックスを修正した。
+
+クエリの検索条件と並び順に合わせて、インデックスを以下のように変更した。
+
+|変更前|変更後|
+|---|---|
+|`(user_id, created_at DESC)`|`(user_id, created_at DESC, id DESC)`|
+
+インデックス改善の効果測定としてbeforeにあたるフェーズ4.2で計測したkeyset paginationでのorders計測と、afterにあたる複合インデックスを改良後のkeyset paginationのorders計測を比較する
+
+
+### OFFSET 0相当 after測定結果
+
+|測定項目|結果|
+|---|---|
+|計測対象|注文一覧|
+|計測条件|先頭ページ|
+|実行回数|3回|
+|各Execution Time(ms)|0.068 / 0.135 / 0.070|
+|中央値|0.070|
+|Scan type|Index Scan using idx_orders_user_id_created_at on orders|
+|Index Scan 推定rows / 実測rows|198,813 / 50|
+|Limit 推定rows / 実測rows|50 / 50|
+|実行Buffers|shared hit=7|
+|追加処理|なし|
+
+### OFFSET 1,000相当 after測定結果
+
+|測定項目|結果|
+|---|---|
+|計測対象|注文一覧|
+|計測条件|OFFSET 1,000と同じ開始位置|
+|カーソル|`2025-01-03 07:16:41+00` / `199001`|
+|実行回数|3回|
+|各Execution Time(ms)|0.076 / 0.144 / 0.086|
+|中央値|0.086|
+|Scan type|Index Scan using idx_orders_user_id_created_at on orders|
+|Index Scan 推定rows / 実測rows|39,354 / 50|
+|Limit 推定rows / 実測rows|50 / 50|
+|実行Buffers|shared hit=9|
+|追加処理|なし|
+
+### OFFSET 10,000相当 after測定結果
+
+|測定項目|結果|
+|---|---|
+|計測対象|注文一覧|
+|計測条件|OFFSET 10,000と同じ開始位置|
+|カーソル|`2025-01-03 04:46:41+00` / `190001`|
+|実行回数|3回|
+|各Execution Time(ms)|0.075 / 0.079 / 0.079|
+|中央値|0.079|
+|Scan type|Index Scan using idx_orders_user_id_created_at on orders|
+|Index Scan 推定rows / 実測rows|37,492 / 50|
+|Limit 推定rows / 実測rows|50 / 50|
+|実行Buffers|shared hit=8|
+|追加処理|なし|
+
+### OFFSET 100,000相当 after測定結果
+
+|測定項目|結果|
+|---|---|
+|計測対象|注文一覧|
+|計測条件|OFFSET 100,000と同じ開始位置|
+|カーソル|`2025-01-02 03:46:41+00` / `100001`|
+|実行回数|3回|
+|各Execution Time(ms)|0.136 / 0.070 / 0.072|
+|中央値|0.072|
+|Scan type|Index Scan using idx_orders_user_id_created_at on orders|
+|Index Scan 推定rows / 実測rows|19,690 / 50|
+|Limit 推定rows / 実測rows|50 / 50|
+|実行Buffers|shared hit=8|
+|追加処理|なし|
+
+### 複合インデックス変更前後の比較
+
+|開始位置|変更前中央値(ms)|変更後中央値(ms)|変更前実測rows|変更後実測rows|変更前Buffers|変更後Buffers|
+|---:|---:|---:|---:|---:|---:|---:|
+|0|0.249|0.070|61|50|17|7|
+|1,000|0.137|0.086|51|50|17|9|
+|10,000|0.167|0.079|51|50|18|8|
+|100,000|0.133|0.072|51|50|17|8|
+
+### 結果
+
+変更前のインデックスは`(user_id, created_at DESC)`であり、`ORDER BY created_at DESC, id DESC`のうち`id DESC`を満たしていなかったため、`Incremental Sort`が発生していた。
+
+変更後はインデックスを`(user_id, created_at DESC, id DESC)`としたことで、クエリの検索条件と並び順をインデックスで満たせるようになり、`Incremental Sort`が発生しなくなった。
+
+また、変更前のOFFSET 1,000以降では、カーソル境界の行を含む51件を読み取り、Filterで1件を除外していた。変更後は`(created_at, id)`のカーソル条件全体が`Index Cond`に入り、すべての条件で50件だけを読み取った。
+
+実行Buffersは変更前の`shared hit=17〜18`から、変更後は`shared hit=7〜9`に減少した。Execution Timeの中央値もすべての条件で短縮され、変更後は`0.070〜0.086 ms`だった。
+
+実行時間は非常に短く測定値がぶれやすいものの、実行計画から追加SortとFilterがなくなり、実測rowsとBuffersも減少したことを確認できた。
