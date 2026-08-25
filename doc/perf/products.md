@@ -75,3 +75,79 @@ sed -n '2p'
 ### 結果
 - rows約10倍、Buffers約10倍、largeの時間約13.96倍とおおむねデータ量通りの実行時間、実行内容であった
 - largeの場合はデータ量が多くバッファキャッシュに収まらないため速度が少し遅い`shared read`でブロックの読み込みを行っていることが分かった
+
+
+## keyset pagination計測
+### 概要
+issue #103 の`3-3. 注文一覧before計測`で、OFFSETによるページネーションでは読み取り位置が深くなるにつれて実行時間が増加することがわかったので、Keyset Paginationの方が読み取り位置が深くても読み取り量と実行時間が増加しにくいことを理解するためのタスク。
+
+`products`を読み取る際に、`WHERE id > :cursor`で読み取り位置を変えて`LIMIT 50`で50件表示するSQLで計測を行う。
+
+### 計測SQL・条件
+- large profileを使用する
+
+計測に使うSQLは以下
+
+```sql
+EXPLAIN(ANALYZE, BUFFERS, FORMAT TEXT)
+SELECT
+    id,
+    name,
+    price,
+    is_available,
+    category_id,
+    sku,
+    description,
+    image_url,
+    stock_quantity,
+    created_at,
+    updated_at
+FROM public.products
+WHERE id > :cursor
+ORDER BY id
+LIMIT 50;
+```
+
+### cursor 0
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| cursor 0|
+|実行回数| 3回|
+|各Execution Time(ms)|0.209/0.081/0.200|
+|中央値|0.200|
+|Scan type|Index Scan using products_pkey on products|
+|推定rows / 実測rows|1,000,000/50|
+|実行Buffers|shared hit=8|
+
+### cursor 500,000
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| cursor 500,000|
+|実行回数| 3回|
+|各Execution Time(ms)|0.813/0.096/0.095|
+|中央値|0.096|
+|Scan type|Index Scan using products_pkey on products|
+|推定rows / 実測rows|501,699/50|
+|実行Buffers|shared hit=8|
+
+### cursor 999,950
+|測定項目|結果|
+|---|---|
+|計測対象| 商品一覧|
+|計測条件| cursor 999,950|
+|実行回数| 3回|
+|各Execution Time(ms)|0.087/0.238/0.188|
+|中央値|0.188|
+|Scan type|Index Scan using products_pkey on products|
+|推定rows / 実測rows|50/50|
+|実行Buffers|shared hit=8|
+
+### 結果
+カーソルの位置に応じてIndex Scanの推定rowsが1,000,000->501,699->50と減少した。
+
+全ての条件で実測rowsは50でBuffersは`shared hit=8`だった。
+
+すべての条件で実行速度に大きな差は無く、keyset paginationは読み取り位置が深くなってもインデックスから開始位置へ移動し必要な５０件だけを取得できることが分かった。
+
