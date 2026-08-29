@@ -40,6 +40,8 @@
   "remoteUser": "vscode",
   "postCreateCommand": "sudo chown -R $(whoami):$(whoami) /home/vscode/.codex",
   "remoteEnv": {
-    "JWT_SECRET": "${containerEnv:JWT_SECRET}"
+    "JWT_SECRET": "${containerEnv:JWT_SECRET}",
+    "GOMODCACHE": "/home/vscode/.cache/go-mod",
+    "PATH": "/home/vscode/.cache/go-tools/bin:${containerEnv:PATH}"
   }
 }
