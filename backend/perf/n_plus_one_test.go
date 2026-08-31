@@ -164,3 +164,79 @@ func TestLoadOrdersNPlusOne(t *testing.T) {
 		}
 	}
 }
+
+func loadOrdersNPlusOne(
+	ctx context.Context,
+	dbtx db.DBTX,
+	userID int64,
+	limit int,
+) ([]orderWithItems, error) {
+	const listLimitedOrders = `
+  SELECT
+      id,
+      user_id,
+      total,
+      status,
+      created_at,
+      updated_at
+  FROM orders
+  WHERE user_id = $1
+  ORDER BY created_at DESC, id DESC
+  LIMIT $2
+  `
+
+	rows, err := dbtx.QueryContext(
+		ctx,
+		listLimitedOrders,
+		userID,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orders := make([]db.ListOrdersByUserRow, 0, limit)
+
+	for rows.Next() {
+		var order db.ListOrdersByUserRow
+
+		if err := rows.Scan(
+			&order.ID,
+			&order.UserID,
+			&order.Total,
+			&order.Status,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		orders = append(orders, order)
+	}
+
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	queries := db.New(dbtx)
+	result := make([]orderWithItems, 0, len(orders))
+
+	for _, order := range orders {
+		items, err := queries.ListOrderItemsByOrderID(ctx, order.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, orderWithItems{
+			Order: order,
+			Items: items,
+		})
+	}
+
+	return result, nil
+}
