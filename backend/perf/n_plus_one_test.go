@@ -101,13 +101,32 @@ func openPerfDB(t *testing.T, ctx context.Context) *sql.DB {
 
 func TestLoadOrdersNPlusOne(t *testing.T) {
 	const (
-		userID int64 = 1
-		limit        = 10
+		userID   int64 = 1
+		maxLimit int   = 500
 	)
+
+	tests := []struct {
+		name  string
+		limit int
+	}{
+		{
+			name:  "N=10",
+			limit: 10,
+		},
+		{
+			name:  "N=100",
+			limit: 100,
+		},
+		{
+			name:  "N=500",
+			limit: 500,
+		},
+	}
+
 	ctx := t.Context()
 	sqlDB := openPerfDB(t, ctx)
 
-	// テストデータが前提件数を満たすことを確認。このSQLはN+1のクエリに含めない
+	// fixture確認用SQLはクエリ数の計測に含めない。
 	var availableOrders int
 	err := sqlDB.QueryRowContext(
 		ctx,
@@ -115,53 +134,65 @@ func TestLoadOrdersNPlusOne(t *testing.T) {
 		userID,
 	).Scan(&availableOrders)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, availableOrders, limit)
+	require.GreaterOrEqual(t, availableOrders, maxLimit)
 
-	countedDB := newCountingDB(sqlDB)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// サブテストごとにカウンターを0から始める。
+			countedDB := newCountingDB(sqlDB)
 
-	got, err := loadOrdersNPlusOne(
-		ctx,
-		countedDB,
-		userID,
-		limit,
-	)
-	require.NoError(t, err)
-	require.Len(t, got, limit)
-
-	// 注文一覧1回＋注文明細10回。
-	assert.Equal(t, int64(1+limit), countedDB.Count())
-
-	for orderIndex, result := range got {
-		// 注文順はcreated_at DESC, id DESC。
-		if orderIndex > 0 {
-			previous := got[orderIndex-1].Order
-			current := result.Order
-
-			correctOrder := previous.CreatedAt.After(current.CreatedAt) ||
-				(previous.CreatedAt.Equal(current.CreatedAt) &&
-					previous.ID > current.ID)
-
-			assert.True(
-				t,
-				correctOrder,
-				"orders are not sorted at index %d",
-				orderIndex,
+			got, err := loadOrdersNPlusOne(
+				ctx,
+				countedDB,
+				userID,
+				tt.limit,
 			)
-		}
+			require.NoError(t, err)
+			require.Len(t, got, tt.limit)
 
-		for itemIndex, item := range result.Items {
-			// 明細が正しい注文に所属している。
-			assert.Equal(t, result.Order.ID, item.OrderID)
+			assert.Equal(
+				t,
+				int64(1+tt.limit),
+				countedDB.Count(),
+			)
 
-			// 注文内の明細順はid ASC。
-			if itemIndex > 0 {
-				assert.Less(
-					t,
-					result.Items[itemIndex-1].ID,
-					item.ID,
-				)
+			for orderIndex, result := range got {
+				// 注文順はcreated_at DESC, id DESC。
+				if orderIndex > 0 {
+					previous := got[orderIndex-1].Order
+					current := result.Order
+
+					correctOrder :=
+						previous.CreatedAt.After(current.CreatedAt) ||
+							(previous.CreatedAt.Equal(current.CreatedAt) &&
+								previous.ID > current.ID)
+
+					assert.True(
+						t,
+						correctOrder,
+						"orders are not sorted at index %d",
+						orderIndex,
+					)
+				}
+
+				for itemIndex, item := range result.Items {
+					assert.Equal(
+						t,
+						result.Order.ID,
+						item.OrderID,
+					)
+
+					// 注文内の明細順はid ASC。
+					if itemIndex > 0 {
+						assert.Less(
+							t,
+							result.Items[itemIndex-1].ID,
+							item.ID,
+						)
+					}
+				}
 			}
-		}
+		})
 	}
 }
 
