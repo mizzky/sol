@@ -7,8 +7,10 @@ import (
 	"database/sql"
 	"os"
 	"sol_coffeesys/backend/db"
+	"sort"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -270,4 +272,108 @@ func loadOrdersNPlusOne(
 	}
 
 	return result, nil
+}
+
+func TestMeasureOrdersNPlusOne(t *testing.T) {
+	const userID int64 = 1
+
+	const (
+		maxLimit = 500
+		runCount = 5
+	)
+
+	tests := []struct {
+		name  string
+		limit int
+	}{
+		{name: "N=10", limit: 10},
+		{name: "N=100", limit: 100},
+		{name: "N=500", limit: 500},
+	}
+
+	ctx := t.Context()
+	sqlDB := openPerfDB(t, ctx)
+
+	// fixture確認は計測対象外。
+	var availableOrders int
+	err := sqlDB.QueryRowContext(
+		ctx,
+		"SELECT COUNT(*) FROM orders WHERE user_id = $1",
+		userID,
+	).Scan(&availableOrders)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, availableOrders, maxLimit)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// ウォームアップは本計測に含めない。
+			warmupDB := newCountingDB(sqlDB)
+			warmupResult, err := loadOrdersNPlusOne(
+				ctx,
+				warmupDB,
+				userID,
+				tt.limit,
+			)
+			require.NoError(t, err)
+			require.Len(t, warmupResult, tt.limit)
+			require.Equal(
+				t,
+				int64(1+tt.limit),
+				warmupDB.Count(),
+			)
+
+			durations := make([]time.Duration, 0, runCount)
+			itemCounts := make([]int, 0, runCount)
+
+			for run := 0; run < runCount; run++ {
+				// runごとにクエリ数を0から数える。
+				countedDB := newCountingDB(sqlDB)
+
+				startedAt := time.Now()
+				got, err := loadOrdersNPlusOne(
+					ctx,
+					countedDB,
+					userID,
+					tt.limit,
+				)
+				elapsed := time.Since(startedAt)
+
+				// 検証処理は計測時間に含めない。
+				require.NoError(t, err)
+				require.Len(t, got, tt.limit)
+				require.Equal(
+					t,
+					int64(1+tt.limit),
+					countedDB.Count(),
+				)
+
+				itemCount := 0
+				for _, result := range got {
+					itemCount += len(result.Items)
+				}
+
+				durations = append(durations, elapsed)
+				itemCounts = append(itemCounts, itemCount)
+			}
+
+			for run := 1; run < len(itemCounts); run++ {
+				require.Equal(t, itemCounts[0], itemCounts[run])
+			}
+
+			sort.Slice(durations, func(i, j int) bool {
+				return durations[i] < durations[j]
+			})
+			median := durations[len(durations)/2]
+
+			t.Logf(
+				"N=%d median=%s queries=%d orders=%d items=%d runs=%d",
+				tt.limit,
+				median,
+				1+tt.limit,
+				tt.limit,
+				itemCounts[0],
+				runCount,
+			)
+		})
+	}
 }
