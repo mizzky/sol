@@ -377,3 +377,42 @@ func TestMeasureOrdersNPlusOne(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadOrdersBatch(t *testing.T) {
+	const userID int64 = 1
+
+	tests := []struct {
+		name  string
+		limit int
+	}{
+		{name: "N=10", limit: 10},
+	}
+
+	ctx := t.Context()
+	sqlDB := openPerfDB(t, ctx)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			want, err := loadOrdersNPlusOne(
+				ctx,
+				sqlDB,
+				userID,
+				tt.limit,
+			)
+			require.NoError(t, err)
+			require.Len(t, want, tt.limit)
+
+			countedDB := newCountingDB(sqlDB)
+
+			got, err := loadOrdersBatch(
+				ctx,
+				countedDB,
+				userID,
+				tt.limit,
+			)
+			require.NoError(t, err)
+			require.Equal(t, want, got)
+			require.Equal(t, int64(2), countedDB.Count())
+		})
+	}
+}
