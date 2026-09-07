@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -415,4 +416,142 @@ func TestLoadOrdersBatch(t *testing.T) {
 			require.Equal(t, int64(2), countedDB.Count())
 		})
 	}
+}
+
+func loadOrdersBatch(
+	ctx context.Context,
+	dbtx db.DBTX,
+	userID int64,
+	limit int,
+) ([]orderWithItems, error) {
+	const listLimitedOrders = `
+        SELECT
+                id,
+                user_id,
+                total,
+                status,
+                created_at,
+                updated_at
+        FROM orders
+        WHERE user_id = $1
+        ORDER BY created_at DESC, id DESC
+        LIMIT $2
+        `
+
+	const listOrderItemsByOrderIDs = `
+        SELECT
+                id,
+                order_id,
+                product_id,
+                quantity,
+                unit_price,
+                product_name_snapshot,
+                created_at,
+                updated_at
+        FROM order_items
+        WHERE order_id = ANY($1::bigint[])
+        ORDER BY order_id, id
+        `
+
+	// 1クエリ目: 注文一覧を取得する。
+	orderRows, err := dbtx.QueryContext(
+		ctx,
+		listLimitedOrders,
+		userID,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer orderRows.Close()
+
+	orders := make([]db.ListOrdersByUserRow, 0, limit)
+
+	for orderRows.Next() {
+		var order db.ListOrdersByUserRow
+
+		if err := orderRows.Scan(
+			&order.ID,
+			&order.UserID,
+			&order.Total,
+			&order.Status,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		orders = append(orders, order)
+	}
+
+	if err := orderRows.Close(); err != nil {
+		return nil, err
+	}
+
+	if err := orderRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// 一括取得する注文IDを作る。
+	orderIDs := make([]int64, 0, len(orders))
+	for _, order := range orders {
+		orderIDs = append(orderIDs, order.ID)
+	}
+
+	// 2クエリ目: 全注文の明細を一括取得する。
+	itemRows, err := dbtx.QueryContext(
+		ctx,
+		listOrderItemsByOrderIDs,
+		pq.Array(orderIDs),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer itemRows.Close()
+
+	itemsByOrderID := make(
+		map[int64][]db.OrderItem,
+		len(orders),
+	)
+	for itemRows.Next() {
+		var item db.OrderItem
+
+		if err := itemRows.Scan(
+			&item.ID,
+			&item.OrderID,
+			&item.ProductID,
+			&item.Quantity,
+			&item.UnitPrice,
+			&item.ProductNameSnapshot,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		itemsByOrderID[item.OrderID] = append(
+			itemsByOrderID[item.OrderID],
+			item,
+		)
+	}
+
+	if err := itemRows.Close(); err != nil {
+		return nil, err
+	}
+
+	if err := itemRows.Err(); err != nil {
+		return nil, err
+	}
+
+	// 注文一覧の順序を保ちながら明細を結合する。
+	result := make([]orderWithItems, 0, len(orders))
+
+	for _, order := range orders {
+		result = append(result, orderWithItems{
+			Order: order,
+			Items: itemsByOrderID[order.ID],
+		})
+	}
+
+	return result, nil
 }
