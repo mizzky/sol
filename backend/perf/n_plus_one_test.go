@@ -387,6 +387,8 @@ func TestLoadOrdersBatch(t *testing.T) {
 		limit int
 	}{
 		{name: "N=10", limit: 10},
+		{name: "N=100", limit: 100},
+		{name: "N=500", limit: 500},
 	}
 
 	ctx := t.Context()
