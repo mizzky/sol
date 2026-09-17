@@ -268,6 +268,20 @@ FROM order_items
 WHERE order_id = $1
 ORDER BY id;
 
+-- name: ListOrderItemsByOrderIDs :many
+  SELECT
+      id,
+      order_id,
+      product_id,
+      quantity,
+      unit_price,
+      product_name_snapshot,
+      created_at,
+      updated_at
+  FROM order_items
+  WHERE order_id = ANY(sqlc.arg(order_ids)::bigint[])
+  ORDER BY order_id, id;
+
 -- name: UpdateOrderStatus :one
 UPDATE orders
 SET

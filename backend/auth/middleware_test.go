@@ -185,6 +185,10 @@ func (f *FakeQuerier) ListOrderItemsByOrderID(ctx context.Context, orderID int64
 	return []db.OrderItem{}, nil
 }
 
+func (f *FakeQuerier) ListOrderItemsByOrderIDs(ctx context.Context, orderIDs []int64) ([]db.OrderItem, error) {
+	return []db.OrderItem{}, nil
+}
+
 func (f *FakeQuerier) ListOrdersByUser(ctx context.Context, userID int64) ([]db.ListOrdersByUserRow, error) {
 	return []db.ListOrdersByUserRow{}, nil
 }

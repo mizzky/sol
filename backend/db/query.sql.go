@@ -9,6 +9,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const addCartItem = `-- name: AddCartItem :one
@@ -799,6 +801,53 @@ ORDER BY id
 
 func (q *Queries) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]OrderItem, error) {
 	rows, err := q.db.QueryContext(ctx, listOrderItemsByOrderID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrderItem
+	for rows.Next() {
+		var i OrderItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.UnitPrice,
+			&i.ProductNameSnapshot,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrderItemsByOrderIDs = `-- name: ListOrderItemsByOrderIDs :many
+  SELECT
+      id,
+      order_id,
+      product_id,
+      quantity,
+      unit_price,
+      product_name_snapshot,
+      created_at,
+      updated_at
+  FROM order_items
+  WHERE order_id = ANY($1::bigint[])
+  ORDER BY order_id, id
+`
+
+func (q *Queries) ListOrderItemsByOrderIDs(ctx context.Context, orderIds []int64) ([]OrderItem, error) {
+	rows, err := q.db.QueryContext(ctx, listOrderItemsByOrderIDs, pq.Array(orderIds))
 	if err != nil {
 		return nil, err
 	}
