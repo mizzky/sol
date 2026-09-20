@@ -923,7 +923,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -934,9 +934,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -976,7 +973,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -987,10 +984,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1030,7 +1023,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -1041,10 +1034,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1084,7 +1073,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -1095,10 +1084,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1109,6 +1094,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
+
 			},
 		},
 		{
@@ -1154,7 +1140,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -1165,9 +1151,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1206,7 +1189,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -1217,9 +1200,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1258,7 +1238,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1}).Return(
 					[]db.OrderItem{
 						{
 							ID:                  11,
