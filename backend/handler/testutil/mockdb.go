@@ -172,6 +172,14 @@ func (m *MockDB) ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]
 	return args.Get(0).([]db.OrderItem), args.Error(1)
 }
 
+func (m *MockDB) ListOrderItemsByOrderIDs(ctx context.Context, orderIDs []int64) ([]db.OrderItem, error) {
+	args := m.Called(ctx, orderIDs)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]db.OrderItem), args.Error(1)
+}
+
 func (m *MockDB) UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.UpdateOrderStatusRow, error) {
 	args := m.Called(ctx, arg)
 	return args.Get(0).(db.UpdateOrderStatusRow), args.Error(1)

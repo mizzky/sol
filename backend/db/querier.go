@@ -40,6 +40,7 @@ type Querier interface {
 	ListCartItemsByUser(ctx context.Context, userID int64) ([]ListCartItemsByUserRow, error)
 	ListCategories(ctx context.Context) ([]Category, error)
 	ListOrderItemsByOrderID(ctx context.Context, orderID int64) ([]OrderItem, error)
+	ListOrderItemsByOrderIDs(ctx context.Context, orderIds []int64) ([]OrderItem, error)
 	ListOrdersByUser(ctx context.Context, userID int64) ([]ListOrdersByUserRow, error)
 	ListProducts(ctx context.Context) ([]Product, error)
 	RemoveCartItem(ctx context.Context, id int64) error

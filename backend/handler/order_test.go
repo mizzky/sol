@@ -710,7 +710,7 @@ func TestGetOrderLogic(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1}).Return(
 					[]db.OrderItem{
 						{
 							ID:        1,
@@ -765,7 +765,7 @@ func TestGetOrderLogic(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1}).Return(
 					[]db.OrderItem{}, errors.New("db error"))
 			},
 		},
@@ -799,6 +799,88 @@ func TestGetOrderLogic(t *testing.T) {
 			mockDB.AssertExpectations(t)
 		})
 	}
+}
+
+func TestGetOrderLogic_BatchQueryKeepsOrderAndItemsOrder(t *testing.T) {
+	now := time.Now()
+	mockDB := new(testutil.MockDB)
+
+	orders := []db.ListOrdersByUserRow{
+		{
+			ID:        2,
+			UserID:    1,
+			Total:     2000,
+			Status:    "pending",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			ID:        1,
+			UserID:    1,
+			Total:     1000,
+			Status:    "pending",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	batchItems := []db.OrderItem{
+		{
+			ID:        11,
+			OrderID:   1,
+			ProductID: 101,
+			Quantity:  1,
+			UnitPrice: 1000,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			ID:        21,
+			OrderID:   2,
+			ProductID: 201,
+			Quantity:  1,
+			UnitPrice: 1000,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			ID:        22,
+			OrderID:   2,
+			ProductID: 202,
+			Quantity:  1,
+			UnitPrice: 1000,
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	mockDB.On("ListOrdersByUser", mock.Anything, int64(1)).Return(
+		orders, nil).Once()
+	mockDB.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{2, 1}).Return(
+		batchItems, nil).Once()
+
+	got, err := getOrderLogic(context.Background(), mockDB, 1)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []OrderWithItems{
+		{
+			Order: orders[0],
+			Items: []db.OrderItem{
+				batchItems[1],
+				batchItems[2],
+			},
+		},
+		{
+			Order: orders[1],
+			Items: []db.OrderItem{
+				batchItems[0],
+			},
+		},
+	},
+		got,
+	)
+
+	mockDB.AssertExpectations(t)
 }
 
 func TestGetOrdersHandler(t *testing.T) {
@@ -841,7 +923,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -852,9 +934,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -894,7 +973,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -905,10 +984,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -948,7 +1023,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -959,10 +1034,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1002,7 +1073,7 @@ func TestGetOrdersHandler(t *testing.T) {
 						},
 					}, nil)
 
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -1013,10 +1084,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1027,6 +1094,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
+
 			},
 		},
 		{
@@ -1072,7 +1140,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -1083,9 +1151,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1124,7 +1189,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1, 2}).Return(
 					[]db.OrderItem{
 						{
 							ID:        11,
@@ -1135,9 +1200,6 @@ func TestGetOrdersHandler(t *testing.T) {
 							CreatedAt: now,
 							UpdatedAt: now,
 						},
-					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(2)).Return(
-					[]db.OrderItem{
 						{
 							ID:        21,
 							OrderID:   2,
@@ -1176,7 +1238,7 @@ func TestGetOrdersHandler(t *testing.T) {
 							UpdatedAt: now,
 						},
 					}, nil)
-				m.On("ListOrderItemsByOrderID", mock.Anything, int64(1)).Return(
+				m.On("ListOrderItemsByOrderIDs", mock.Anything, []int64{1}).Return(
 					[]db.OrderItem{
 						{
 							ID:                  11,

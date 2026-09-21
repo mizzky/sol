@@ -279,16 +279,38 @@ func getOrderLogic(ctx context.Context, qtx db.Querier, userID int64) ([]OrderWi
 		return nil, err
 	}
 	res := make([]OrderWithItems, 0, len(orders))
+
+	if len(orders) == 0 {
+		return res, nil
+	}
+	orderIDs := make([]int64, 0, len(orders))
 	for _, order := range orders {
-		items, err := qtx.ListOrderItemsByOrderID(ctx, order.ID)
-		if err != nil {
-			return nil, err
-		}
+		orderIDs = append(orderIDs, order.ID)
+	}
+
+	items, err := qtx.ListOrderItemsByOrderIDs(ctx, orderIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	itemsByOrderID := make(
+		map[int64][]db.OrderItem,
+		len(orders),
+	)
+	for _, item := range items {
+		itemsByOrderID[item.OrderID] = append(
+			itemsByOrderID[item.OrderID],
+			item,
+		)
+	}
+
+	for _, order := range orders {
 		res = append(res, OrderWithItems{
 			Order: order,
-			Items: items,
+			Items: itemsByOrderID[order.ID],
 		})
 	}
+
 	return res, nil
 }
 
