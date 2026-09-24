@@ -19,3 +19,20 @@ func TestLoadDBPoolConfig_Defaults(t *testing.T) {
 	require.Equal(t, 5, got.maxIdleConns)
 	require.Equal(t, 30*time.Minute, got.connMaxLifetime)
 }
+
+func TestLoadDBPoolConfig_Overrides(t *testing.T) {
+	env := map[string]string{
+		"DB_MAX_OPEN_CONNS":    "20",
+		"DB_MAX_IDLE_CONNS":    "10",
+		"DB_CONN_MAX_LIFETIME": "45m",
+	}
+	getenv := func(key string) string {
+		return env[key]
+	}
+	got, err := loadDBPoolConfig(getenv)
+
+	require.NoError(t, err)
+	require.Equal(t, 20, got.maxOpenConns)
+	require.Equal(t, 10, got.maxIdleConns)
+	require.Equal(t, 45*time.Minute, got.connMaxLifetime)
+}
