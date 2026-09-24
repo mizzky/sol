@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 type dbPoolConfig struct {
 	maxOpenConns    int
@@ -9,9 +12,22 @@ type dbPoolConfig struct {
 }
 
 func loadDBPoolConfig(getenv func(string) string) (dbPoolConfig, error) {
-	return dbPoolConfig{
+	config := dbPoolConfig{
 		maxOpenConns:    10,
 		maxIdleConns:    5,
 		connMaxLifetime: 30 * time.Minute,
-	}, nil
+	}
+
+	if value := getenv("DB_MAX_OPEN_CONNS"); value != "" {
+		config.maxOpenConns, _ = strconv.Atoi(value)
+	}
+
+	if value := getenv("DB_MAX_IDLE_CONNS"); value != "" {
+		config.maxIdleConns, _ = strconv.Atoi(value)
+	}
+
+	if value := getenv("DB_CONN_MAX_LIFETIME"); value != "" {
+		config.connMaxLifetime, _ = time.ParseDuration(value)
+	}
+	return config, nil
 }
