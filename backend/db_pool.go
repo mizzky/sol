@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -19,7 +20,14 @@ func loadDBPoolConfig(getenv func(string) string) (dbPoolConfig, error) {
 	}
 
 	if value := getenv("DB_MAX_OPEN_CONNS"); value != "" {
-		config.maxOpenConns, _ = strconv.Atoi(value)
+		maxOpenConns, err := strconv.Atoi(value)
+		if err != nil {
+			return dbPoolConfig{}, fmt.Errorf(
+				"DB_MAX_OPEN_CONNS must be an integer: %w",
+				err,
+			)
+		}
+		config.maxOpenConns = maxOpenConns
 	}
 
 	if value := getenv("DB_MAX_IDLE_CONNS"); value != "" {
