@@ -49,3 +49,16 @@ func TestLoadDBPoolConfig_InvalidMaxOpen(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "DB_MAX_OPEN_CONNS")
 }
+
+func TestLoadDBPoolConfig_InvalidMaxIdle(t *testing.T) {
+	env := map[string]string{
+		"DB_MAX_IDLE_CONNS": "invalid",
+	}
+	getenv := func(key string) string {
+		return env[key]
+	}
+	_, err := loadDBPoolConfig(getenv)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "DB_MAX_IDLE_CONNS")
+}
