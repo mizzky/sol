@@ -31,7 +31,14 @@ func loadDBPoolConfig(getenv func(string) string) (dbPoolConfig, error) {
 	}
 
 	if value := getenv("DB_MAX_IDLE_CONNS"); value != "" {
-		config.maxIdleConns, _ = strconv.Atoi(value)
+		maxIdleConns, err := strconv.Atoi(value)
+		if err != nil {
+			return dbPoolConfig{}, fmt.Errorf(
+				"DB_MAX_IDLE_CONNS must be an integer: %w",
+				err,
+			)
+		}
+		config.maxIdleConns = maxIdleConns
 	}
 
 	if value := getenv("DB_CONN_MAX_LIFETIME"); value != "" {
