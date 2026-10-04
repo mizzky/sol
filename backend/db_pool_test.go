@@ -62,3 +62,17 @@ func TestLoadDBPoolConfig_InvalidMaxIdle(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "DB_MAX_IDLE_CONNS")
 }
+
+func TestLoadDBPoolConfig_InvalidMaxLifetime(t *testing.T) {
+	env := map[string]string{
+		"DB_CONN_MAX_LIFETIME": "invalid",
+	}
+	getenv := func(key string) string {
+		return env[key]
+	}
+
+	_, err := loadDBPoolConfig(getenv)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "DB_CONN_MAX_LIFETIME")
+}
