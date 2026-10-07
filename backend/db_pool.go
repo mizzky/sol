@@ -42,7 +42,14 @@ func loadDBPoolConfig(getenv func(string) string) (dbPoolConfig, error) {
 	}
 
 	if value := getenv("DB_CONN_MAX_LIFETIME"); value != "" {
-		config.connMaxLifetime, _ = time.ParseDuration(value)
+		connMaxLifetime, err := time.ParseDuration(value)
+		if err != nil {
+			return dbPoolConfig{}, fmt.Errorf(
+				"DB_CONN_MAX_LIFETIME must be a duration: %w",
+				err,
+			)
+		}
+		config.connMaxLifetime = connMaxLifetime
 	}
 	return config, nil
 }
