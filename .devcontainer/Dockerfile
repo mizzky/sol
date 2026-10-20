@@ -18,6 +18,9 @@ RUN go install github.com/air-verse/air@v1.64.5 && \
     go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 && \
     go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest 
 
+# Go 1.25に対応したlazygitのバージョンを固定
+RUN go install github.com/jesseduffield/lazygit@v0.65.1
+
 RUN chmod -R 755 /go/bin
 
 # bash使用時にStarshipを起動するための設定
