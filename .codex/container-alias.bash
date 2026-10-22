@@ -4,10 +4,13 @@ _sol_coffeesys_codex_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd
 _sol_coffeesys_codex() {
   case "$PWD/" in
     "$_sol_coffeesys_codex_root/"*)
-      HERDR_AGENT=codex docker exec -it \
-        -u vscode \
-        -w /workspaces/sol_coffeesys \
-        sol_coffeesys_devcontainer-app-1 codex "$@"
+      devcontainer up \
+        --workspace-folder "$_sol_coffeesys_codex_root" || return
+
+      HERDR_AGENT=codex devcontainer exec \
+        --workspace-folder "$_sol_coffeesys_codex_root" \
+        --remote-env HERDR_AGENT=codex \
+        codex "$@"
       ;;
     *)
       command codex "$@"
